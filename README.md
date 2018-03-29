@@ -7,11 +7,23 @@ ummon3 is a neural network library written in Python, Numpy, Scipy and PyTorch.
 ## Dependencies
 
 The package requires Python 3 and just needs the standard packages `numpy`, `scipy`, 
-`setuptools` and `PyTorch` which can be installed on conda [recommended] as
+`setuptools` and `PyTorch` which can be installed on Anaconda [recommended] as
 
     conda create -n ummon3 python=3.6 anaconda 
     source activate ummon3
     conda install pytorch torchvision -c pytorch
+
+To remove an existing environment
+
+    conda remove --name myenv --all
+
+To list all existing Anaconda environments
+
+    conda env list
+
+To install to an arbitrary location
+
+    conda create -p /path/to/environment python=3.6 anaconda
 
 or on a Mac (macOS Binaries dont support CUDA, install from source if CUDA is needed: https://github.com/pytorch/pytorch#from-source)
 
