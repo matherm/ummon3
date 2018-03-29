@@ -7,12 +7,8 @@ from setuptools import setup
 from setuptools.command.install import install
 from setuptools.command.test import test
 from setuptools import find_packages
-try:
-    import numpy
-    import numpy.distutils.system_info as sysinfo
-except:
-    print("No `numpy` found. Exiting..")
-    exit()
+import numpy
+import numpy.distutils.system_info as sysinfo
 try:
     import torch
 except:
@@ -37,6 +33,7 @@ class PreInstallation(install):
     Installs needed local packages and runs some pre-installation procedures
     """
     def run(self):
+        install.run(self)
         print("")
         print("########################")
         print("#   WELCOME to ummon3")
@@ -44,7 +41,6 @@ class PreInstallation(install):
         print("########################\n")
         self.print_info()
         cwd = os.getcwd()
-        #install.run(self)
         #os.chdir("./utils/eigency/")
         #subprocess.call(
         #        "python setup.py install", shell=True
@@ -57,10 +53,9 @@ class PreInstallation(install):
         print("\tpython setup.py --version")
         print("\n To run an example:")
         print("\tpython examples/basicusage.py")
-        print("\n To import ummon:")
+        print("\n To import and use ummon:")
         print("\timport ummon")
         print("\tprint(ummon.version)")
-        
 
 
     def print_info(self):
@@ -121,8 +116,8 @@ class TestPerformance(install):
 
 
 setup(
-      name = 'ummon3',
-      author = 'Matthias Hermann',
+      name = 'ummon',
+      author = 'Matthias O. Franz, Matthias Heramnn, Michael Grunwald, Pascal Laube',
       author_email = 'Matthias.Hermann@htwg-konstanz.de',
       version = __version__,
       install_requires=['numpy>=1.5.0'],
@@ -131,6 +126,7 @@ setup(
       platforms=["OS Independent"],
       keywords=['numpy', 'pytorch'],
       long_description= "",
+      url="https://git.ios.htwg-konstanz.de/mof-applications/ummon3",
       classifiers=[
       'Development Status :: Beta',
       'Intended Audience :: Developers',
@@ -139,6 +135,23 @@ setup(
       'Programming Language :: Python',
       ],
       test_suite="ummon.tests",
+#      py_modules=[
+#        '__version__',
+#        'ummon/analyzer',
+#        'ummon/logger',
+#        'ummon/trainer',
+#        'ummon/trainingstate',
+#        'ummon/visualizer',
+#        'ummon/modules/bspline',
+#        ],
+#     package_dir = {'ummon': '',
+#                   'ummon.modules' : 'ummon/modules',},
+     packages=['ummon', 'ummon.modules', 'ummon.tests'],
+     setup_requires=[
+        'numpy',
+        'setuptools',
+        'scipy'
+     ],
       cmdclass={ 'install':  PreInstallation,
                  'performance' : TestPerformance}
-      )
+  )

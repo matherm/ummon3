@@ -6,11 +6,32 @@ sys.path.insert(0,'../ummon3')
 ##########################################################################
 
 class Logger:
-    def __init__(self):
+    """
+    This class provides a generic Logger for logging training information to file/console.
+    
+    Constructor
+    -----------
+    direname : String
+               The directory used for saving logs (if NULL logs are only printed to console)       
+             
+    Methods
+    -------
+        
+         
+    """
+    def __init__(self, direname):
         self.name = "ummon.Logger"
         
+        if direname:
+            self.dirname = direname
+            self.filelog = True
+        else:
+            self.filelog = False
+            
+    def log_to_file(self, training_state):
+        pass
     
-    def print_training_state(self):
+    def log_to_console(self, training_state):
         pass
     
         
