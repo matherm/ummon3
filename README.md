@@ -120,13 +120,30 @@ in Anaconda
     source activate ummon3
     python setup.py install
 
-The module should be available as:
-
-    import ummon3
-
 Test your installation by calling 
 
     python3 setup.py test
+    
+Test your performance by calling 
+
+    python3 setup.py performance
+
+The module should be available as:
+
+    import ummon
+    ummon.system_info()
+
+## Start using ummon
+
+Validate your installation:
+
+    import ummon.tests
+    ummon.tests.validation()
+
+Test your system performance:
+
+    import ummon.tests
+    ummon.tests.performance()
 
 ## Directory structure
 * examples: examples of use
