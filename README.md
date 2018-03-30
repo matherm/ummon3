@@ -93,6 +93,7 @@ Install the Cuda-Samples during installation:
     cd ./bin/x86_64/linux/release/
 
 execute tests:
+
     ./deviceQuery
     ./bandwidthTest
 
