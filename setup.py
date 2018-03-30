@@ -9,11 +9,7 @@ from setuptools.command.test import test
 from setuptools import find_packages
 import numpy
 import numpy.distutils.system_info as sysinfo
-try:
-    import torch
-except:
-    print("No `torch` found. Exiting..")
-    exit()
+import torch
 
 
 """
@@ -66,33 +62,32 @@ class TestPerformance(install):
     def run(self):
         ummon.tests.performance()
         
-
 setup(
       name = 'ummon',
+      version = __version__,
+      description= "ummon v3 is a neural network library written in Python, Numpy, Scipy and PyTorch.",
       author = 'Matthias O. Franz, Matthias Heramnn, Michael Grunwald, Pascal Laube',
       author_email = 'Matthias.Hermann@htwg-konstanz.de',
-      version = __version__,
-      install_requires=['numpy>=1.5.0'],
-      python_requires='>=3.5',
-      license = 'GNU Library or Lesser General Public License (LGPL)',
-      platforms=["OS Independent"],
       keywords=['numpy', 'pytorch'],
-      long_description= "",
+      license = 'GNU Library or Lesser General Public License (LGPL)',
       url="https://git.ios.htwg-konstanz.de/mof-applications/ummon3",
       classifiers=[
-      'Development Status :: Beta',
-      'Intended Audience :: Developers',
-      'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
-      'Operating System :: OS Independent',
-      'Programming Language :: Python',
+          'Development Status :: Beta',
+          'Intended Audience :: Developers',
+          'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
+          'Operating System :: OS Independent',
+          'Programming Language :: Python',
       ],
-      test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.tests'],
+      platforms=["OS Independent"],
+      install_requires=['numpy>=1.5.0'],
+      python_requires='>=3.5',
       setup_requires=[
         'numpy',
         'setuptools',
         'scipy'
         ],
+      test_suite="ummon.tests",
+      packages=['ummon', 'ummon.modules', 'ummon.tests'],
       cmdclass={ 'install':  PreInstallation,
                  'performance' : TestPerformance}
   )
