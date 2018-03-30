@@ -35,32 +35,48 @@ class Trainingstate():
         
         self.state = None
     
-    def update_state(self, model, optimizer, epoch, iteration, loss, accuracy):
+    def update_state(self, model, optimizer, epoch, training_loss, validation_loss, test_loss, training_accuracy, validation_accuracy, test_accuracy ):
         if self.state is None:
             self.state = {  
                              "model_desc" : str(model),
-                             "init_optimizer_state" : optimizer.state_dict(),
-                             "best_loss" : (epoch, loss),
-                             "best_accuracy" : (epoch, accuracy),
                              "cuda" : next(model.parameters()).is_cuda, 
-                             "loss[]" : [(epoch, loss)],
-                             "lrate[]" : [optimizer.state_dict()["param_groups"][0]["lr"]],
-                             "accuracy[]" : [(epoch, accuracy)],
+                             "init_optimizer_state" : optimizer.state_dict(),
+                             "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
                              "optimizer_state": optimizer.state_dict(),
+                             "best_training_loss" : (epoch, training_loss),
+                             "best_training_accuracy" : (epoch, training_accuracy),
+                             "training_loss[]" : [(epoch, training_loss)],
+                             "training_accuracy[]" : [(epoch, training_accuracy)],
+                             "best_validation_loss" : (epoch, validation_loss),
+                             "best_validation_accuracy" : (epoch, validation_accuracy),
+                             "validation_loss[]" : [(epoch, validation_loss)],
+                             "validation_accuracy[]" : [(epoch, validation_accuracy)],
+                             "best_test_loss" : (epoch, test_loss),
+                             "best_test_accuracy" : (epoch, test_accuracy),
+                             "test_loss[]" : [(epoch, test_loss)],
+                             "test_accuracy[]" : [(epoch, test_accuracy)],
                           }
         else:
              self.state = {  
                              "model_desc" : str(model),
-                             "init_optimizer_state" : self.state["init_optimizer_state"],
-                             "best_loss" : (epoch, loss) if loss < self.state["best_loss"][1] else self.state["best_loss"],
-                             "best_accuracy" : (epoch, accuracy) if accuracy < self.state["best_accuracy"][1] else self.state["best_accuracy"],
                              "cuda" : self.state["cuda"], 
-                             "loss[]" : [*self.state["loss[]"], (epoch, loss)],
-                             "lrate[]" : [*self.state["lrate[]"], optimizer.state_dict()["param_groups"][0]["lr"]],
-                             "accuracy[]" : [*self.state["accuracy[]"], (epoch, accuracy)],
+                             "init_optimizer_state" : self.state["init_optimizer_state"],
+                             "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
                              "optimizer_state": optimizer.state_dict(),
+                             "best_training_loss" : (epoch, training_loss) if training_loss< self.state["best_training_loss"][1] else self.state["best_training_loss"],
+                             "best_training_accuracy" : (epoch, training_accuracy) if training_accuracy< self.state["best_training_accuracy"][1] else self.state["best_training_accuracy"],
+                             "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss)],
+                             "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy)],
+                             "best_validation_loss" : (epoch, validation_loss) if validation_loss < self.state["best_validation_loss"][1] else self.state["best_validation_loss"],
+                             "best_validation_accuracy" : (epoch, validation_accuracy) if validation_accuracy < self.state["validation_accuracy"][1] else self.state["best_validation_accuracy"],
+                             "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss)],
+                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy)],
+                             "best_test_loss" : (epoch, test_loss) if test_loss< self.state["best_test_loss"][1] else self.state["best_test_loss"],
+                             "best_test_accuracy" : (epoch, test_accuracy) if test_accuracy < self.state["best_test_accuracy"][1] else self.state["best_test_accuracy"],
+                             "test_loss[]" : [*self.state["test_loss[]"], (epoch, test_loss)],
+                             "test_accuracy[]" : [*self.state["test_accuracy[]"], (epoch, test_accuracy)],
                           }
         
     def load_state(self, filename, force_cpu = False):
@@ -69,13 +85,29 @@ class Trainingstate():
         else:
             self.state = torch.load(filename)        
         
-    def save_state(self, filename):
-        torch.save(self.state, filename)
+    def save_state(self, filename = "model", save_every_epoch = False):
+        if save_every_epoch:
+            epoch = self.state["lrate[]"][-1][0]
+            filename_epoch = str(filename + "_epoch_" + epoch)
+            torch.save(self.state, filename_epoch)
+        else:
+            torch.save(self.state, filename)
         
-        def is_best(state):
-            return state["loss"][-1] == state["best_loss"]
+        def is_best_train(state):
+            return state["training_loss[]"][-1] == state["best_training_loss"]
         
-        if is_best(self.state):
-            shutil.copyfile(filename, 'model_best.pth.tar')
+        def is_best_valid(state):
+            return state["validation_loss[]"][-1] == state["best_validation_loss"]
+        
+        def is_best_test(state):
+            return state["test_loss[]"][-1] == state["best_test_loss"]
+        
+        if is_best_train(self.state):
+            shutil.copyfile(filename, str(filename + '_best_training_loss.pth.tar'))
 
-        
+        if is_best_valid(self.state):
+            shutil.copyfile(filename, str(filename + '_best_validation_loss.pth.tar'))
+
+        if is_best_test(self.state):
+            shutil.copyfile(filename, str(filename + '_best_test_loss.pth.tar'))
+

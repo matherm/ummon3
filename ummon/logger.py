@@ -1,9 +1,9 @@
-##########################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported
+#############################################################################################
+# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
 import sys
-sys.path.insert(0,'../../ummon3')  
-sys.path.insert(0,'../ummon3')     
-##########################################################################
+sys.path.insert(0,'../../ummon3')  # for python basicusage.py
+sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
+#############################################################################################
 
 class Logger:
     """
@@ -32,9 +32,7 @@ class Logger:
         pass
     
     def log_to_console(self, training_state):
-        pass
-    
-        
+        pass        
         
 if __name__ == "__main__":
     print("This is", Logger().name)

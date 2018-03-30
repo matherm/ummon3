@@ -1,9 +1,9 @@
-##########################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported
+#############################################################################################
+# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
 import sys
-sys.path.insert(0,'../../ummon3')  
-sys.path.insert(0,'../ummon3')     
-##########################################################################
+sys.path.insert(0,'../../ummon3')  # for python basicusage.py
+sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
+#############################################################################################
 
 import numpy as np
 import shutil
@@ -26,21 +26,23 @@ class Trainer:
     save_checkpoint()   :  saves a checkpoint of the model to file            
              
     """
-    def __init__(self, logger):
+    def __init__(self, logger, model):
         self.name = "ummon.Trainer"
         
+        # MEMBER VARIABLES
         if logger:
             self.logger = logger
         else:
             self.logger = Logger()
+        self.model = model
         
-    def fit(self, model, dataloader_training, dataloader_test, optimizer, scheduler, epochs, early_stopping):
+    def fit(self, dataloader_training, dataloader_test, optimizer, scheduler, epochs, early_stopping):
         print("fit()")
                 
-    def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-        torch.save(state, filename)
-        if is_best:
-            shutil.copyfile(filename, 'model_best.pth.tar')
+    def save_checkpoint(self, state, is_best, filename='checkpoint.pth.tar'):
+    
+    def load_checkpoint(self, checkpoint):
+        self.model.load_state_dict(state['model'])
 
 if __name__ == "__main__":
     print("This is", Trainer().name)
