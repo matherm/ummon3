@@ -1,15 +1,18 @@
+from setuptools import setup
+from setuptools.command.install import install
+from setuptools.command.test import test
+from setuptools import find_packages
+# IMPORT DEPENDENCIES
 import os
 import time
 import subprocess
 import sys
 import socket
-from setuptools import setup
-from setuptools.command.install import install
-from setuptools.command.test import test
-from setuptools import find_packages
 import numpy
-import numpy.distutils.system_info as sysinfo
 import torch
+import torchvision
+import shutil
+import tabulate
 
 
 """
@@ -75,12 +78,12 @@ setup(
           'Programming Language :: Python',
       ],
       platforms=["OS Independent"],
-      install_requires=['numpy>=1.5.0'],
+      install_requires=['numpy>=1.5.0', "tabulate", "scipy", "torchvision"],
       python_requires='>=3.5',
       setup_requires=[
         'numpy',
         'setuptools',
-        'scipy'
+        'scipy',
         ],
       test_suite="ummon.tests",
       packages=['ummon', 'ummon.modules', 'ummon.tests'],

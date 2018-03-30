@@ -5,6 +5,21 @@ sys.path.insert(0,'../../ummon3')  # for python basicusage.py
 sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
 #############################################################################################
 
+import argparse
+parser = argparse.ArgumentParser(description='ummon3 Analyzer - For analysing and evaluating models')
+parser.add_argument('--state', default="model_best.pth.tar", metavar="",
+                    help="The state file (default: model_best.pth.tar)")
+parser.add_argument('--plot', action='store_true', dest='plot',
+                    help="Shall python plot intermediate tests with matplotlib (default: False)")
+argv = parser.parse_args()
+sys.argv = [sys.argv[0]]
+
+import time
+import torch
+import torch.nn as nn
+from ummon.trainingstate import Trainingstate
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
 
 class Analyzer:
     """
@@ -25,111 +40,88 @@ class Analyzer:
     accuracy()          :  Computes accuracy            
              
     """
-    def __init__(self, model, training_state):
+    def __init__(self, is_classifier = True):
         self.name = "ummon.Analyzer"
-   
-    def load(self, model, training_state_filename):
-        pass
+        
+        self.is_classifier = is_classifier
+    
+    def evaluate(self, model, loss_function, dataset):
+        assert isinstance(dataset, torch.utils.data.Dataset)
+        assert isinstance(loss_function, nn.Module)
+        assert isinstance(model, nn.Module)
 
+        evaluation_dict = {}
+        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
+        for i, data in enumerate(dataloader, 0):
+            
+                # Take time
+                t = time.time()
+
+                # Get the inputs
+                inputs, targets = data
+                
+                # Execute Model
+                model.eval()
+                output = model(Variable(inputs)).cpu()
+                model.train()
+                
+                # Compute Loss
+                targets = Variable(targets)
+                loss = loss_function(output, targets).cpu()
+                
+                # Compute classification accuracy
+                if self.is_classifier:
+                    classes = self.classify(output)
+                    acc = self.compute_accuracy(classes, targets)
+                    evaluation_dict["accuracy"] = acc
+                
+                evaluation_dict["samples_per_seconds"] = dataloader.batch_size / (time.time() - t)
+                evaluation_dict["loss"] = loss
+                
+        return evaluation_dict
+   
+    @staticmethod
+    def classify(output):
+        # Get index of class with max probability
+        classes = output.data.max(1, keepdim=True)[1] 
+        return classes
+            
+    @staticmethod
+    def inference(model, dataset):
+        raise NotImplementedError
+        pass
+   
+    @staticmethod
     def predict(model, dataset):
+        raise NotImplementedError
+        pass
+    
+    @staticmethod
+    def compute_accuracy(classes, targets):
+        correct = classes.eq(targets.data.view_as(classes))
+        accuracy = 100. * correct.sum() / len(targets)
+        return accuracy
+    
+    @staticmethod
+    def compute_loss(model, dataset, loss):
+        raise NotImplementedError
+        pass
+    
+    @staticmethod
+    def compute_roc(model, dataset):
+        raise NotImplementedError
         pass
 
+    @staticmethod
+    def get_summary(trainingstate):
+        summary = {
+                    "Epochs"                : trainingstate["training_loss"][-1][0],
+                    "Best Training Error"   : trainingstate["best_training_loss"],
+                    "Best Validation Error" : trainingstate["best_validation_loss"],
+                    "Best Test Error"       : trainingstate["best_test_loss"]
+                  }
+        return summary
+     
+        
 if __name__ == "__main__":
-    print("This is", Analyzer().name)
-    
-    
-    
-    #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Feb 19 16:17:12 2018
-
-@author: matthias
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-REINFORCE Implementation
-
-[1] Williams, R. J. (1992). 
-    Simple statistical gradient-following methods for connectionist reinforcement learning. 
-    Machine Learning, 8, 229–256. https://doi.org/10.1007/BF00992696
-
-
-Created on Mon Jan 15 13:01:27 2018
-
-@author: matthias
-@copyright: IOS
-"""
-
-import argparse
-import torch
-import image_transformations
-
-from model import RVA
-from torchvision.datasets import MNIST
-from glimpse_sensor import GlimpseSensor
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-import sys
-
-parser = argparse.ArgumentParser(description='PyTorch Recurrent Model for Visual Attention')
-parser.add_argument('--state', default="model_best.pth.tar", metavar="",
-                    help="The state file (default: model_best.pth.tar)")
-parser.add_argument('--plot', action='store_true', dest='plot',
-                    help="Shall python plot intermediate tests with matplotlib (default: False)")
-parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',
-                    help="Shall cuda be used (default: False)")
-parser.add_argument('--view', action='store_true', dest='view', 
-                    help="Just view the saved state (default: False)")
-argv = parser.parse_args()
-
-sys.argv = [sys.argv[0]]
-import train as train
-
-
-if __name__ == '__main__':
-    
-# Load the state
-if argv.use_cuda:
-    state = torch.load(argv.state)
-else:
-    #state = torch.load("model_best.pth.tar", map_location=lambda storage, loc: storage)
-    #plt.plot(state["num_epoch[]"], state["avg_scale[]"])
-    state = torch.load(argv.state, map_location=lambda storage, loc: storage)
-
-# COMBINE ARGUMENTS
-saved_args = state["args"]
-saved_args.plot = argv.plot
-saved_args.use_cuda = argv.use_cuda         
-
-# MNIST
-if saved_args.mode == 0:
-    mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
-   
-# TRANSLATED MNIST
-if saved_args.mode == 1:    
-    transform = transforms.Compose([transforms.ToTensor(), image_transformations.to_translated ])
-    mnist_data_test = MNIST("./", train=True, transform=transform, target_transform=None, download=True)
-
-testloader = DataLoader(mnist_data_test, batch_size=len(mnist_data_test), shuffle=True, sampler=None, batch_sampler=None)  
-   
-# INSTANTIATE ENVIRONMENT
-glimpse_sensor = GlimpseSensor(glimpse_size=(saved_args.glimpse_size, saved_args.glimpse_size), levels=(saved_args.glimpse_level, 2),  enable_history=True, debug=False, optimized=True)                
-
-# CHOOSE MODEL
-model = RVA(args=saved_args, glimpse_sensor=glimpse_sensor)   
-model.load_state_dict(state['model'])
-
-train.print_summary(None, testloader, saved_args, model)
-   
-print("\n[State]")
-print("Epochs:\t\t", state["num_epoch[]"][-1])
-print("Best Error:\t {:2.2f} %".format(state["best_error"]))
-print("Best Total Loss: {:2.4f}".format(state["best_total_loss"]))
-
-if not argv.view:
-    print("\nStarting Inference...\n")
-    train.evaluate(testloader, model, learning_state=None, args=saved_args)
-    
+    pass

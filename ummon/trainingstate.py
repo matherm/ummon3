@@ -35,10 +35,22 @@ class Trainingstate():
         
         self.state = None
     
-    def update_state(self, model, optimizer, epoch, training_loss, validation_loss, test_loss, training_accuracy, validation_accuracy, test_accuracy ):
+    def update_state(self, 
+                     epoch, model, loss_function, optimizer, training_loss, 
+                     validation_loss = None, 
+                     test_loss = None, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = None, 
+                     validation_batchsize = 0,
+                     test_accuracy = None, 
+                     test_batchsize = 0,
+                     args = None):
+        
         if self.state is None:
             self.state = {  
                              "model_desc" : str(model),
+                             "loss_desc"  : str(loss_function),
                              "cuda" : next(model.parameters()).is_cuda, 
                              "init_optimizer_state" : optimizer.state_dict(),
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
@@ -47,46 +59,49 @@ class Trainingstate():
                              "best_training_loss" : (epoch, training_loss),
                              "best_training_accuracy" : (epoch, training_accuracy),
                              "training_loss[]" : [(epoch, training_loss)],
-                             "training_accuracy[]" : [(epoch, training_accuracy)],
+                             "training_accuracy[]" : [(epoch, training_accuracy, training_batchsize)],
                              "best_validation_loss" : (epoch, validation_loss),
                              "best_validation_accuracy" : (epoch, validation_accuracy),
                              "validation_loss[]" : [(epoch, validation_loss)],
-                             "validation_accuracy[]" : [(epoch, validation_accuracy)],
+                             "validation_accuracy[]" : [(epoch, validation_accuracy, validation_batchsize)],
                              "best_test_loss" : (epoch, test_loss),
                              "best_test_accuracy" : (epoch, test_accuracy),
                              "test_loss[]" : [(epoch, test_loss)],
-                             "test_accuracy[]" : [(epoch, test_accuracy)],
+                             "test_accuracy[]" : [(epoch, test_accuracy, test_batchsize)],
+                             "args[]" : [args]
                           }
         else:
              self.state = {  
                              "model_desc" : str(model),
+                             "loss_desc"  : str(loss_function),
                              "cuda" : self.state["cuda"], 
                              "init_optimizer_state" : self.state["init_optimizer_state"],
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
                              "optimizer_state": optimizer.state_dict(),
                              "best_training_loss" : (epoch, training_loss) if training_loss< self.state["best_training_loss"][1] else self.state["best_training_loss"],
-                             "best_training_accuracy" : (epoch, training_accuracy) if training_accuracy< self.state["best_training_accuracy"][1] else self.state["best_training_accuracy"],
+                             "best_training_accuracy" : (epoch, training_accuracy, training_batchsize) if training_accuracy > self.state["best_training_accuracy"][1] else self.state["best_training_accuracy"],
                              "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss)],
-                             "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy)],
+                             "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy, training_batchsize)],
                              "best_validation_loss" : (epoch, validation_loss) if validation_loss < self.state["best_validation_loss"][1] else self.state["best_validation_loss"],
-                             "best_validation_accuracy" : (epoch, validation_accuracy) if validation_accuracy < self.state["validation_accuracy"][1] else self.state["best_validation_accuracy"],
+                             "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize) if validation_accuracy > self.state["validation_accuracy"][1] else self.state["best_validation_accuracy"],
                              "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss)],
-                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy)],
+                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, training_batchsize)],
                              "best_test_loss" : (epoch, test_loss) if test_loss< self.state["best_test_loss"][1] else self.state["best_test_loss"],
-                             "best_test_accuracy" : (epoch, test_accuracy) if test_accuracy < self.state["best_test_accuracy"][1] else self.state["best_test_accuracy"],
+                             "best_test_accuracy" : (epoch, test_accuracy, test_batchsize) if test_accuracy > self.state["best_test_accuracy"][1] else self.state["best_test_accuracy"],
                              "test_loss[]" : [*self.state["test_loss[]"], (epoch, test_loss)],
-                             "test_accuracy[]" : [*self.state["test_accuracy[]"], (epoch, test_accuracy)],
+                             "test_accuracy[]" : [*self.state["test_accuracy[]"], (epoch, test_accuracy, test_batchsize)],
+                             "args[]" : [*self.state["args[]"], args]
                           }
         
-    def load_state(self, filename, force_cpu = False):
-        if force_cpu:
+    def load_state(self, filename, force_weights_to_cpu = False):
+        if force_weights_to_cpu:
             self.state = torch.load(filename, map_location=lambda storage, loc: storage)
         else:
             self.state = torch.load(filename)        
         
-    def save_state(self, filename = "model", save_every_epoch = False):
-        if save_every_epoch:
+    def save_state(self, filename = "model", keep_epochs = False):
+        if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
             filename_epoch = str(filename + "_epoch_" + epoch)
             torch.save(self.state, filename_epoch)
