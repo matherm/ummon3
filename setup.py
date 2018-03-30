@@ -24,7 +24,7 @@ This setup py is used to prepare everything for use.
 import ummon
 __version__ = ummon.version
 
-class PreInstallation(install):
+class Installation(install):
     """
     Installs needed local packages and runs some pre-installation procedures
     """
@@ -35,27 +35,23 @@ class PreInstallation(install):
         print("#   WELCOME to ummon3")
         print("#  ",__version__)
         print("########################\n")
-        self.print_info()
-        cwd = os.getcwd()
-        #os.chdir("./utils/eigency/")
-        #subprocess.call(
-        #        "python setup.py install", shell=True
-        #)
+        ummon.system_info()
+        
         print("\n To test your installation:")
         print("\tpython setup.py test")
+        
         print("\n To test your performance:")
         print("\tpython setup.py performance")
+        
         print("\n To check version:")
         print("\tpython setup.py --version")
+        
         print("\n To run an example:")
         print("\tpython examples/basicusage.py")
+        
         print("\n To import and use ummon:")
         print("\timport ummon")
-        print("\tprint(ummon.version)")
-
-
-    def print_info(self):
-        ummon.system_info()
+        print("\tprint(ummon.version)")   
 
 import ummon.tests
 class TestPerformance(install):
@@ -88,6 +84,6 @@ setup(
         ],
       test_suite="ummon.tests",
       packages=['ummon', 'ummon.modules', 'ummon.tests'],
-      cmdclass={ 'install':  PreInstallation,
+      cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )
