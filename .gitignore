@@ -4,3 +4,5 @@ local*
 .eggs
 **/build/**
 *egg*
+**/processed/**
+**/raw/**
