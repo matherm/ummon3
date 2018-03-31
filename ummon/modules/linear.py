@@ -57,7 +57,8 @@ class Linear(nn.Linear):
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[1,1,1,{}]->[1,1,1,{}],wdec={})'.format(str(self.in_features), str(self.out_features), str(self.wdecay)) \
+            + '[1,1,1,{}]->[1,1,1,{}],wdec={})'.format(str(self.in_features), 
+            str(self.out_features), str(self._wdecay)) \
             + ', bias=' + str(self.bias is not None) + ')' 
     
     # get weights
