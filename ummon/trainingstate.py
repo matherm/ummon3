@@ -31,20 +31,20 @@ class Trainingstate():
     
     """
     
-    def __init__(self):
+    def __init__(self, filename = None, force_weights_to_cpu = False):
         
         self.state = None
+        
+        if not filename is None:
+            self.load_state(filename, force_weights_to_cpu)
     
     def update_state(self, 
                      epoch, model, loss_function, optimizer, training_loss, 
                      validation_loss = None, 
-                     test_loss = None, 
                      training_accuracy = 0,
                      training_batchsize = 0,
                      validation_accuracy = None, 
                      validation_batchsize = 0,
-                     test_accuracy = None, 
-                     test_batchsize = 0,
                      args = None):
         
         if self.state is None:
@@ -64,10 +64,6 @@ class Trainingstate():
                              "best_validation_accuracy" : (epoch, validation_accuracy),
                              "validation_loss[]" : [(epoch, validation_loss)],
                              "validation_accuracy[]" : [(epoch, validation_accuracy, validation_batchsize)],
-                             "best_test_loss" : (epoch, test_loss),
-                             "best_test_accuracy" : (epoch, test_accuracy),
-                             "test_loss[]" : [(epoch, test_loss)],
-                             "test_accuracy[]" : [(epoch, test_accuracy, test_batchsize)],
                              "args[]" : [args]
                           }
         else:
@@ -84,29 +80,36 @@ class Trainingstate():
                              "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss)],
                              "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy, training_batchsize)],
                              "best_validation_loss" : (epoch, validation_loss) if validation_loss < self.state["best_validation_loss"][1] else self.state["best_validation_loss"],
-                             "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize) if validation_accuracy > self.state["validation_accuracy"][1] else self.state["best_validation_accuracy"],
+                             "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize) if validation_accuracy > self.state["best_validation_accuracy"][1] else self.state["best_validation_accuracy"],
                              "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss)],
                              "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, training_batchsize)],
-                             "best_test_loss" : (epoch, test_loss) if test_loss< self.state["best_test_loss"][1] else self.state["best_test_loss"],
-                             "best_test_accuracy" : (epoch, test_accuracy, test_batchsize) if test_accuracy > self.state["best_test_accuracy"][1] else self.state["best_test_accuracy"],
-                             "test_loss[]" : [*self.state["test_loss[]"], (epoch, test_loss)],
-                             "test_accuracy[]" : [*self.state["test_accuracy[]"], (epoch, test_accuracy, test_batchsize)],
                              "args[]" : [*self.state["args[]"], args]
                           }
+        
+    def get_summary(self):
+        summary = {
+                    "Epochs"                : self.state["training_loss[]"][-1][0],
+                    "Best Training Loss"   : self.state["best_training_loss"],
+                    "Best Validation Loss" : self.state["best_validation_loss"],
+                  }
+        return summary    
         
     def load_state(self, filename, force_weights_to_cpu = False):
         if force_weights_to_cpu:
             self.state = torch.load(filename, map_location=lambda storage, loc: storage)
         else:
             self.state = torch.load(filename)        
+            
         
-    def save_state(self, filename = "model", keep_epochs = False):
+    def save_state(self, filename = "model.pth.tar", keep_epochs = False):
+        if ".pth.tar" not in filename:
+            filename = str(filename + ".pth.tar")
         if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
             filename_epoch = str(filename + "_epoch_" + epoch)
             torch.save(self.state, filename_epoch)
         else:
-            torch.save(self.state, filename)
+            torch.save(self.state, filename)  
         
         def is_best_train(state):
             return state["training_loss[]"][-1] == state["best_training_loss"]
@@ -114,15 +117,8 @@ class Trainingstate():
         def is_best_valid(state):
             return state["validation_loss[]"][-1] == state["best_validation_loss"]
         
-        def is_best_test(state):
-            return state["test_loss[]"][-1] == state["best_test_loss"]
-        
         if is_best_train(self.state):
             shutil.copyfile(filename, str(filename + '_best_training_loss.pth.tar'))
 
         if is_best_valid(self.state):
             shutil.copyfile(filename, str(filename + '_best_validation_loss.pth.tar'))
-
-        if is_best_test(self.state):
-            shutil.copyfile(filename, str(filename + '_best_test_loss.pth.tar'))
-

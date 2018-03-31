@@ -27,25 +27,39 @@ class Analyzer:
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
     
-    Constructor
-    -----------
-    model           :   torch.nn.module
-                        The torch module to use
-    training_state  :   ummon.trainingstate (dictionary)
-                        The training state
-             
     Methods
     -------
-    predict()           :  Predicts any given data
-    accuracy()          :  Computes accuracy            
+    evaluate()          : Evaluates a model with given validation dataset
+    classify()          : Classifies model outputs with One-Hot-Encoding            
+    inference()         : Computes model outputs
+    compute_accuracy()  : Computes the accuracy of a classification
+    compute_roc()       : [Not implemented yet]
              
     """
-    def __init__(self, is_classifier = True):
+    def __init__(self):
         self.name = "ummon.Analyzer"
+
+    @staticmethod    
+    def evaluate(model, loss_function, dataset, regression):
+        """
+        Evaluates a model with given validation dataset
         
-        self.is_classifier = is_classifier
-    
-    def evaluate(self, model, loss_function, dataset):
+        Arguments
+        ---------
+        model           : nn.module
+                          The model
+        loss_function   : nn.module
+                          The loss function to evaluate
+        dataset         : torch.utils.data.Dataset
+                          Dataset to evaluate
+        regression      : bool
+                          Specifies if a classification needs to be done
+        
+        Return
+        ------
+        Dictionary
+        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`
+        """
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(loss_function, nn.Module)
         assert isinstance(model, nn.Module)
@@ -70,13 +84,13 @@ class Analyzer:
                 loss = loss_function(output, targets).cpu()
                 
                 # Compute classification accuracy
-                if self.is_classifier:
-                    classes = self.classify(output)
-                    acc = self.compute_accuracy(classes, targets)
+                if not regression:
+                    classes = Analyzer.classify(output)
+                    acc = Analyzer.compute_accuracy(classes, targets)
                     evaluation_dict["accuracy"] = acc
                 
                 evaluation_dict["samples_per_seconds"] = dataloader.batch_size / (time.time() - t)
-                evaluation_dict["loss"] = loss
+                evaluation_dict["loss"] = loss.data[0]
                 
         return evaluation_dict
    
@@ -88,39 +102,31 @@ class Analyzer:
             
     @staticmethod
     def inference(model, dataset):
-        raise NotImplementedError
-        pass
-   
-    @staticmethod
-    def predict(model, dataset):
-        raise NotImplementedError
-        pass
+        assert isinstance(dataset, torch.utils.data.Dataset)
+        assert isinstance(model, nn.Module)
+
+        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
+        for i, data in enumerate(dataloader, 0):
+
+                # Get the inputs
+                inputs, targets = data
+                
+                # Execute Model
+                model.eval()
+                output = model(Variable(inputs)).cpu()
+                model.train()
+        return output
     
     @staticmethod
     def compute_accuracy(classes, targets):
         correct = classes.eq(targets.data.view_as(classes))
-        accuracy = 100. * correct.sum() / len(targets)
+        accuracy = correct.sum() / len(targets)
         return accuracy
-    
-    @staticmethod
-    def compute_loss(model, dataset, loss):
-        raise NotImplementedError
-        pass
     
     @staticmethod
     def compute_roc(model, dataset):
         raise NotImplementedError
         pass
-
-    @staticmethod
-    def get_summary(trainingstate):
-        summary = {
-                    "Epochs"                : trainingstate["training_loss"][-1][0],
-                    "Best Training Error"   : trainingstate["best_training_loss"],
-                    "Best Validation Error" : trainingstate["best_validation_loss"],
-                    "Best Test Error"       : trainingstate["best_test_loss"]
-                  }
-        return summary
      
         
 if __name__ == "__main__":

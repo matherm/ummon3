@@ -20,8 +20,8 @@ import argparse
 parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1')
 #
 # TRAINING PARAMS
-parser.add_argument('--epochs', type=int, default=10, metavar='',
-                    help='Amount of epochs for training (default: 10)')
+parser.add_argument('--epochs', type=int, default=2, metavar='',
+                    help='Amount of epochs for training (default: 2)')
 parser.add_argument('--batch_size', type=int, default=40, metavar='',
                     help='Batch size for SGD (default: 40)')
 parser.add_argument('--eval_interval', type=int, default=1, metavar='',
@@ -30,15 +30,13 @@ parser.add_argument('--lrate', type=float, default=0.01, metavar="",
                     help="Learning rate (default: 0.01")
 parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',
                     help="Shall cuda be used (default: False)")
+parser.add_argument('--view', default="", metavar="",
+                    help="Print summary about a trained model")
                     
 #
 # LOG PARAMS
-parser.add_argument('--log_every', type=int, default=1000, metavar='',
-                    help='Show log output in given interval (episodes) (default: 1000)')
-parser.add_argument('--show_progress', action='store_true', dest='show_progress',
-                    help="Shall progress be printed (default: False)")                     
-                    
-args = parser.parse_args()
+argv = parser.parse_args()
+sys.argv = [sys.argv[0]]                    
 
 #
 # IMPORTS
@@ -51,6 +49,8 @@ from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
 from ummon.trainer import Trainer
 from ummon.logger import Logger
+from ummon.trainingstate import Trainingstate
+from ummon.modules.container import Sequential
 
 #
 # SET inital seed for reproducibility 
@@ -90,7 +90,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        x = F.softmax(x)
+        x = F.softmax(x, dim=1)
         return x
 
     def num_flat_features(self, x):
@@ -103,29 +103,37 @@ class Net(nn.Module):
 
 if __name__ == "__main__":
     
-    # PREPARE TEST DATA
-    mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
-    mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
-   
-    dataloader_trainingdata = DataLoader(mnist_data, batch_size=args.batch_size, shuffle=True, sampler=None, batch_sampler=None)
+    if argv.view is not "":
+        ts = Trainingstate(argv.view)
+        print(ts.get_summary())
+    else:
+        # PREPARE TEST DATA
+        mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
+        mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
+       
+        dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None)
+            
+        # CHOOSE MODEL
+        model = Net()  
         
-    # CHOOSE MODEL
-    model = Net()  
-    
-    # CHOOSE LOSS-Function
-    criterion = nn.CrossEntropyLoss()
-      
-    # INSTANTIATE OPTIMIZER
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lrate)
-    
-    # CREATE A TRAINER
-    my_trainer = Trainer(Logger(), model, criterion, optimizer)
-    
-    # START TRAININGs
-    trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                    validation_set=mnist_data_test, 
-                                    epochs=20,
-                                    eval_interval=1, 
-                                    early_stopping=False)
-
-    
+        # CHOOSE LOSS-Function
+        criterion = nn.CrossEntropyLoss()
+          
+        # INSTANTIATE OPTIMIZER
+        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
+        
+        # LOAD TRAINING STATE
+        try:
+            ts = Trainingstate("MNIST1_best_validation_loss.pth.tar")
+        except FileNotFoundError:
+            ts = None
+            
+        # CREATE A TRAINER
+        my_trainer = Trainer(Logger( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts)
+        
+        # START TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        validation_set=mnist_data_test, 
+                                        epochs=argv.epochs,
+                                        eval_interval=argv.eval_interval, 
+                                        early_stopping=False)
