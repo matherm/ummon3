@@ -284,6 +284,19 @@ class TestUmmon(unittest.TestCase):
         check_grad_activation('mse', 'sigmoid')
         check_grad_activation('cross_entropy', 'sigmoid')
         check_grad_activation('log_likelihood', 'logsoftmax')
+    
+    
+    # test fit
+    def test_logger(self):
+        print('\n')
+        
+        with Logger('ummon', 10) as lg: # create net
+            lg.debug('Test debugging output.')
+            lg.warn('Test warning!')
+            try:
+                lg.error('Test error!', ValueError)
+            except ValueError:
+                print("Only a test - no worries ...")
 
 
 if __name__ == '__main__':

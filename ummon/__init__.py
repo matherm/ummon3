@@ -4,7 +4,7 @@ ummon: IOS Neural Network Package
 
 Authors: Matthias O. Franz, Michael Grunwald, Matthias Hermann, Martin Miller
 
-Ummon is a convolutional network library. The module is available as::
+Ummon is a neural network library based on PyTorch. The package is available as::
 
     import ummon
 
@@ -35,3 +35,4 @@ def system_info():
 # import files from package
 from .modules.container import *
 from .modules.linear import *
+from .logger import Logger
