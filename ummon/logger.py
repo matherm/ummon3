@@ -11,6 +11,8 @@ import numpy as np
 import torch
 from .__version__ import version
 
+__all__ = [ 'Logger' ]
+
 # formatter for colored messages
 class _ColoredFormatter(logging.Formatter):
     '''
@@ -41,11 +43,14 @@ class _ColoredFormatter(logging.Formatter):
 # logger
 class Logger(logging.getLoggerClass()):
     '''
-    Logger used for Ummon. Parameters:
+    Logger used for Ummon::
+    
+    Parameters:
     
     * name: Logger name (default: 'logger')
     * loglevel: one of the standard log levels of the logging module (default: 
       logging.DEBUG or 10)
+    * logdir: directory for the logfiles. When set to '', nothing is logged to file.
     
     Messages can be displayed using the methods error(), warn(), info() and debug().
     Warnings are output in yellow, errors in red using the methods warn(message) and 
@@ -55,13 +60,13 @@ class Logger(logging.getLoggerClass()):
     Exception). User level and debug information are displayed using info(message) and
     debug(message). All messages can be disabled by setting the loglevel appropriately.
     The logger supports additional logging to a file which is started using the method
-    start_logfile(logfilename) and stopped by stop_logfile(). The logfile records all
+    start_logfile() and stopped by stop_logfile(). The logfile records all
     levels, independently of what is set for console output.
     '''
     
     def __init__(self, name='ummon', loglevel=logging.DEBUG, logdir=''):
-        self.name = name
-        self.loglevel = loglevel
+        self.name = str(name)
+        self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
