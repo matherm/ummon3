@@ -88,7 +88,8 @@ class Analyzer:
                     classes = Analyzer.classify(output)
                     acc = Analyzer.compute_accuracy(classes, targets)
                     evaluation_dict["accuracy"] = acc
-                
+                else:
+                    evaluation_dict["accuracy"] = 0.
                 evaluation_dict["samples_per_seconds"] = dataloader.batch_size / (time.time() - t)
                 evaluation_dict["loss"] = loss.data[0]
                 

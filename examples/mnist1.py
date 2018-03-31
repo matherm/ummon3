@@ -48,7 +48,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
 from ummon.trainer import Trainer
-from ummon.logger import Logger
+from ummon.logger import Logger2
 from ummon.trainingstate import Trainingstate
 from ummon.modules.container import Sequential
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
             ts = None
             
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts)
+        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,

@@ -46,7 +46,6 @@ class Trainingstate():
                      validation_accuracy = None, 
                      validation_batchsize = 0,
                      args = None):
-        
         if self.state is None:
             self.state = {  
                              "model_desc" : str(model),

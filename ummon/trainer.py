@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
-from ummon.logger import Logger
+from ummon.logger import Logger2
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
 
@@ -54,7 +54,7 @@ class Trainer:
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False):
         
-        assert type(logger) == Logger
+        assert type(logger) == Logger2
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
@@ -70,7 +70,7 @@ class Trainer:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.trainingstate = Trainingstate()
-        self.logger = Logger()
+        self.logger = Logger2()
         self.regression = regression
         self.epoch = 0
         
@@ -147,11 +147,13 @@ class Trainer:
                 avg_training_loss = self._moving_average(batch, avg_training_loss, loss.data[0], training_loss)
                 
                 # Running average accuracy
-                if self.is_classifier:
+                if not self.regression:
                     classes = Analyzer.classify(output)
                     acc = Analyzer.compute_accuracy(classes, targets)
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
-                
+                else:
+                    avg_training_acc = 0.
+                    
                 # Log status
                 self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, t)
 
