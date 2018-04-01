@@ -1,8 +1,8 @@
 ##################################################################################################################
 # Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
 import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
+sys.path.insert(0,'../../ummon3')  
+sys.path.insert(0,'../ummon3')     
 #############################################################################################
 import torch
 import shutil
@@ -34,6 +34,7 @@ class Trainingstate():
     def __init__(self, filename = None, force_weights_to_cpu = False):
         
         self.state = None
+        self.extension = ".pth.tar"
         
         if not filename is None:
             self.load_state(filename, force_weights_to_cpu)
@@ -45,12 +46,14 @@ class Trainingstate():
                      training_batchsize = 0,
                      validation_accuracy = None, 
                      validation_batchsize = 0,
+                     regression = False,
                      args = None):
         if self.state is None:
             self.state = {  
                              "model_desc" : str(model),
                              "loss_desc"  : str(loss_function),
                              "cuda" : next(model.parameters()).is_cuda, 
+                             "regression" : regression,
                              "init_optimizer_state" : optimizer.state_dict(),
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
@@ -70,6 +73,7 @@ class Trainingstate():
                              "model_desc" : str(model),
                              "loss_desc"  : str(loss_function),
                              "cuda" : self.state["cuda"], 
+                             "regression" : regression,
                              "init_optimizer_state" : self.state["init_optimizer_state"],
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
@@ -92,6 +96,7 @@ class Trainingstate():
                     "Best Validation Loss" : self.state["best_validation_loss"],
                   }
         return summary    
+    
         
     def load_state(self, filename, force_weights_to_cpu = False):
         if force_weights_to_cpu:
@@ -100,24 +105,28 @@ class Trainingstate():
             self.state = torch.load(filename)        
             
         
-    def save_state(self, filename = "model.pth.tar", keep_epochs = False):
-        if ".pth.tar" not in filename:
-            filename = str(filename + ".pth.tar")
+    def save_state(self, filename = "model", keep_epochs = False):
+        if self.extension not in filename:
+            filename = str(filename + self.extension)
+        short_filename = filename.split(self.extension)[0]
+        file_extension = self.extension
+        
         if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
-            filename_epoch = str(filename + "_epoch_" + epoch)
-            torch.save(self.state, filename_epoch)
+            filename = short_filename + "_epoch_" + str(epoch) + file_extension
+            torch.save(self.state, filename)
         else:
+            filename = short_filename + file_extension
             torch.save(self.state, filename)  
         
         def is_best_train(state):
-            return state["training_loss[]"][-1] == state["best_training_loss"]
+            return state["training_loss[]"][-1][1] == state["best_training_loss"][1]
         
         def is_best_valid(state):
-            return state["validation_loss[]"][-1] == state["best_validation_loss"]
+            return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
         if is_best_train(self.state):
-            shutil.copyfile(filename, str(filename + '_best_training_loss.pth.tar'))
+            shutil.copyfile(filename, str(short_filename + '_best_training_loss' + file_extension))
 
         if is_best_valid(self.state):
-            shutil.copyfile(filename, str(filename + '_best_validation_loss.pth.tar'))
+            shutil.copyfile(filename, str(short_filename + '_best_validation_loss' + file_extension))

@@ -1,8 +1,8 @@
 #############################################################################################
 # Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
 import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
+sys.path.insert(0,'../../ummon3') 
+sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
 import time
@@ -39,6 +39,8 @@ class Trainer:
                       : OPTIONAL Name of the persisted model files
     model_keep_epochs : bool
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
+    precision         : np.dtype
+                        OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
     
     Methods
     -------
@@ -52,7 +54,8 @@ class Trainer:
                  trainingstate = None, 
                  regression = False, 
                  model_filename = "model.pth.tar", 
-                 model_keep_epochs = False):
+                 model_keep_epochs = False,
+                 precision = np.float32):
         
         assert type(logger) == Logger2
         assert isinstance(model, nn.Module)
@@ -73,8 +76,14 @@ class Trainer:
         self.logger = Logger2()
         self.regression = regression
         self.epoch = 0
+        self.precision = np.float32
         
-        # Persistence parameters
+        if self.precision == np.float32:
+            self.model = self.model.float()
+        if self.precision == np.float64:
+            self.model = self.model.double()
+        
+#         Persistency parameters
         self.model_filename = model_filename
         self.model_keep_epochs = model_keep_epochs
         
@@ -94,6 +103,7 @@ class Trainer:
     def fit(self, dataloader_training, validation_set, epochs, eval_interval, early_stopping, after_backward_hook=None, args=None):
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
         assert isinstance(validation_set, torch.utils.data.Dataset)
+        assert dataloader_training.dataset[0][0].numpy().dtype == self.precision
         
         if early_stopping:
             raise NotImplementedError("Early Stopping is not implemented yet!")
@@ -148,8 +158,8 @@ class Trainer:
                 
                 # Running average accuracy
                 if not self.regression:
-                    classes = Analyzer.classify(output)
-                    acc = Analyzer.compute_accuracy(classes, targets)
+                    classes = Analyzer.classify(output.data)
+                    acc = Analyzer.compute_accuracy(classes, targets.data)
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
                 else:
                     avg_training_acc = 0.
@@ -163,6 +173,8 @@ class Trainer:
             # MODEL VALIDATION
             if (epoch +1) % eval_interval == 0:
                 self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, dataloader_training.batch_size, args)
+                
+        return self.trainingstate
               
                 
     def evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, training_batch_size, args):
@@ -177,6 +189,7 @@ class Trainer:
                      training_batchsize = training_batch_size,
                      validation_accuracy = evaluation_dict["accuracy"], 
                      validation_batchsize = len(validation_set),
+                     regression = self.regression,
                      args = args)
 
         self.logger.log_evaluation(self.trainingstate, evaluation_dict["samples_per_seconds"])

@@ -185,10 +185,13 @@ class Logger2:
         self.name = "ummon.Logger"
         
         # MEMBERS
-        self.logfile = logfile
+        if logfile is not None and ".log" not in logfile:
+            self.logfile = str(logfile + ".log")
+        else:
+            self.logfile = logfile
         self.filelog = True if logfile is not None else False
         self.log_batch_interval = log_batch_interval
-            
+    
     def log_one_batch(self, epoch, batch, batches, loss, t):
         if batch % self.log_batch_interval == 0:
             print("\r[INFO] Epoch: {} - Batch/Batches: {:05}/{:05} - Loss: {:04.5f}. [{:02} s] ".format(
@@ -233,18 +236,25 @@ class Logger2:
         loss =  learningstate.state["validation_loss[]"][-1][1]
         acc  =  learningstate.state["validation_accuracy[]"][-1][1]
         batchsize = learningstate.state["validation_accuracy[]"][-1][2]
-        is_best = learningstate.state["validation_accuracy[]"][-1][1] == learningstate.state["best_validation_accuracy"][1]
+        regression = learningstate.state["regression"]
+        is_best = learningstate.state["validation_loss[]"][-1][1] == learningstate.state["best_validation_loss"][1]
         
         print("\n[EVAL] Model Evaluation","Epoch #", epoch, "lrate :", lrate)
         print("       ----------------------------------------")  
-        print('       Test set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None)
+        if regression == True:
+            print('       Validation set: loss: {:.4f}.'.format(loss), "[BEST]" if is_best else None)
+        else:
+            print('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None)
         print('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
 
         if self.filelog:
                 with open(self.logfile, "a") as logfile:
                     print("\n[EVAL] Model Evaluation","Epoch #", epoch, "lrate :", lrate, file=logfile)
                     print("       ----------------------------------------", file=logfile)  
-                    print('       Test set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None, file=logfile)
+                    if regression == True:
+                        print('       Validation set: loss: {:.4f}.'.format(loss), "[BEST]" if is_best else None, file=logfile)
+                    else:
+                        print('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None, file=logfile)
                     print('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds), file=logfile)
 
 
@@ -282,9 +292,15 @@ class Logger2:
                         ["using_cuda"  , "True" if next(model.parameters()).is_cuda else "False"],
                         ["early_stopping" , early_stopping]]
 
-        table_data = [['Training'  , len(dataloader_train.dataset) if dataloader_train is not None else 0, str(dataloader_train.dataset[0][0].numpy().shape) if dataloader_train is not None else "---"], 
-                      ['Validation', len(dataset_validation) if dataset_validation is not None else 0, str(dataset_validation[0][0].numpy().shape) if dataset_validation is not None else "---"],
-                      ['Test'      , len(dataset_test)  if dataset_test is not None else 0,  str(dataset_test[0][0].numpy().shape)] if dataset_test is not None else "---"]
+        table_data = [['Training'  , len(dataloader_train.dataset) if dataloader_train is not None else 0, 
+                                     str(dataloader_train.dataset[0][0].numpy().shape) + "/" + str(dataloader_train.dataset[0][1].numpy().shape if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---", 
+                                     str(dataloader_train.dataset[0][0].numpy().dtype) + "/" + str(dataloader_train.dataset[0][1].numpy().dtype if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---"], 
+                      ['Validation', len(dataset_validation) if dataset_validation is not None else 0, 
+                                     str(dataset_validation[0][0].numpy().shape) + "/" + str(dataset_validation[0][1].numpy().shape if type(dataset_validation[0][1]) != int else "int") if dataset_validation is not None else "---", 
+                                     str(dataset_validation[0][0].numpy().dtype)+ "/" + str(dataset_validation[0][1].numpy().dtype if type(dataset_validation[0][1]) != int else "int") if dataset_validation is not None else "---"],
+                      ['Test'      , len(dataset_test)  if dataset_test is not None else 0,  
+                                     str(dataset_test[0][0].numpy().shape) + "/" + str(dataset_test[0][1].numpy().shape) if dataset_test is not None else "---", 
+                                     str(dataset_test[0][0].numpy().dtype) + "/" + str(dataset_test[0][0].numpy().dtype) if dataset_test is not None else "---" ]]
 
         print("\n[Parameters]")
         print(tabulate(table_params, headers=['Key', 'Value']))
@@ -296,7 +312,7 @@ class Logger2:
         print(loss_function)
         
         print("\n[Data]")
-        print(tabulate(table_data, headers=['Dataset', 'Samples', "Dimensions (per sample)"]))
+        print(tabulate(table_data, headers=['Dataset', 'Samples', "Shape x/y (per sample)", "Dtype x/y"]))
 
         if self.filelog:
             with open(self.logfile, "a") as logfile:
@@ -310,7 +326,7 @@ class Logger2:
                 print(loss_function, file=logfile)
                 
                 print("\n[Data]", file=logfile)
-                print(tabulate(table_data, headers=['Dataset', 'Samples', "Dimensions (per sample)"]), file=logfile)
+                print(tabulate(table_data, headers=['Dataset', 'Samples', "Shape x/y (per sample)",  "Dtype x/y"]), file=logfile)
 
 
         

@@ -1,20 +1,12 @@
 #############################################################################################
 # Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
 import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
+sys.path.insert(0,'../../ummon3')  
+sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
-import argparse
-parser = argparse.ArgumentParser(description='ummon3 Analyzer - For analysing and evaluating models')
-parser.add_argument('--state', default="model_best.pth.tar", metavar="",
-                    help="The state file (default: model_best.pth.tar)")
-parser.add_argument('--plot', action='store_true', dest='plot',
-                    help="Shall python plot intermediate tests with matplotlib (default: False)")
-argv = parser.parse_args()
-sys.argv = [sys.argv[0]]
-
 import time
+import numpy as np
 import torch
 import torch.nn as nn
 from ummon.trainingstate import Trainingstate
@@ -85,8 +77,8 @@ class Analyzer:
                 
                 # Compute classification accuracy
                 if not regression:
-                    classes = Analyzer.classify(output)
-                    acc = Analyzer.compute_accuracy(classes, targets)
+                    classes = Analyzer.classify(output.data)
+                    acc = Analyzer.compute_accuracy(classes, targets.data)
                     evaluation_dict["accuracy"] = acc
                 else:
                     evaluation_dict["accuracy"] = 0.
@@ -97,8 +89,9 @@ class Analyzer:
    
     @staticmethod
     def classify(output):
+        assert isinstance(output, torch.Tensor)
         # Get index of class with max probability
-        classes = output.data.max(1, keepdim=True)[1] 
+        classes = output.max(1, keepdim=True)[1] 
         return classes
             
     @staticmethod
@@ -120,7 +113,11 @@ class Analyzer:
     
     @staticmethod
     def compute_accuracy(classes, targets):
-        correct = classes.eq(targets.data.view_as(classes))
+        assert isinstance(classes, torch.LongTensor)
+        assert isinstance(targets, torch.LongTensor)
+        assert targets.shape[0] == classes.shape[0]
+        
+        correct = classes.eq(targets.view_as(classes))
         accuracy = correct.sum() / len(targets)
         return accuracy
     

@@ -1,10 +1,15 @@
 import unittest
 from math import log
+import os
 
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torch.nn.functional as F
+from torch.utils.data.dataset import TensorDataset
+from torch.utils.data import DataLoader
+
 
 from ummon import *
 
@@ -297,6 +302,189 @@ class TestUmmon(unittest.TestCase):
                 lg.error('Test error!', ValueError)
             except ValueError:
                 print("Only a test - no worries ...")
+
+    def test_trainer(self):
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.sigmoid(self.fc1(x))
+                x = self.fc2(x)
+                return x
+    
+        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y = torch.from_numpy(np.sin(x.numpy())) 
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        
+        dataset = TensorDataset(x.float(), y.float())
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+        # CREATE A TRAINER
+        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
+        
+        # START TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        validation_set=dataset_valid, 
+                                        epochs=5,
+                                        eval_interval=2, 
+                                        early_stopping=False)
+        # RESTORE STATE
+        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True)
+        
+        os.remove("test.log")
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(trainingsstate.extension):
+                os.remove(os.path.join(dir,file))
+        
+    
+    def test_trainingstate_update(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(10, 256)
+                self.fc2 = nn.Linear(256, 84)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+                def forward(self, x):
+                    x = F.relu(self.fc1(x))
+                    x = F.relu(self.fc2(x))
+                    x = F.softmax(x, dim=1)
+                    return x
+        
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.SGD(Net().parameters(), lr=0.01)
+        
+        ts = Trainingstate()
+        ts.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_batchsize = 0,
+                     regression = True,
+                     args = { "args" : 1 , "argv" : 2})
+        ts.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_batchsize = 0,
+                     regression = True,
+                     args = { "args" : 1 , "argv" : 2})
+        
+        
+    def test_trainingstate_persistency(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(10, 256)
+                
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+                def forward(self, x):
+                    x = F.relu(self.fc1(x))
+                    x = F.softmax(x, dim=1)
+                    return x
+        
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.SGD(Net().parameters(), lr=0.01)
+        
+        ts = Trainingstate()
+        ts.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_batchsize = 0,
+                     args = { "args" : 1 , "argv" : 2})
+        ts.save_state("test.pth.tar")
+        ts.load_state("test.pth.tar")
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(ts.extension):
+                os.remove(os.path.join(dir,file))
+       
+    
+    def test_analyzer(self):
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.relu(self.fc1(x))
+                x = F.relu(self.fc2(x))
+                return x
+    
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+        
+        model = Net()
+        Analyzer().inference(model, dataset_valid)
+       
+        pass
+    
+    def test_logger2(self):
+        Logger2("test.log").info("Testlog")
+        os.remove("test.log")
+        
+    
+    def test_visualizer(self):
+        pass
+    
+    
+        
+        
 
 
 if __name__ == '__main__':

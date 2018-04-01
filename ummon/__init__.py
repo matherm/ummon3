@@ -17,12 +17,14 @@ import torch
 import socket
 import numpy
 import sys
+from platform import platform
 import ummon.__version__
 version = ummon.__version__.version
 
 def system_info():
         print("SYSTEM INFORMATION (", socket.gethostname(),")" )
         print("---------------------------------")
+        print("Platform:", platform())
         print("Python:", sys.version_info[0:3])
         print("CuDNN:", torch.backends.cudnn.version())
         print("CUDA:", torch.version.cuda) 
@@ -36,3 +38,8 @@ def system_info():
 from .modules.container import *
 from .modules.linear import *
 from .logger import Logger
+from .trainingstate import Trainingstate
+from .analyzer import Analyzer
+from .trainer import Trainer
+from .logger import Logger2
+from .visualizer import Visualizer
