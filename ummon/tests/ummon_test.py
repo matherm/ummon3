@@ -347,7 +347,7 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=2, 
                                         early_stopping=False)
         # RESTORE STATE
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True)
+        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
         
         os.remove("test.log")
         files = os.listdir(".")
