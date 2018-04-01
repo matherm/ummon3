@@ -109,6 +109,8 @@ class Trainer:
             self.model = self.model.double()
         if self.use_cuda:
             self.model = self.model.cuda()
+        else:
+            self.model = self.model.cpu()
         
     def fit(self, dataloader_training, validation_set, epochs, eval_interval, early_stopping, after_backward_hook=None, args=None):
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
