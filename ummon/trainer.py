@@ -76,7 +76,7 @@ class Trainer:
         self.logger = Logger2()
         self.regression = regression
         self.epoch = 0
-        self.precision = np.float32
+        self.precision = precision
         
         if self.precision == np.float32:
             self.model = self.model.float()

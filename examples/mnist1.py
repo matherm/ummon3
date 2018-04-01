@@ -127,9 +127,10 @@ if __name__ == "__main__":
             ts = Trainingstate("MNIST1_best_validation_loss.pth.tar")
         except FileNotFoundError:
             ts = None
-            
+        
+        print(mnist_data[0][0].numpy().dtype)
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts)
+        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts, precision=np.float32)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
