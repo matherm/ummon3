@@ -343,14 +343,14 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=5,
+                                        epochs=2,
                                         eval_interval=2, 
                                         early_stopping=False)
         # RESTORE STATE
         my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
         
         # RESTART TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
                                         epochs=2,
                                         eval_interval=2, 
@@ -413,7 +413,7 @@ class TestUmmon(unittest.TestCase):
         my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
         
         # RESTART TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
                                         epochs=2,
                                         eval_interval=2, 
