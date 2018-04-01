@@ -346,6 +346,8 @@ class TestUmmon(unittest.TestCase):
                                         epochs=2,
                                         eval_interval=2, 
                                         early_stopping=False)
+        self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
+
         # RESTORE STATE
         my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
         
@@ -362,9 +364,6 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(trainingsstate.extension):
                 os.remove(os.path.join(dir,file))
-                
-        self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
-        
         
     def test_trainer_cuda(self):
         #
@@ -409,6 +408,9 @@ class TestUmmon(unittest.TestCase):
                                         epochs=2,
                                         eval_interval=2, 
                                         early_stopping=False)
+
+        self.assertTrue(np.allclose(0.559272289276123,trainingsstate.state["best_validation_loss"][1]))
+
         # RESTORE STATE
         my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
         
@@ -426,7 +428,6 @@ class TestUmmon(unittest.TestCase):
             if file.endswith(trainingsstate.extension):
                 os.remove(os.path.join(dir,file))
                 
-        self.assertTrue(np.allclose(0.559272289276123,trainingsstate.state["best_validation_loss"][1]))
     
     def test_trainingstate_update(self):
         np.random.seed(17)
