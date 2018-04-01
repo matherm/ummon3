@@ -81,12 +81,7 @@ class Net(nn.Module):
                 nn.init.normal(m.weight, mean=0, std=0.1)
         self.apply(weights_init_normal)
 
-        # Handle Cuda        
-        self.use_cuda = use_cuda
-
     def forward(self, x):
-        if self.use_cuda:
-            x = x.cuda()
         # Max pooling over a (2, 2) window
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
         # If the size is a square you can only specify a single number
@@ -119,7 +114,7 @@ if __name__ == "__main__":
         dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None)
             
         # CHOOSE MODEL
-        model = Net(use_cuda=argv.use_cuda)  
+        model = Net()  
         
         # CHOOSE LOSS-Function
         criterion = nn.CrossEntropyLoss()
@@ -135,7 +130,15 @@ if __name__ == "__main__":
         
         print(mnist_data[0][0].numpy().dtype)
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", log_batch_interval=500), model, criterion, optimizer, model_filename="MNIST1", trainingstate=ts, precision=np.float32)
+        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", 
+                                     log_batch_interval=500), 
+                                     model, 
+                                     criterion, 
+                                     optimizer, 
+                                     model_filename="MNIST1", 
+                                     trainingstate=ts, 
+                                     precision=np.float32,
+                                     use_cuda=argv.use_cuda)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,

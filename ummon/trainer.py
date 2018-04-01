@@ -41,6 +41,8 @@ class Trainer:
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
     precision         : np.dtype
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
+    use_cuda          : bool
+                        OPTIONAL Shall cuda be used as computational backend (default False)
     
     Methods
     -------
@@ -55,7 +57,8 @@ class Trainer:
                  regression = False, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
-                 precision = np.float32):
+                 precision = np.float32,
+                 use_cuda = False):
         
         assert type(logger) == Logger2
         assert isinstance(model, nn.Module)
@@ -77,13 +80,9 @@ class Trainer:
         self.regression = regression
         self.epoch = 0
         self.precision = precision
+        self.use_cuda = use_cuda
         
-        if self.precision == np.float32:
-            self.model = self.model.float()
-        if self.precision == np.float64:
-            self.model = self.model.double()
-        
-#         Persistency parameters
+        #  Persistency parameters
         self.model_filename = model_filename
         self.model_keep_epochs = model_keep_epochs
         
@@ -102,6 +101,14 @@ class Trainer:
 
             assert precision == self.trainingstate.state["precision"]
             self.precision = self.trainingstate.state["precision"]
+        
+        # Computational configuration
+        if self.precision == np.float32:
+            self.model = self.model.float()
+        if self.precision == np.float64:
+            self.model = self.model.double()
+        if self.use_cuda:
+            self.model = self.model.cuda()
         
     def fit(self, dataloader_training, validation_set, epochs, eval_interval, early_stopping, after_backward_hook=None, args=None):
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
@@ -135,6 +142,10 @@ class Trainer:
             
                 # Get the inputs
                 inputs, targets = data
+                
+                # Handle cuda
+                if self.use_cuda:
+                    inputs = inputs.cuda()
                 
                 # Execute Model
                 output = self.model(Variable(inputs)).cpu()
