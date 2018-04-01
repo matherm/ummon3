@@ -343,9 +343,10 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=2,
+                                        epochs=5,
                                         eval_interval=2, 
                                         early_stopping=False)
+        
         self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
 
         # RESTORE STATE
@@ -354,7 +355,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=2,
+                                        epochs=1,
                                         eval_interval=2, 
                                         early_stopping=False)
         
@@ -405,7 +406,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=2,
+                                        epochs=5,
                                         eval_interval=2, 
                                         early_stopping=False)
 
@@ -417,7 +418,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=2,
+                                        epochs=1,
                                         eval_interval=2, 
                                         early_stopping=False)
         
