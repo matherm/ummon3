@@ -25,6 +25,7 @@ def system_info():
         print("SYSTEM INFORMATION (", socket.gethostname(),")" )
         print("---------------------------------")
         print("Platform:", platform())
+        print("ummon3:", version)
         print("Python:", sys.version_info[0:3])
         print("CuDNN:", torch.backends.cudnn.version())
         print("CUDA:", torch.version.cuda) 

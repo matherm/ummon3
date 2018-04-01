@@ -55,6 +55,7 @@ class Installation(install):
         print("\n To import and use ummon:")
         print("\timport ummon")
         print("\tprint(ummon.version)")   
+        print("\tummon.system_info()")   
 
 import ummon.tests
 class TestPerformance(install):
