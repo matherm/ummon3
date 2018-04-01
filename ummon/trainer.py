@@ -99,9 +99,9 @@ class Trainer:
             self.model.load_state_dict(trainingstate.state["model_state"])            
             self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
+
+            assert precision == self.trainingstate.state["precision"]
             self.precision = self.trainingstate.state["precision"]
-            if precision != self.trainingstate.state["precision"]: 
-                raise ValueError("Traingstate precision mismatch: Expected", precision, "but was", self.trainingstate.state["precision"]) 
         
     def fit(self, dataloader_training, validation_set, epochs, eval_interval, early_stopping, after_backward_hook=None, args=None):
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
