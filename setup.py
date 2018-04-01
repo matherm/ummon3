@@ -50,7 +50,7 @@ class Installation(install):
         print("\tpython setup.py --version")
         
         print("\n To run an example:")
-        print("\tpython examples/basicusage.py")
+        print("\tpython examples/mnist1.py")
         
         print("\n To import and use ummon:")
         print("\timport ummon")
