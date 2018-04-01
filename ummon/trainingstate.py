@@ -6,6 +6,7 @@ sys.path.insert(0,'../ummon3')
 #############################################################################################
 import torch
 import shutil
+import numpy as np
 
 class Trainingstate():
     """
@@ -47,6 +48,7 @@ class Trainingstate():
                      validation_accuracy = None, 
                      validation_batchsize = 0,
                      regression = False,
+                     precision = np.float32,
                      args = None):
         if self.state is None:
             self.state = {  
@@ -54,6 +56,7 @@ class Trainingstate():
                              "loss_desc"  : str(loss_function),
                              "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
+                             "precision" : precision,
                              "init_optimizer_state" : optimizer.state_dict(),
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
@@ -74,6 +77,7 @@ class Trainingstate():
                              "loss_desc"  : str(loss_function),
                              "cuda" : self.state["cuda"], 
                              "regression" : regression,
+                             "precision" : precision,
                              "init_optimizer_state" : self.state["init_optimizer_state"],
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),

@@ -99,6 +99,9 @@ class Trainer:
             self.model.load_state_dict(trainingstate.state["model_state"])            
             self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
+            self.precision = self.trainingstate.state["precision"]
+            if precision != self.trainingstate.state["precision"]: 
+                raise ValueError("Traingstate precision mismatch: Expected", precision, "but was", self.trainingstate.state["precision"]) 
         
     def fit(self, dataloader_training, validation_set, epochs, eval_interval, early_stopping, after_backward_hook=None, args=None):
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
@@ -190,6 +193,7 @@ class Trainer:
                      validation_accuracy = evaluation_dict["accuracy"], 
                      validation_batchsize = len(validation_set),
                      regression = self.regression,
+                     precision = self.precision,
                      args = args)
 
         self.logger.log_evaluation(self.trainingstate, evaluation_dict["samples_per_seconds"])
