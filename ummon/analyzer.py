@@ -55,8 +55,9 @@ class Analyzer:
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(loss_function, nn.Module)
         assert isinstance(model, nn.Module)
-
+        
         evaluation_dict = {}
+        use_cuda = next(model.parameters()).is_cuda
         dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
         for i, data in enumerate(dataloader, 0):
             
@@ -65,6 +66,10 @@ class Analyzer:
 
                 # Get the inputs
                 inputs, targets = data
+                
+                # Handle cuda
+                if use_cuda:
+                    inputs = inputs.cuda()
                 
                 # Execute Model
                 model.eval()
@@ -98,12 +103,17 @@ class Analyzer:
     def inference(model, dataset):
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(model, nn.Module)
-
+        
+        use_cuda = next(model.parameters()).is_cuda
         dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
         for i, data in enumerate(dataloader, 0):
 
                 # Get the inputs
                 inputs, targets = data
+                
+                 # Handle cuda
+                if use_cuda:
+                    inputs = inputs.cuda()
                 
                 # Execute Model
                 model.eval()
