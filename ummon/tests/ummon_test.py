@@ -349,6 +349,13 @@ class TestUmmon(unittest.TestCase):
         # RESTORE STATE
         my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
         
+        # RESTART TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        validation_set=dataset_valid, 
+                                        epochs=2,
+                                        eval_interval=2, 
+                                        early_stopping=False)
+        
         os.remove("test.log")
         files = os.listdir(".")
         dir = "."
@@ -399,11 +406,18 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=5,
+                                        epochs=2,
                                         eval_interval=2, 
                                         early_stopping=False)
         # RESTORE STATE
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
+        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
+        
+        # RESTART TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        validation_set=dataset_valid, 
+                                        epochs=2,
+                                        eval_interval=2, 
+                                        early_stopping=False)
         
         os.remove("test.log")
         files = os.listdir(".")
@@ -412,7 +426,7 @@ class TestUmmon(unittest.TestCase):
             if file.endswith(trainingsstate.extension):
                 os.remove(os.path.join(dir,file))
                 
-        self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
+        self.assertTrue(np.allclose(0.559272289276123,trainingsstate.state["best_validation_loss"][1]))
     
     def test_trainingstate_update(self):
         np.random.seed(17)
