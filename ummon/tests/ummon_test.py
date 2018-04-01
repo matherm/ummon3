@@ -355,6 +355,8 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(trainingsstate.extension):
                 os.remove(os.path.join(dir,file))
+                
+        self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
         
     
     def test_trainingstate_update(self):
