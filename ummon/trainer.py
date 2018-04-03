@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
-from ummon.logger import Logger2
+from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
 
@@ -60,7 +60,7 @@ class Trainer:
                  precision = np.float32,
                  use_cuda = False):
         
-        assert type(logger) == Logger2
+        assert type(logger) == Logger
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
@@ -76,7 +76,7 @@ class Trainer:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.trainingstate = Trainingstate()
-        self.logger = Logger2()
+        self.logger = Logger()
         self.regression = regression
         self.epoch = 0
         self.precision = precision
@@ -87,9 +87,8 @@ class Trainer:
         self.model_keep_epochs = model_keep_epochs
         
         # INITIALIZE LOGGER
-        if logger:
-            self.logger = logger
-            
+        self.logger = logger
+        
         # RESTORE STATE    
         if trainingstate:
             self.trainingstate = trainingstate

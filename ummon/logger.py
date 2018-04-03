@@ -63,13 +63,16 @@ class Logger(logging.getLoggerClass()):
     start_logfile() and stopped by stop_logfile(). The logfile records all
     levels, independently of what is set for console output.
     '''
-    
-    def __init__(self, name='ummon', loglevel=logging.DEBUG, logdir=''):
+    def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', 
+        log_batch_interval=500):
         self.name = str(name)
         self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
+        log_batch_interval = int(log_batch_interval)
+        self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500
+    
     
     # setup logging
     def __enter__(self):
@@ -86,10 +89,8 @@ class Logger(logging.getLoggerClass()):
         if self.logdir != '':
             self.start_logfile()
         
-        # ummon startup message
-        self.info('ummon               Ver.{}, IOS Konstanz'.format(version))
-        
         return self
+    
     
     # stop logging
     def __exit__(self, *err):
@@ -101,10 +102,12 @@ class Logger(logging.getLoggerClass()):
         ch = self.logger.handlers[0]
         self.logger.removeHandler(ch)
     
+    
     # reroute warnings to log
     def send_warnings_to_log(self, message, category, filename, lineno, file=None, line=None):
         self.logger.warning(str(message))
         return
+    
     
     # error
     def error(self, msg='', errtype=Exception):
@@ -112,18 +115,22 @@ class Logger(logging.getLoggerClass()):
         self.logger.error(err_msg)
         raise errtype(err_msg)
     
+    
     # warning
     def warn(self, msg=''):
         warn_msg = 'WARNING: ' + msg
         warnings.warn(warn_msg)
     
+    
     # info
     def info(self, msg=''):
         self.logger.info(msg)
     
+    
     # debug
     def debug(self, msg=''):
         self.logger.debug(msg)
+    
     
     # set logging directory
     def set_logdir(self, pathname):
@@ -133,6 +140,7 @@ class Logger(logging.getLoggerClass()):
             raise IOError('Path to logging directory does not exist.')
         self.logdir = pathname
     
+    
     # start logging to file
     def start_logfile(self):
         fname = os.path.join(self.logdir, 
@@ -141,13 +149,17 @@ class Logger(logging.getLoggerClass()):
         formatter = logging.Formatter("%(asctime)s: [%(levelname)s] %(message)s")
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
-        self.debug('SYSTEM INFORMATION ({})'.format(socket.gethostname()))
-        self.debug('Platform {}'.format(platform()))
-        self.debug('CUDA {}'.format(torch.version.cuda))
-        self.debug('CuDNN {}'.format(torch.backends.cudnn.version()))
-        self.debug('Python {}'.format(sys.version.split('\n')))
-        self.debug('Numpy {}'.format(np.__version__))
-        self.debug('Torch {}'.format(torch.__version__))
+        self.debug('[System]')
+        self.debug('Host                {}'.format(socket.gethostname()))
+        self.debug('Platform            {}'.format(platform()))
+        self.debug('CUDA                {}'.format(torch.version.cuda))
+        self.debug('CuDNN               {}'.format(torch.backends.cudnn.version()))
+        self.debug('Python              {}'.format(sys.version.split('\n')))
+        self.debug('Numpy               {}'.format(np.__version__))
+        self.debug('Torch               {}'.format(torch.__version__))
+        self.debug('ummon               {}'.format(version))
+        self.debug(' ')
+    
     
     # stop logging to file    
     def stop_logfile(self):
@@ -155,81 +167,23 @@ class Logger(logging.getLoggerClass()):
             return # do nothing in this case
         self.logger.handlers[-1].stream.close()
         self.logger.removeHandler(self.logger.handlers[-1])
-
-import time
-from tabulate import tabulate
-
-class Logger2:
-    """
-    This class provides a generic Logger for logging training information to file/console.
     
-    Constructor
-    -----------
-    logfile :               String
-                            The directory used for saving logs (if NULL logs are only printed to console)       
-    log_batch_interval :    int
-                             Specifies how often information about mini-batches are logged.   
-             
-    Methods
-    -------
-    log_one_batch()         :   Logs information about a single mini-batch
-    log_epoch()             :   Logs information about a single epoch
-    log_evaluation()        :   Logs information about an model evaluation
-    info()                  :   Logs information with Tag [INFO]
-    error()                 :   Logs errors with Tag [ERROR]
-    print_args()            :   Pretty print for argument dicts
-    print_problem_summary() :   Pretty print of a learning problem including learning rate, epochs, etc.
-         
-    """
-    def __init__(self, logfile = None, log_batch_interval=500):
-        self.name = "ummon.Logger"
-        
-        # MEMBERS
-        if logfile is not None and ".log" not in logfile:
-            self.logfile = str(logfile + ".log")
-        else:
-            self.logfile = logfile
-        self.filelog = True if logfile is not None else False
-        self.log_batch_interval = log_batch_interval
     
+    # log one batch
     def log_one_batch(self, epoch, batch, batches, loss, t):
         if batch % self.log_batch_interval == 0:
-            print("\r[INFO] Epoch: {} - Batch/Batches: {:05}/{:05} - Loss: {:04.5f}. [{:02} s] ".format(
-                                                                                epoch,
-                                                                                batch, 
-                                                                                batches, 
-                                                                                loss,
-                                                                                int(time.time() - t)),end='')
-            sys.stdout.flush()
-            if self.filelog:
-                with open(self.logfile, "a") as logfile:
-                     print("[INFO] Epoch: {} - Batch/Batches: {:05}/{:05} - Loss: {:04.5f}. [{:02} s] ".format(
-                                                                                epoch,
-                                                                                batch, 
-                                                                                batches, 
-                                                                                loss,
-                                                                                int(time.time() - t)),file=logfile)
-           
-
-
-    def log_epoch(self, epoch, batch, batches, loss, batchsize, t):
-        print("\r[INFO] Epoch: {} - Batch/Batches: {:05}/{:05} - Loss: {:04.5f}. [{:02} s ({} samples/s)] ".format(
-                                                                        epoch,
-                                                                        batch,
-                                                                        batches, 
-                                                                        loss,
-    	                                			                    int(time.time() - t),
-                                                                        int((batches * batchsize/(time.time() - t)))))
-        if self.filelog:
-                with open(self.logfile, "a") as logfile:
-                    print("[INFO] Epoch: {} - Batch/Batches: {:05}/{:05} - Loss: {:04.5f}. [{:02} s ({} samples/s)] ".format(
-                                                                        epoch,
-                                                                        batch,
-                                                                        batches, 
-                                                                        loss,
-    	                                			                    int(time.time() - t),
-                                                                        int((batches * batchsize/(time.time() - t)))), file=logfile)
+            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:02} s] '.format(
+                epoch, batch, batches, loss, int(time.time() - t)))
     
+    
+    # log at end of epoch
+    def log_epoch(self, epoch, batch, batches, loss, batchsize, t):
+        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:02} s ({} samples/s)] '.format(
+            epoch, batch, batches, loss, int(time.time() - t), int((batches * 
+            batchsize/(time.time() - t)))))
+    
+    
+    # evaluate model
     def log_evaluation(self, learningstate, samples_per_seconds):
         epoch = learningstate.state["training_loss[]"][-1][0]
         lrate = learningstate.state["lrate[]"][-1][1]
@@ -239,59 +193,26 @@ class Logger2:
         regression = learningstate.state["regression"]
         is_best = learningstate.state["validation_loss[]"][-1][1] == learningstate.state["best_validation_loss"][1]
         
-        print("\n[EVAL] Model Evaluation","Epoch #", epoch, "lrate :", lrate)
-        print("       ----------------------------------------")  
+        self.info('Model Evaluation, Epoch# {}, lrate {}'.format(epoch, lrate))
+        self.info("----------------------------------------")  
         if regression == True:
-            print('       Validation set: loss: {:.4f}.'.format(loss), "[BEST]" if is_best else None)
+            self.info('       Validation set: loss: {:.4f}. {}'.format(loss, '[BEST]' 
+                if is_best else None))
         else:
-            print('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None)
-        print('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
-
-        if self.filelog:
-                with open(self.logfile, "a") as logfile:
-                    print("\n[EVAL] Model Evaluation","Epoch #", epoch, "lrate :", lrate, file=logfile)
-                    print("       ----------------------------------------", file=logfile)  
-                    if regression == True:
-                        print('       Validation set: loss: {:.4f}.'.format(loss), "[BEST]" if is_best else None, file=logfile)
-                    else:
-                        print('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%.'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100), "[BEST]" if is_best else None, file=logfile)
-                    print('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds), file=logfile)
-
-
-    def info(self, text):
-        print("[INFO]", text)
+            self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, "[BEST]" if is_best else None))
+        self.info('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
+    
+    
+    # output description of learning task
+    def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
+        dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
         
-        if self.filelog:
-                with open(self.logfile, "a") as logfile:
-                    print("[INFO]", text, file=logfile)
-        
-    def error(self, text):
-        print("[ERROR]", text)
-        
-        if self.filelog:
-                with open(self.logfile, "a") as logfile:
-                    print("[ERROR]", text, file=logfile)
-
-        
-    def print_args(self, args):
-        table = [[ arg, getattr(args, arg)] for arg in vars(args)]
-        print("\n[Arguments]")
-        print(tabulate(table, headers=['Key', 'Value']))
-       
-        if self.filelog:
-            with open(self.logfile, "a") as logfile:
-                print("\n[Arguments]", file=logfile)
-                print(tabulate(table, headers=['Key', 'Value']), file=logfile)
-
-
-
-    def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
         table_params = [["lrate" , optimizer.state_dict()["param_groups"][0]["lr"]],
                         ["batch_size" , dataloader_train.batch_size],
                         ["epochs" , epochs],
-                        ["using_cuda"  , "True" if next(model.parameters()).is_cuda else "False"],
+                        ["using_cuda"  , next(model.parameters()).is_cuda],
                         ["early_stopping" , early_stopping]]
-
+        
         table_data = [['Training'  , len(dataloader_train.dataset) if dataloader_train is not None else 0, 
                                      str(dataloader_train.dataset[0][0].numpy().shape) + "/" + str(dataloader_train.dataset[0][1].numpy().shape if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---", 
                                      str(dataloader_train.dataset[0][0].numpy().dtype) + "/" + str(dataloader_train.dataset[0][1].numpy().dtype if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---"], 
@@ -301,34 +222,36 @@ class Logger2:
                       ['Test'      , len(dataset_test)  if dataset_test is not None else 0,  
                                      str(dataset_test[0][0].numpy().shape) + "/" + str(dataset_test[0][1].numpy().shape) if dataset_test is not None else "---", 
                                      str(dataset_test[0][0].numpy().dtype) + "/" + str(dataset_test[0][0].numpy().dtype) if dataset_test is not None else "---" ]]
-
-        print("\n[Parameters]")
-        print(tabulate(table_params, headers=['Key', 'Value']))
         
-        print("\n[Model]")
-        print(model)
+        self.debug(' ')
+        self.debug('[Parameters]')
+        for key, val in table_params:
+            self.debug('{0:20}{1}'.format(key, val))
         
-        print("\n[Loss]")
-        print(loss_function)
+        self.debug(' ')
+        self.debug('[Model]')
+        for lin in model.__repr__().splitlines():
+            self.debug(lin)
         
-        print("\n[Data]")
-        print(tabulate(table_data, headers=['Dataset', 'Samples', "Shape x/y (per sample)", "Dtype x/y"]))
-
-        if self.filelog:
-            with open(self.logfile, "a") as logfile:
-                print("\n[Parameters]", file=logfile)
-                print(tabulate(table_params, headers=['Key', 'Value']), file=logfile)
-                
-                print("\n[Model]", file=logfile)
-                print(model, file=logfile)
-                
-                print("\n[Loss]", file=logfile)
-                print(loss_function, file=logfile)
-                
-                print("\n[Data]", file=logfile)
-                print(tabulate(table_data, headers=['Dataset', 'Samples', "Shape x/y (per sample)",  "Dtype x/y"]), file=logfile)
-
-
+        self.debug(' ')
+        self.debug('[Loss]')
+        for lin in loss_function.__repr__().splitlines():
+            self.debug(lin)
         
+        self.debug(' ')
+        self.debug('[Data]')
+        for ds, s, sh, dt in table_data:
+            self.debug('{0:18}{1:8}    {2:18} {3}'.format(ds, s, sh, dt))
+    
+    
+    # print arguments when called as shell program
+    def print_args(self, args):
+        table = [[ arg, getattr(args, arg)] for arg in vars(args)]
+        self.debug(' ')
+        self.debug('[Arguments]')
+        for key, val in table:
+            self.debug('{0:20}{1}'.format(key, val))
+
+
 if __name__ == "__main__":
-    print("This is", Logger2().name)
+    print("This is", Logger().name)

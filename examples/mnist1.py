@@ -32,9 +32,6 @@ parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',
                     help="Shall cuda be used (default: False)")
 parser.add_argument('--view', default="", metavar="",
                     help="Print summary about a trained model")
-                    
-#
-# LOG PARAMS
 argv = parser.parse_args()
 sys.argv = [sys.argv[0]]                    
 
@@ -48,7 +45,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
 from ummon.trainer import Trainer
-from ummon.logger import Logger2
+from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.modules.container import Sequential
 
@@ -61,7 +58,7 @@ torch.manual_seed(17)
 #
 # DEFINE a neural network
 class Net(nn.Module):
-
+    
     def __init__(self, use_cuda = False):
         super(Net, self).__init__()
         # 1 input image channel, 6 output channels, 5x5 square convolution
@@ -80,7 +77,7 @@ class Net(nn.Module):
             if type(m) == nn.Conv2d:
                 nn.init.normal(m.weight, mean=0, std=0.1)
         self.apply(weights_init_normal)
-
+    
     def forward(self, x):
         # Max pooling over a (2, 2) window
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
@@ -92,7 +89,7 @@ class Net(nn.Module):
         x = self.fc3(x)
         x = F.softmax(x, dim=1)
         return x
-
+    
     def num_flat_features(self, x):
         size = x.size()[1:]  # all dimensions except the batch dimension
         num_features = 1
@@ -128,20 +125,20 @@ if __name__ == "__main__":
         except FileNotFoundError:
             ts = None
         
-        print(mnist_data[0][0].numpy().dtype)
-        # CREATE A TRAINER
-        my_trainer = Trainer(Logger2( logfile = "./MNIST1.log", 
-                                     log_batch_interval=500), 
-                                     model, 
-                                     criterion, 
-                                     optimizer, 
-                                     model_filename="MNIST1", 
-                                     trainingstate=ts, 
-                                     precision=np.float32,
-                                     use_cuda=argv.use_cuda)
-        
-        # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        with Logger(logdir='.', log_batch_interval=500) as lg:
+            
+            # CREATE A TRAINER
+            my_trainer = Trainer(   lg, 
+                                model, 
+                                criterion, 
+                                optimizer, 
+                                model_filename="MNIST1", 
+                                trainingstate=ts, 
+                                precision=np.float32,
+                                use_cuda=argv.use_cuda)
+            
+            # START TRAINING
+            trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=mnist_data_test, 
                                         epochs=argv.epochs,
                                         eval_interval=argv.eval_interval, 
