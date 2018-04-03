@@ -42,5 +42,5 @@ from .logger import Logger
 from .trainingstate import Trainingstate
 from .analyzer import Analyzer
 from .trainer import Trainer
-from .logger import Logger2
+from .logger import Logger
 from .visualizer import Visualizer

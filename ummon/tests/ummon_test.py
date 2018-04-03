@@ -30,8 +30,7 @@ class TestUmmon(unittest.TestCase):
         # create net
         cnet = Sequential(
             ('line0', Linear([5], 7, 'xavier_uniform', 0.001)),
-            ('sigm0', nn.Sigmoid()),
-            regression=True
+            ('sigm0', nn.Sigmoid())
         )
         print(cnet)
         
@@ -291,12 +290,13 @@ class TestUmmon(unittest.TestCase):
         check_grad_activation('log_likelihood', 'logsoftmax')
     
     
-    # test fit
+    # test logger
     def test_logger(self):
         print('\n')
         
         with Logger('ummon', 10) as lg: # create net
             lg.debug('Test debugging output.')
+            lg.info('Test info.')
             lg.warn('Test warning!')
             try:
                 lg.error('Test error!', ValueError)
@@ -323,7 +323,7 @@ class TestUmmon(unittest.TestCase):
                 x = F.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
-    
+        
         x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
         x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
@@ -336,9 +336,9 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-
+        
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
+        my_trainer = Trainer(Logger(logdir='', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -346,11 +346,12 @@ class TestUmmon(unittest.TestCase):
                                         epochs=5,
                                         eval_interval=2, 
                                         early_stopping=False)
+        print(trainingsstate.state["best_validation_loss"][1])
+        assert np.allclose(0.5037568211555481,
+            trainingsstate.state["best_validation_loss"][1], 1e-2)
         
-        self.assertTrue(np.allclose(0.5037568211555481,trainingsstate.state["best_validation_loss"][1]))
-
         # RESTORE STATE
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
+        my_trainer = Trainer(Logger(logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -359,7 +360,6 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=2, 
                                         early_stopping=False)
         
-        os.remove("test.log")
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -367,6 +367,11 @@ class TestUmmon(unittest.TestCase):
                 os.remove(os.path.join(dir,file))
         
     def test_trainer_cuda(self):
+        
+        # test makes only sense when your machine has cuda enabled
+        if not torch.cuda.is_available():
+            print('\nWarning: cannot run this test - Cuda is not enabled on your machine.')
+            return
         #
         # DEFINE a neural network
         class Net(nn.Module):
@@ -401,7 +406,7 @@ class TestUmmon(unittest.TestCase):
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True, use_cuda=True)
+        my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True, use_cuda=True)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -413,7 +418,7 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(np.allclose(0.5051723122596741,trainingsstate.state["best_validation_loss"][1]))
 
         # RESTORE STATE
-        my_trainer = Trainer(Logger2( logfile = "test.log", log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
+        my_trainer = Trainer(Logger2( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -422,7 +427,6 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=2, 
                                         early_stopping=False)
         
-        os.remove("test.log")
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -546,11 +550,8 @@ class TestUmmon(unittest.TestCase):
         Analyzer().inference(model, dataset_valid)
        
         pass
-    
-    def test_logger2(self):
-        Logger2("test.log").info("Testlog")
-        os.remove("test.log")
         
+    
     
     def test_visualizer(self):
         pass
