@@ -418,7 +418,7 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(np.allclose(0.5051723122596741,trainingsstate.state["best_validation_loss"][1]))
 
         # RESTORE STATE
-        my_trainer = Trainer(Logger2( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
+        my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
