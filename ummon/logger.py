@@ -191,15 +191,18 @@ class Logger(logging.getLoggerClass()):
         acc  =  learningstate.state["validation_accuracy[]"][-1][1]
         batchsize = learningstate.state["validation_accuracy[]"][-1][2]
         regression = learningstate.state["regression"]
-        is_best = learningstate.state["validation_loss[]"][-1][1] == learningstate.state["best_validation_loss"][1]
+        is_best = learningstate.state["validation_loss[]"][-1][1] == \
+            learningstate.state["best_validation_loss"][1]
         
         self.info('Model Evaluation, Epoch# {}, lrate {}'.format(epoch, lrate))
         self.info("----------------------------------------")  
         if regression == True:
-            self.info('       Validation set: loss: {:.4f}. {}'.format(loss, '[BEST]' 
-                if is_best else None))
+            self.info('       Validation set: loss: {:.4f}. {}'.format(loss, 
+                '[BEST]' if is_best else ''))
         else:
-            self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, "[BEST]" if is_best else None))
+            self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(
+                loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
+                "[BEST]" if is_best else ''))
         self.info('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
     
     
@@ -207,26 +210,14 @@ class Logger(logging.getLoggerClass()):
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
         dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
         
-        table_params = [["lrate" , optimizer.state_dict()["param_groups"][0]["lr"]],
-                        ["batch_size" , dataloader_train.batch_size],
-                        ["epochs" , epochs],
-                        ["using_cuda"  , next(model.parameters()).is_cuda],
-                        ["early_stopping" , early_stopping]]
-        
-        table_data = [['Training'  , len(dataloader_train.dataset) if dataloader_train is not None else 0, 
-                                     str(dataloader_train.dataset[0][0].numpy().shape) + "/" + str(dataloader_train.dataset[0][1].numpy().shape if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---", 
-                                     str(dataloader_train.dataset[0][0].numpy().dtype) + "/" + str(dataloader_train.dataset[0][1].numpy().dtype if type(dataloader_train.dataset[0][1]) != int else "int") if dataloader_train is not None else "---"], 
-                      ['Validation', len(dataset_validation) if dataset_validation is not None else 0, 
-                                     str(dataset_validation[0][0].numpy().shape) + "/" + str(dataset_validation[0][1].numpy().shape if type(dataset_validation[0][1]) != int else "int") if dataset_validation is not None else "---", 
-                                     str(dataset_validation[0][0].numpy().dtype)+ "/" + str(dataset_validation[0][1].numpy().dtype if type(dataset_validation[0][1]) != int else "int") if dataset_validation is not None else "---"],
-                      ['Test'      , len(dataset_test)  if dataset_test is not None else 0,  
-                                     str(dataset_test[0][0].numpy().shape) + "/" + str(dataset_test[0][1].numpy().shape) if dataset_test is not None else "---", 
-                                     str(dataset_test[0][0].numpy().dtype) + "/" + str(dataset_test[0][0].numpy().dtype) if dataset_test is not None else "---" ]]
-        
         self.debug(' ')
         self.debug('[Parameters]')
-        for key, val in table_params:
-            self.debug('{0:20}{1}'.format(key, val))
+        self.debug('{0:20}{1}'.format("lrate" , 
+            optimizer.state_dict()["param_groups"][0]["lr"]))
+        self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
+        self.debug('{0:20}{1}'.format("epochs" , epochs))
+        self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
+        self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
         
         self.debug(' ')
         self.debug('[Model]')
@@ -240,8 +231,32 @@ class Logger(logging.getLoggerClass()):
         
         self.debug(' ')
         self.debug('[Data]')
-        for ds, s, sh, dt in table_data:
-            self.debug('{0:18}{1:8}    {2:18} {3}'.format(ds, s, sh, dt))
+        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Training', 
+            len(dataloader_train.dataset) if dataloader_train is not None else 0, 
+            str(dataloader_train.dataset[0][0].numpy().shape) + "/" + 
+                str(dataloader_train.dataset[0][1].numpy().shape 
+                if type(dataloader_train.dataset[0][1]) != int else "int") 
+                if dataloader_train is not None else "---", 
+            str(dataloader_train.dataset[0][0].numpy().dtype) + "/" + 
+                str(dataloader_train.dataset[0][1].numpy().dtype 
+                if type(dataloader_train.dataset[0][1]) != int else "int") 
+                if dataloader_train is not None else "---"))
+        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
+            len(dataset_validation) if dataset_validation is not None else 0, 
+            str(dataset_validation[0][0].numpy().shape) + "/" +
+                str(dataset_validation[0][1].numpy().shape 
+                if type(dataset_validation[0][1]) != int else "int") 
+                if dataset_validation is not None else "---", 
+            str(dataset_validation[0][0].numpy().dtype)+ "/" + 
+                str(dataset_validation[0][1].numpy().dtype 
+                if type(dataset_validation[0][1]) != int else "int") 
+                if dataset_validation is not None else "---" ))
+        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Test', 
+            len(dataset_test)  if dataset_test is not None else 0,  
+            str(dataset_test[0][0].numpy().shape) + "/" + 
+                str(dataset_test[0][1].numpy().shape) if dataset_test is not None else "---", 
+            str(dataset_test[0][0].numpy().dtype) + "/" + 
+                str(dataset_test[0][0].numpy().dtype) if dataset_test is not None else "---" ))
     
     
     # print arguments when called as shell program

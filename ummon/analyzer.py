@@ -91,14 +91,16 @@ class Analyzer:
                 evaluation_dict["loss"] = loss.data[0]
                 
         return evaluation_dict
-   
+    
+    
+    # Get index of class with max probability
     @staticmethod
     def classify(output):
         assert isinstance(output, torch.Tensor)
-        # Get index of class with max probability
         classes = output.max(1, keepdim=True)[1] 
         return classes
-            
+    
+    
     @staticmethod
     def inference(model, dataset):
         assert isinstance(dataset, torch.utils.data.Dataset)
@@ -121,15 +123,26 @@ class Analyzer:
                 model.train()
         return output
     
+    
     @staticmethod
     def compute_accuracy(classes, targets):
         assert isinstance(classes, torch.LongTensor)
-        assert isinstance(targets, torch.LongTensor)
         assert targets.shape[0] == classes.shape[0]
         
+        if not isinstance(targets, torch.LongTensor):
+            targets = targets.long()
+        
+        # one-hot coded targets are first converted in class labels
+        if targets.dim() > 1:
+            targets = targets.max(1, keepdim=True)[1]
+        
+        # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
+        
+        # accuracy
         accuracy = correct.sum() / len(targets)
         return accuracy
+    
     
     @staticmethod
     def compute_roc(model, dataset):

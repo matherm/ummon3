@@ -106,7 +106,7 @@ class TestUmmon(unittest.TestCase):
         print('True BCE:', bce_true) # pytorch takes mean across dimensions instead of sum
         assert np.allclose(bce, bce_true, 0, 1e-3)
         
-        # test pytorch combined softmax and bce
+        # test pytorch combined sigmoid and bce
         loss = nn.BCEWithLogitsLoss()
         bce = loss(x1, y1).data.numpy()
         print('BCEL:    ', bce[0])
@@ -303,6 +303,66 @@ class TestUmmon(unittest.TestCase):
             except ValueError:
                 print("Only a test - no worries ...")
 
+
+    # test training
+    def test_train(self):
+        print('\n')
+        
+        # create net
+        eta = 0.1
+        batch = 4
+        cnet = Sequential(
+            ('line0', Linear([3], 2, 'xavier_normal'))
+        )
+        loss = nn.BCEWithLogitsLoss()
+        opt = torch.optim.SGD(cnet.parameters(), lr=eta)
+        w = cnet.line0.w
+        b = cnet.line0.b.copy()
+        b = b.reshape((2, 1))
+        
+        # training data
+        x0 = np.zeros((2*batch, 3), dtype=np.float32)
+        y0 = np.zeros((2*batch, 2), dtype=np.float32)
+        x0[:batch,:] = np.random.randn(batch, 3).astype('float32') + 1
+        x0[batch:,:] = np.random.randn(batch, 3).astype('float32') - 1
+        y0[:batch,0] = np.ones((batch), dtype=np.float32)
+        y0[batch:,1] = np.ones((batch), dtype=np.float32)
+        
+        for i in range(2):
+            
+            # compute reference forward path
+            x1 = x0[i*batch:(i+1)*batch,:].transpose()
+            y1 = (np.dot(w, x1) + np.tile(b, (1, batch))).transpose()
+            y2 = sigmoid(y1)
+            
+            # reference backward path
+            dL = 0.5*(y2 - y0[i*batch:(i+1)*batch,:])
+            db = (1/batch)*dL.sum(axis=0).reshape(2,1)
+            b = b - eta*db
+            dW = (1/batch)*np.dot(dL.transpose(), x0[i*batch:(i+1)*batch,:])
+            w = w - eta*dW
+        
+        print('Ref. weight matrix:')
+        print(w)
+        print('Ref. bias:')
+        print(b.T[0])
+            
+        # fit
+        with Logger(logdir='', loglevel=20) as lg:
+            trn = Trainer(lg, cnet, loss, opt)
+            trn.fit((x0, y0, batch), 1)
+        
+        # check results
+        w0 = cnet.line0.w
+        b0 = cnet.line0.b
+        print('Weight matrix:')
+        print(w0)
+        print('bias:')
+        print(b0)
+        assert np.allclose(w, w0, 0, 1e-1)
+        assert np.allclose(b, b0, 0, 1e-1)
+    
+    
     def test_trainer(self):
         #
         # DEFINE a neural network
@@ -338,27 +398,28 @@ class TestUmmon(unittest.TestCase):
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger(logdir='', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
+        my_trainer = Trainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
+            optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        validation_set=dataset_valid, 
                                         epochs=5,
-                                        eval_interval=2, 
-                                        early_stopping=False)
+                                        validation_set=dataset_valid, 
+                                        eval_interval=2)
         print(trainingsstate.state["best_validation_loss"][1])
         assert np.allclose(0.5037568211555481,
             trainingsstate.state["best_validation_loss"][1], 1e-2)
         
         # RESTORE STATE
-        my_trainer = Trainer(Logger(logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32)
+        my_trainer = Trainer(Logger(logdir = '', log_batch_interval=500), model, criterion, 
+            optimizer, model_filename="testcase", trainingstate=trainingsstate, 
+            regression=True, precision=np.float32)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
                                         epochs=1,
-                                        eval_interval=2, 
-                                        early_stopping=False)
+                                        eval_interval=2)
         
         files = os.listdir(".")
         dir = "."

@@ -139,7 +139,6 @@ if __name__ == "__main__":
             
             # START TRAINING
             trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        validation_set=mnist_data_test, 
                                         epochs=argv.epochs,
-                                        eval_interval=argv.eval_interval, 
-                                        early_stopping=False)
+                                        validation_set=mnist_data_test, 
+                                        eval_interval=argv.eval_interval)
