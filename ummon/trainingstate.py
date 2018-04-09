@@ -49,6 +49,7 @@ class Trainingstate():
                      validation_batchsize = 0,
                      regression = False,
                      precision = np.float32,
+                     detailed_loss = {},
                      args = None):
         if self.state is None:
             self.state = {  
@@ -61,14 +62,15 @@ class Trainingstate():
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
                              "optimizer_state": optimizer.state_dict(),
-                             "best_training_loss" : (epoch, training_loss),
-                             "best_training_accuracy" : (epoch, training_accuracy),
-                             "training_loss[]" : [(epoch, training_loss)],
+                             "best_training_loss" : (epoch, training_loss, training_batchsize),
+                             "best_training_accuracy" : (epoch, training_accuracy, training_batchsize),
+                             "training_loss[]" : [(epoch, training_loss, training_batchsize)],
                              "training_accuracy[]" : [(epoch, training_accuracy, training_batchsize)],
-                             "best_validation_loss" : (epoch, validation_loss),
-                             "best_validation_accuracy" : (epoch, validation_accuracy),
-                             "validation_loss[]" : [(epoch, validation_loss)],
+                             "best_validation_loss" : (epoch, validation_loss, validation_batchsize),
+                             "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize),
+                             "validation_loss[]" : [(epoch, validation_loss, validation_batchsize)],
                              "validation_accuracy[]" : [(epoch, validation_accuracy, validation_batchsize)],
+                             "detailed_loss[]" : [(epoch, detailed_loss)],
                              "args[]" : [args]
                           }
         else:
@@ -82,26 +84,31 @@ class Trainingstate():
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
                              "optimizer_state": optimizer.state_dict(),
-                             "best_training_loss" : (epoch, training_loss) if training_loss< self.state["best_training_loss"][1] else self.state["best_training_loss"],
+                             "best_training_loss" : (epoch, training_loss, training_batchsize) if training_loss< self.state["best_training_loss"][1] else self.state["best_training_loss"],
                              "best_training_accuracy" : (epoch, training_accuracy, training_batchsize) if training_accuracy > self.state["best_training_accuracy"][1] else self.state["best_training_accuracy"],
-                             "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss)],
+                             "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss, training_batchsize)],
                              "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy, training_batchsize)],
-                             "best_validation_loss" : (epoch, validation_loss) if validation_loss < self.state["best_validation_loss"][1] else self.state["best_validation_loss"],
+                             "best_validation_loss" : (epoch, validation_loss, validation_batchsize) if validation_loss < self.state["best_validation_loss"][1] else self.state["best_validation_loss"],
                              "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize) if validation_accuracy > self.state["best_validation_accuracy"][1] else self.state["best_validation_accuracy"],
-                             "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss)],
-                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, training_batchsize)],
+                             "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss, validation_batchsize)],
+                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, validation_batchsize)],
+                             "detailed_loss[]" : [*self.state["detailed_loss[]"], (epoch, detailed_loss)] if "detailed_loss[]" in self.state else [(epoch, detailed_loss)],
                              "args[]" : [*self.state["args[]"], args]
                           }
         
     def get_summary(self):
         summary = {
-                    "Epochs"                : self.state["training_loss[]"][-1][0],
+                    "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
                     "Best Validation Loss" : self.state["best_validation_loss"],
                   }
-        return summary    
+        return summary   
     
+    
+    def __repr__(self):
+        return str(self.state)
         
+  
     def load_state(self, filename, force_weights_to_cpu = False):
         if force_weights_to_cpu:
             self.state = torch.load(filename, map_location=lambda storage, loc: storage)

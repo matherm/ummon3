@@ -193,8 +193,9 @@ class Logger(logging.getLoggerClass()):
         regression = learningstate.state["regression"]
         is_best = learningstate.state["validation_loss[]"][-1][1] == \
             learningstate.state["best_validation_loss"][1]
+        detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
         
-        self.info('Model Evaluation, Epoch# {}, lrate {}'.format(epoch, lrate))
+        self.info('\nModel Evaluation, Epoch# {}, lrate {}'.format(epoch, lrate))
         self.info("----------------------------------------")  
         if regression == True:
             self.info('       Validation set: loss: {:.4f}. {}'.format(loss, 
@@ -204,6 +205,7 @@ class Logger(logging.getLoggerClass()):
                 loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
                 "[BEST]" if is_best else ''))
         self.info('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
+        self.info('       Detailed loss-information: {}\n'.format(detailed_loss))
     
     
     # output description of learning task

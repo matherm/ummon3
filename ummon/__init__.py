@@ -26,7 +26,7 @@ def system_info():
         print("---------------------------------")
         print("Platform:", platform())
         print("ummon3:", version)
-        print("Python:", sys.version_info[0:3])
+        print("Python:", sys.version.split('\n'))
         print("CuDNN:", torch.backends.cudnn.version())
         print("CUDA:", torch.version.cuda) 
         print("Torch:", torch.__version__)

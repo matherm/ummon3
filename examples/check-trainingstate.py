@@ -4,6 +4,8 @@ import sys
 sys.path.insert(0,'../../ummon3')  # for python basicusage.py
 sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
 #############################################################################################
+import pprint
+
 
 """
 
@@ -20,6 +22,8 @@ import argparse
 parser = argparse.ArgumentParser(description='ummon3 - example - trainingstate checker')
 parser.add_argument('--view', default="", metavar="",
                     help="Print summary about a trained model")
+parser.add_argument('--v', action='store_true', dest='verbose', 
+                    help="Verbose (default: False)")
 argv = parser.parse_args()
 sys.argv = [sys.argv[0]]                    
 
@@ -32,6 +36,13 @@ if __name__ == "__main__":
     
     if argv.view is not "":
         ts = Trainingstate(argv.view)
-        print(ts.get_summary())
+        if argv.verbose == True:
+            # DELETE MODEL PARAMETERS
+            ts.state.pop("model_state" , None)
+            # PRETTY PRINT
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(ts.state)
+        else:
+            print(ts.get_summary())
     else:
         print("No model was given..")

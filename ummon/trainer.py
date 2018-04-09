@@ -281,6 +281,8 @@ class Trainer:
                 
     def evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
         training_batch_size, args):
+        # INIT ARGS
+        args = {} if args is None else args
         
         # MODEL EVALUATION
         evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression)
@@ -295,7 +297,8 @@ class Trainer:
                      validation_batchsize = len(validation_set),
                      regression = self.regression,
                      precision = self.precision,
-                     args = args)
+                     detailed_loss = evaluation_dict["detailed_loss"],
+                     args = {**args, **evaluation_dict["args[]"]})
         
         self.logger.log_evaluation(self.trainingstate, evaluation_dict["samples_per_seconds"])
         

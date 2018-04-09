@@ -89,10 +89,11 @@ class Analyzer:
                     evaluation_dict["accuracy"] = 0.
                 evaluation_dict["samples_per_seconds"] = dataloader.batch_size / (time.time() - t)
                 evaluation_dict["loss"] = loss.data[0]
+                evaluation_dict["detailed_loss"] = repr(loss_function)
+                evaluation_dict["args[]"] = {}
                 
         return evaluation_dict
-    
-    
+        
     # Get index of class with max probability
     @staticmethod
     def classify(output):
@@ -121,7 +122,7 @@ class Analyzer:
                 model.eval()
                 output = model(Variable(inputs)).cpu()
                 model.train()
-        return output
+        return output.cpu()
     
     
     @staticmethod
