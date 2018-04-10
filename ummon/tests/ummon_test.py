@@ -350,7 +350,7 @@ class TestUmmon(unittest.TestCase):
         # fit
         with Logger(logdir='', loglevel=20) as lg:
             trn = Trainer(lg, cnet, loss, opt)
-            trn.fit((x0, y0, batch), 1)
+            trn.fit((x0, y0, batch), 1, (x0, y0))
         
         # check results
         w0 = cnet.line0.w

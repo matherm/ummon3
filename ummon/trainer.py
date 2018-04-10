@@ -219,14 +219,14 @@ class Trainer:
             batch = int(dataloader_training[2])
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
-        else:
-            assert isinstance(dataloader_training, torch.utils.data.DataLoader)
+        assert isinstance(dataloader_training, torch.utils.data.DataLoader)
+        assert dataloader_training.dataset[0][0].numpy().dtype == self.precision
+
         if validation_set is not None:
             if type(validation_set) == tuple:
-                 validation_set = self._construct_dataset_from_tuple(dataloader_training, train=False)
+                 validation_set = self._construct_dataset_from_tuple(validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
             assert validation_set[0][0].numpy().dtype == self.precision
-        assert dataloader_training.dataset[0][0].numpy().dtype == self.precision
         
         # check parameters
         epochs = int(epochs)
