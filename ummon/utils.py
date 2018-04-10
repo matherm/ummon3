@@ -116,15 +116,15 @@ class Torchutils:
     @staticmethod
     def check_precision(dataset, model, precision=None):
         if precision is None:
-            precision = next(model.parameters()).data.numpy().dtype
+            precision = next(model.parameters()).cpu().data.numpy().dtype
         # CASE MULTIPLE INPUT
         if type(dataset[0][0]) == tuple:
             for di in dataset[0][0]:
-                if not di.numpy().dtype == next(model.parameters()).data.numpy().dtype == precision:
+                if not di.numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision:
                     return False
             return True                
         else:
-            return dataset[0][0].numpy().dtype == next(model.parameters()).data.numpy().dtype == precision
+            return dataset[0][0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
     
     
     # check input data
