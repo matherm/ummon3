@@ -174,6 +174,9 @@ class Trainingstate():
             model = model.float()
         if precision == np.float64:
             model = model.double()
+        if precision == np.int32:
+            # TODO: Custom model conversion FPGA-Teamproject
+            pass
         if use_cuda:
             assert torch.cuda.is_available() == True
             model = model.cuda()

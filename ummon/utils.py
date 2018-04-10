@@ -164,10 +164,13 @@ class Torchutils:
             if y.ndim > 2 or y.ndim == 0:
                 logger.error('Targets must be given as vector or matrix.')
             if y.ndim == 1:
-                y = y.reshape((1, len(y))).copy()
+                pass
+                #TODO: This causes trouble as some losses (e.g. crossentropy expect a vector of size N)
+                #y = y.reshape((len(y), 1)).copy()
             if np.shape(y)[0] != np.shape(X)[0]:
                 logger.error('Number of targets must match number of inputs.')
             if y.dtype != 'float32':
+                #TODO: This causes trouble as some losses (e.g. crossentropy expect long-types
                 y = y.astype('float32')
         return X, y
     
@@ -183,13 +186,19 @@ class Torchutils:
         # extract training data
         Xtr = data_tuple[0]
         ytr = data_tuple[1]
-        Xtr, ytr = Torchutils.check_data(logger, Xtr, ytr)
+        Xtrn, ytrn = Torchutils.check_data(logger, Xtr, ytr)
         
         # construct pytorch dataloader from 2-tupel
-        x = torch.from_numpy(Xtr)
-        y = torch.from_numpy(ytr) 
+        x = torch.from_numpy(Xtrn)
+        y = torch.from_numpy(ytrn) 
         if precision == np.float32:
-            dataset = TensorDataset(x.float(), y.float())
+            if ytr.dtype == np.int64:
+                dataset = TensorDataset(x.float(), y.long())
+            else:
+                dataset = TensorDataset(x.float(), y.float())
         if precision == np.float64:
-            dataset = TensorDataset(x.double(), y.double())
+            if ytr.dtype == np.int64:
+                dataset = TensorDataset(x.double(), y.long())
+            else:
+                dataset = TensorDataset(x.double(), y.double())
         return dataset

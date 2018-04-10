@@ -104,7 +104,7 @@ class Trainer:
             self.model.load_state_dict(trainingstate.state["model_state"])            
             
             assert precision == self.trainingstate.state["precision"]
-            self.precision = self.trainingstate.state["precision"]
+            self.precision = precision
         
         # Computational configuration
         if self.precision == np.float32:

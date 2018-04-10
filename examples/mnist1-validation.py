@@ -98,7 +98,8 @@ if __name__ == "__main__":
         print(ts.get_summary())
     else:
         # PREPARE TEST DATA
-        mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
+        Xtr = np.random.randn(10*28*28).reshape(10,28,28)
+        ytr = np.arange(10, dtype=np.int64)
             
         # CHOOSE MODEL
         model = Net()  
@@ -114,6 +115,6 @@ if __name__ == "__main__":
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
             model = Trainingstate.initialize_model(model, ts, precision=np.float32, use_cuda=argv.use_cuda)
-            lg.info(Analyzer.evaluate(model, criterion, mnist_data_test, regression=False))
+            lg.info(Analyzer.evaluate(model, criterion, (Xtr, ytr), regression=False))
             
     
