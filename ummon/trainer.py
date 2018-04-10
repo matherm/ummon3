@@ -162,6 +162,35 @@ class Trainer:
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
         early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
         after_backward_hook=None, after_eval_hook=None, args=None):
+        """
+        Fits a model with given training and validation dataset
+        
+        Arguments
+        ---------
+        dataloader_training :   torch.utils.data.DataLoader
+                                The dataloader that provides the training data
+        epochs              :   int
+                                Epochs to train
+        validation_set      :   torch.utils.data.Dataset
+                                The validation dataset
+        eval_interval       :   int
+                                Evaluation interval for validation dataset in epochs
+        early_stopping      :   float
+                                Eps criterion for early stopping
+        do_combined_retraining: bool
+                                Specifies whether retraining with validation AND training dataset should be done
+        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                                A hook that gets called after backward pass during training
+        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
+                                A hook that gets called after forward pass during evaluation
+        args                :   OPTIONAL dict
+                                A dict that gets persisted and can hold arbitrary information about the trainine
+        
+        Return
+        ------
+        ummon.Trainingstate
+        A dictionary containing the trainingstate
+        """
         
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:

@@ -46,7 +46,7 @@ class Analyzer:
                           Dataset to evaluate
         regression      : bool
                           Specifies if a classification needs to be done
-        after_eval_hook : OPTIONAL function(output, targets, loss)
+        after_eval_hook : OPTIONAL function(output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         
         Return
@@ -84,7 +84,7 @@ class Analyzer:
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(output, targets, loss)
+                    after_eval_hook(output.data, targets.data, loss.data)
                 
                 # Compute classification accuracy
                 if not regression:
