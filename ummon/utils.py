@@ -52,7 +52,8 @@ class Torchutils:
     def unregister_hooks(handles):
         for handle in handles:
             handle.remove()
-    
+            
+            
     @staticmethod
     def get_shape_information(dataset):
         if dataset is None: return "---"
@@ -70,11 +71,11 @@ class Torchutils:
         if type(dataset[0][1]) == tuple:
             target_shape = "["
             for di in dataset[0][1]:
-                target_shape = target_shape + str(di.numpy().shape if type(di) != int else "int")  + " "
+                target_shape = target_shape + str(di.numpy().shape if type(di) == np.array  else type(dataset[0][1])).__name__  + " "
             target_shape = target_shape + "]"
         else:
-            target_shape = str(dataset[0][1].numpy().shape if type(dataset[0][1]) != int else "int") 
-        return "Shape-IN:{}/OUT:{}".format(data_shape,target_shape)
+            target_shape = str(dataset[0][1].numpy().shape if type(dataset[0][1]) == np.array else type(dataset[0][1]).__name__ ) 
+        return "Shape-IN:{}/TARGET:{}".format(data_shape,target_shape)
     
     @staticmethod
     def get_type_information(dataset):
@@ -93,11 +94,11 @@ class Torchutils:
         if type(dataset[0][1]) == tuple:
             target_type = "["
             for di in dataset[0][1]:
-                target_type = target_type + str(di.numpy().dtype if type(di) != int else "int")  + " "
+                target_type = target_type + str(di.numpy().dtype if type(di) == np.array  else type(dataset[0][1]).__name__)  + " "
             target_type = target_type + "]"
         else:
-            target_type = str(dataset[0][1].numpy().dtype if type(dataset[0][1]) != int else "int")
-        return "Type-IN:{}/OUT:{}".format(data_type,target_type)
+            target_type = str(dataset[0][1].numpy().dtype if type(dataset[0][1]) == np.array  else type(dataset[0][1]).__name__)
+        return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
     
     @staticmethod
     def get_size_information(dataset):
@@ -120,11 +121,11 @@ class Torchutils:
         # CASE MULTIPLE INPUT
         if type(dataset[0][0]) == tuple:
             for di in dataset[0][0]:
-                if not di.numpy().dtype == next(model.parameters()).data.numpy().dtype == precision:
+                if not di.numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision:
                     return False
             return True                
         else:
-            return dataset[0][0].numpy().dtype == next(model.parameters()).data.numpy().dtype == precision
+            return dataset[0][0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
     
     
     # check input data

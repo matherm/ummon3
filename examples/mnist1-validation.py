@@ -98,9 +98,9 @@ if __name__ == "__main__":
         print(ts.get_summary())
     else:
         # PREPARE TEST DATA
-        Xtr = np.random.randn(10*28*28).reshape(10,28,28)
+        Xtr = np.random.randn(10*28*28).reshape(10,28,28).astype(np.float32)
         ytr = np.arange(10, dtype=np.int64)
-            
+        
         # CHOOSE MODEL
         model = Net()  
         

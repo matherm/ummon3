@@ -197,7 +197,7 @@ class Logger(logging.getLoggerClass()):
             learningstate.state["best_validation_loss"][1]
         detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
         
-        self.info('\nModel Evaluation, Epoch# {}, lrate {}'.format(epoch, lrate))
+        self.info('\nModel Evaluation, Epoch #{}, lrate {}'.format(epoch, lrate))
         self.info("----------------------------------------")  
         if regression == True:
             self.info('       Validation set: loss: {:.4f}. {}'.format(loss, 

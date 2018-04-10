@@ -85,7 +85,11 @@ class Analyzer:
                 
                 # Execute Model
                 model.eval()
-                output = model(Variable(inputs)).cpu()
+                output = model(Variable(inputs))
+                
+                #Transfer to CPU
+                if type(output) != tuple: 
+                    output = output.cpu() 
                 model.train()
                 
                 # Compute Loss
@@ -94,11 +98,17 @@ class Analyzer:
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, targets.data, loss.data)
+                    if type(output) != tuple:
+                        after_eval_hook(model, output.data, targets.data, loss.data)
+                    else:
+                        after_eval_hook(model, output[0].data, targets.data, loss.data)
                 
                 # Compute classification accuracy
                 if not regression:
-                    classes = Analyzer.classify(output.data)
+                    if type(output) != tuple:
+                        classes = Analyzer.classify(output.data)  
+                    else:
+                        classes = Analyzer.classify(output[0].data)
                     acc = Analyzer.compute_accuracy(classes, targets.data)
                     evaluation_dict["accuracy"] = acc
                 else:

@@ -154,7 +154,7 @@ class Trainer:
         
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True, precision=self.precision)
+            dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
             batch = int(dataloader_training[2])
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
@@ -163,7 +163,7 @@ class Trainer:
 
         if validation_set is not None:
             if type(validation_set) == tuple:
-                validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False, precision=self.precision)
+                validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
             assert Torchutils.check_precision(validation_set, self.model, self.precision)
         
@@ -214,7 +214,11 @@ class Trainer:
                     inputs = inputs.cuda()
                 
                 # Execute Model
-                output = self.model(Variable(inputs)).cpu()
+                output = self.model(Variable(inputs))
+                
+                #Transfer to CPU
+                if type(output) != tuple: 
+                    output = output.cpu() 
                 
                 # Compute Loss
                 targets = Variable(targets)
@@ -228,7 +232,10 @@ class Trainer:
                 
                 # Run hooks
                 if after_backward_hook is not None:
-                    after_backward_hook(self.model, output.data, targets.data, loss.data)
+                    if type(output) != tuple:
+                        after_backward_hook(self.model, output.data, targets.data, loss.data)
+                    else:
+                        after_backward_hook(self.model, output[0].data, targets.data, loss.data)
                 
                 # Take gradient descent
                 self.optimizer.step()
@@ -239,7 +246,10 @@ class Trainer:
                 # Running average accuracy
                 if not self.regression:
                     avg_training_acc = 0.
-                    classes = Analyzer.classify(output.data)
+                    if type(output) != tuple:
+                        classes = Analyzer.classify(output.data)
+                    else:
+                        classes = Analyzer.classify(output[0].data)
                     acc = Analyzer.compute_accuracy(classes, targets.data)
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
                 else:
