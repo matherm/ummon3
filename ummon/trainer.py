@@ -68,6 +68,7 @@ class Trainer:
         assert isinstance(loss_function, nn.Module)
         assert isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) if not scheduler is None else True
         assert type(trainingstate) == Trainingstate if not trainingstate is None else True
+        assert precision == np.float32 or precision == np.float64
         
         self.name = "ummon.Trainer"
 
@@ -158,6 +159,26 @@ class Trainer:
             if y.dtype != 'float32':
                 y = y.astype('float32')
     
+    def _construct_dataset_from_tuple(self, data_tuple, train = True):
+        if train == True and len(data_tuple) != 3:
+                self.logger.error('Training data must be provided as a tuple (X,y,batch) or as PyTorch DataLoader.',
+                    TypeError)
+        if train == False and len(data_tuple) != 2:
+                    self.logger.error('Validation data must be provided as a tuple (X,y) or as PyTorch DataLoader.',
+                        TypeError)          
+        # extract training data
+        Xtr = data_tuple[0]
+        ytr = data_tuple[1]
+        self._check_data(Xtr, ytr)
+        
+        # construct pytorch dataloader from 2-tupel
+        x = torch.from_numpy(Xtr)
+        y = torch.from_numpy(ytr) 
+        if self.precision == np.float32:
+            dataset = TensorDataset(x.float(), y.float())
+        if self.precision == np.float64:
+            dataset = TensorDataset(x.double(), y.double())
+        return dataset
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
         early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
@@ -167,11 +188,11 @@ class Trainer:
         
         Arguments
         ---------
-        dataloader_training :   torch.utils.data.DataLoader
+        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
                                 The dataloader that provides the training data
         epochs              :   int
                                 Epochs to train
-        validation_set      :   torch.utils.data.Dataset
+        validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
@@ -194,27 +215,17 @@ class Trainer:
         
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            if len(dataloader_training) != 3:
-                self.logger.error('Training data must be provided as a tuple (X,y,batch) or as PyTorch DataLoader.',
-                    TypeError)
-            
-            # extract training data
-            Xtr = dataloader_training[0]
-            ytr = dataloader_training[1]
-            self._check_data(Xtr, ytr)
+            dataset = self._construct_dataset_from_tuple(dataloader_training, train=True)
             batch = int(dataloader_training[2])
-            
-            # construct pytorch dataloader from 2-tupel
-            x = torch.from_numpy(Xtr)
-            y = torch.from_numpy(ytr) 
-            dataset = TensorDataset(x.float(), y.float())
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
-            
         else:
             assert isinstance(dataloader_training, torch.utils.data.DataLoader)
         if validation_set is not None:
+            if type(validation_set) == tuple:
+                 validation_set = self._construct_dataset_from_tuple(dataloader_training, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
+            assert validation_set[0][0].numpy().dtype == self.precision
         assert dataloader_training.dataset[0][0].numpy().dtype == self.precision
         
         # check parameters
