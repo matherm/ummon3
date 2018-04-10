@@ -602,7 +602,10 @@ class TestUmmon(unittest.TestCase):
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         
         model = Net()
-        assert type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor
+        criterion = nn.MSELoss()
+        model = Trainingstate.initialize_model(model, None, precision=np.float32)
+        self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid, regression=False)["loss"] < 1.)
+        self.assertTrue(type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
         pass
         
     

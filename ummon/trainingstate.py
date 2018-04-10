@@ -156,7 +156,7 @@ class Trainingstate():
     
     
     @staticmethod
-    def initialize_model(logger, model, trainingstate, precision, use_cuda = False):
+    def initialize_model(model, trainingstate, precision, use_cuda = False):
         assert isinstance(model, nn.Module)
         assert precision == np.float32 or precision == np.float64
         
@@ -175,8 +175,7 @@ class Trainingstate():
         if precision == np.float64:
             model = model.double()
         if use_cuda:
-            if not torch.cuda.is_available():
-                logger.error('CUDA is not available on your system.')
+            assert torch.cuda.is_available() == True
             model = model.cuda()
         else:
             model = model.cpu()

@@ -35,7 +35,7 @@ class Analyzer:
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, regression, logger, after_eval_hook=None):
+    def evaluate(model, loss_function, dataset, regression, logger=Logger(), after_eval_hook=None):
         """
         Evaluates a model with given validation dataset
         
@@ -49,7 +49,7 @@ class Analyzer:
                           Dataset to evaluate
         regression      : bool
                           Specifies if a classification needs to be done
-        logger          : ummon.Logger
+        logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
         after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
@@ -119,7 +119,7 @@ class Analyzer:
     
     
     @staticmethod
-    def inference(model, dataset, logger):
+    def inference(model, dataset, logger=Logger()):
         """
         Computes the output of a model for a given dataset
         
@@ -129,7 +129,7 @@ class Analyzer:
                           The model
         dataset         : torch.utils.data.Dataset OR tuple (X,y)
                           Dataset to evaluate
-        logger          : ummon.Logger
+        logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
         
         Return

@@ -113,7 +113,7 @@ if __name__ == "__main__":
             ts = None
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
-            model = Trainingstate.initialize_model(lg, model, ts, precision=np.float32, use_cuda=argv.use_cuda)
-            lg.info(Analyzer.evaluate(model, criterion, mnist_data_test, regression=False, logger=lg))
+            model = Trainingstate.initialize_model(model, ts, precision=np.float32, use_cuda=argv.use_cuda)
+            lg.info(Analyzer.evaluate(model, criterion, mnist_data_test, regression=False))
             
     
