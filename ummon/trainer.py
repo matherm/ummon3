@@ -11,8 +11,8 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
-from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
+from ummon.utils import Torchutils
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
@@ -79,7 +79,6 @@ class Trainer:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.trainingstate = Trainingstate()
-        self.logger = Logger()
         self.regression = regression
         self.epoch = 0
         self.precision = precision
@@ -100,9 +99,9 @@ class Trainer:
             self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
-            self.model.load_state_dict(trainingstate.state["model_state"])            
-            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
+            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
+            self.model.load_state_dict(trainingstate.state["model_state"])            
             
             assert precision == self.trainingstate.state["precision"]
             self.precision = self.trainingstate.state["precision"]
@@ -113,72 +112,12 @@ class Trainer:
         if self.precision == np.float64:
             self.model = self.model.double()
         if self.use_cuda:
+            if not torch.cuda.is_available():
+                logger.error('CUDA is not available on your system.')
             self.model = self.model.cuda()
         else:
             self.model = self.model.cpu()
     
-    
-    # check input data
-    def _check_data(self, X, y=[]):
-        '''
-        Internal function for checking the validity and size compatibility of the provided 
-        data.
-        
-        Arguments:
-        
-        * X: input data
-        * y: output data (optional)
-        
-        '''
-        # check inputs
-        if type(X) != np.ndarray:
-            self.logger.error('Input data is not a *NumPy* array')
-        if X.ndim > 5 or X.ndim == 0:
-            self.logger.error('Input dimension must be 1..5.', TypeError)
-        if X.dtype != 'float32':
-            X = X.astype('float32')
-        
-        # convert into standard shape
-        if X.ndim == 1:
-            X = X.reshape((1, len(X))).copy()
-        elif X.ndim == 3:
-            X = X.reshape((X.shape[0], 1, X.shape[1], X.shape[2])).copy()
-        elif X.ndim == 4:
-            X = X.reshape((X.shape[0], 1, X.shape[1], X.shape[2], X.shape[3])).copy()
-        
-        # check targets
-        if len(y) > 0:
-            if type(y) != np.ndarray:
-                self.logger.error('Target data is not a *NumPy* array')
-            if y.ndim > 2 or y.ndim == 0:
-                self.logger.error('Targets must be given as vector or matrix.')
-            if y.ndim == 1:
-                y = y.reshape((1, len(y))).copy()
-            if np.shape(y)[0] != np.shape(X)[0]:
-                self.logger.error('Number of targets must match number of inputs.')
-            if y.dtype != 'float32':
-                y = y.astype('float32')
-    
-    def _construct_dataset_from_tuple(self, data_tuple, train = True):
-        if train == True and len(data_tuple) != 3:
-                self.logger.error('Training data must be provided as a tuple (X,y,batch) or as PyTorch DataLoader.',
-                    TypeError)
-        if train == False and len(data_tuple) != 2:
-                    self.logger.error('Validation data must be provided as a tuple (X,y) or as PyTorch DataLoader.',
-                        TypeError)          
-        # extract training data
-        Xtr = data_tuple[0]
-        ytr = data_tuple[1]
-        self._check_data(Xtr, ytr)
-        
-        # construct pytorch dataloader from 2-tupel
-        x = torch.from_numpy(Xtr)
-        y = torch.from_numpy(ytr) 
-        if self.precision == np.float32:
-            dataset = TensorDataset(x.float(), y.float())
-        if self.precision == np.float64:
-            dataset = TensorDataset(x.double(), y.double())
-        return dataset
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
         early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
@@ -215,18 +154,18 @@ class Trainer:
         
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            dataset = self._construct_dataset_from_tuple(dataloader_training, train=True)
+            dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True, precision=self.precision)
             batch = int(dataloader_training[2])
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert dataloader_training.dataset[0][0].numpy().dtype == self.precision
+        assert Torchutils.check_precision(dataloader_training.dataset, self.model, self.precision)
 
         if validation_set is not None:
             if type(validation_set) == tuple:
-                 validation_set = self._construct_dataset_from_tuple(validation_set, train=False)
+                validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False, precision=self.precision)
             assert isinstance(validation_set, torch.utils.data.Dataset)
-            assert validation_set[0][0].numpy().dtype == self.precision
+            assert Torchutils.check_precision(validation_set, self.model, self.precision)
         
         # check parameters
         epochs = int(epochs)
@@ -326,7 +265,7 @@ class Trainer:
         args = {} if args is None else args
         
         # MODEL EVALUATION
-        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, after_eval_hook)
+        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, self.logger, after_eval_hook)
         
         # UPDATE TRAININGSTATE
         self.trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 

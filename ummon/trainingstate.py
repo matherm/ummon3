@@ -5,9 +5,10 @@ sys.path.insert(0,'../../ummon3')
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
 import torch
+import torch.nn as nn
 import shutil
 import numpy as np
-import ummon.utils as utils
+from ummon.utils import Torchutils
 
 class Trainingstate():
     """
@@ -62,8 +63,8 @@ class Trainingstate():
                              "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
                              "precision" : precision,
-                             "dataset_training" : utils.get_data_information(training_dataset),
-                             "dataset_validation" : utils.get_data_information(validation_dataset),
+                             "dataset_training" : Torchutils.get_data_information(training_dataset),
+                             "dataset_validation" : Torchutils.get_data_information(validation_dataset),
                              "samples_per_second[]" : [(epoch, samples_per_second)],
                              "init_optimizer_state" : optimizer.state_dict(),
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
@@ -87,8 +88,8 @@ class Trainingstate():
                              "cuda" : self.state["cuda"], 
                              "regression" : regression,
                              "precision" : precision,
-                             "dataset_training" : self.state["dataset_training"] if "dataset_training" in self.state else utils.get_data_information(training_dataset),
-                             "dataset_validation" : self.state["dataset_validation"] if "dataset_validation" in self.state else utils.get_data_information(validation_dataset),
+                             "dataset_training" : self.state["dataset_training"] if "dataset_training" in self.state else Torchutils.get_data_information(training_dataset),
+                             "dataset_validation" : self.state["dataset_validation"] if "dataset_validation" in self.state else Torchutils.get_data_information(validation_dataset),
                              "samples_per_second[]" : [*self.state["samples_per_second[]"], (epoch, samples_per_second)] if "samples_per_second[]" in self.state else [(epoch, samples_per_second)],
                              "init_optimizer_state" : self.state["init_optimizer_state"],
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
@@ -114,10 +115,7 @@ class Trainingstate():
                   }
         return summary   
     
-    
-    def __repr__(self):
-        return str(self.state)
-        
+           
   
     def load_state(self, filename, force_weights_to_cpu = False):
         if force_weights_to_cpu:
@@ -151,3 +149,35 @@ class Trainingstate():
 
         if is_best_valid(self.state):
             shutil.copyfile(filename, str(short_filename + '_best_validation_loss' + file_extension))
+            
+     
+    def __repr__(self):
+        return str(self.state)
+    
+    
+    @staticmethod
+    def initialize_model(logger, model, trainingstate, precision, use_cuda = False):
+        assert isinstance(model, nn.Module)
+        assert precision == np.float32 or precision == np.float64
+        
+        if trainingstate is not None:
+            assert isinstance(trainingstate, Trainingstate)
+            
+            # RESTORE STATE    
+            model.load_state_dict(trainingstate.state["model_state"])            
+           
+            # SANITY CHECK
+            assert precision == trainingstate.state["precision"]
+        
+        # Computational configuration
+        if precision == np.float32:
+            model = model.float()
+        if precision == np.float64:
+            model = model.double()
+        if use_cuda:
+            if not torch.cuda.is_available():
+                logger.error('CUDA is not available on your system.')
+            model = model.cuda()
+        else:
+            model = model.cpu()
+        return model

@@ -1,16 +1,13 @@
 import unittest
-from math import log
 import os
-
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
+from math import log
+from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
-
-
 from ummon import *
 
 # set fixed seed for reproducible results
@@ -605,10 +602,9 @@ class TestUmmon(unittest.TestCase):
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         
         model = Net()
-        Analyzer().inference(model, dataset_valid)
+        assert type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor
         pass
         
-    
     
     def test_visualizer(self):
         pass

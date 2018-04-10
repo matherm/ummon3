@@ -6,11 +6,11 @@ sys.path.insert(0,'../ummon3')
 #############################################################################################
 
 import logging, warnings, os, time, socket
-from platform import platform
 import numpy as np
 import torch
+from platform import platform
 from ummon.__version__ import version
-import ummon.utils as utils
+from ummon.utils import Torchutils
 
 __all__ = [ 'Logger' ]
 
@@ -236,17 +236,17 @@ class Logger(logging.getLoggerClass()):
         self.debug(' ')
         self.debug('[Data]')
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Training', 
-            utils.get_size_information(dataloader_train.dataset), 
-            utils.get_shape_information(dataloader_train.dataset), 
-            utils.get_type_information(dataloader_train.dataset)))
+            Torchutils.get_size_information(dataloader_train.dataset), 
+            Torchutils.get_shape_information(dataloader_train.dataset), 
+            Torchutils.get_type_information(dataloader_train.dataset)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
-            utils.get_size_information(dataset_validation), 
-            utils.get_shape_information(dataset_validation), 
-            utils.get_type_information(dataset_validation)))
+            Torchutils.get_size_information(dataset_validation), 
+            Torchutils.get_shape_information(dataset_validation), 
+            Torchutils.get_type_information(dataset_validation)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Test', 
-            utils.get_size_information(dataset_test), 
-            utils.get_shape_information(dataset_test), 
-            utils.get_type_information(dataset_test)))
+            Torchutils.get_size_information(dataset_test), 
+            Torchutils.get_shape_information(dataset_test), 
+            Torchutils.get_type_information(dataset_test)))
         self.debug('')
     
     

@@ -19,6 +19,7 @@ import numpy
 import sys
 from platform import platform
 import ummon.__version__
+import ummon.utils as utils
 version = ummon.__version__.version
 
 def system_info():
@@ -42,5 +43,5 @@ from .logger import Logger
 from .trainingstate import Trainingstate
 from .analyzer import Analyzer
 from .trainer import Trainer
-from .logger import Logger
 from .visualizer import Visualizer
+from .utils import Torchutils

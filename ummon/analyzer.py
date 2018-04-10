@@ -10,6 +10,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from ummon.trainingstate import Trainingstate
+from ummon.logger import Logger
+from ummon.utils import Torchutils
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
@@ -30,9 +32,10 @@ class Analyzer:
     """
     def __init__(self):
         self.name = "ummon.Analyzer"
-
+            
+            
     @staticmethod    
-    def evaluate(model, loss_function, dataset, regression, after_eval_hook=None):
+    def evaluate(model, loss_function, dataset, regression, logger, after_eval_hook=None):
         """
         Evaluates a model with given validation dataset
         
@@ -42,21 +45,28 @@ class Analyzer:
                           The model
         loss_function   : nn.module
                           The loss function to evaluate
-        dataset         : torch.utils.data.Dataset
+        dataset         : torch.utils.data.Dataset OR tuple (X,y)
                           Dataset to evaluate
         regression      : bool
                           Specifies if a classification needs to be done
+        logger          : ummon.Logger
+                          The logger to be used for output messages
         after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         
         Return
         ------
         Dictionary
-        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`
+        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
+        # simple interface: training and test data given as numpy arrays
+        if type(dataset) == tuple:
+                 dataset = Torchutils.construct_dataset_from_tuple(logger, dataset, train=False)
+        
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(loss_function, nn.Module)
         assert isinstance(model, nn.Module)
+        assert Torchutils.check_precision(dataset, model)
         
         evaluation_dict = {}
         use_cuda = next(model.parameters()).is_cuda
@@ -109,9 +119,31 @@ class Analyzer:
     
     
     @staticmethod
-    def inference(model, dataset):
+    def inference(model, dataset, logger):
+        """
+        Computes the output of a model for a given dataset
+        
+        Arguments
+        ---------
+        model           : nn.module
+                          The model
+        dataset         : torch.utils.data.Dataset OR tuple (X,y)
+                          Dataset to evaluate
+        logger          : ummon.Logger
+                          The logger to be used for output messages
+        
+        Return
+        ------
+        torch.tensor
+        The output
+        """
+        # simple interface: training and test data given as numpy arrays
+        if type(dataset) == tuple:
+                 dataset = Torchutils.construct_dataset_from_tuple(logger, dataset, train=False)
+                 
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(model, nn.Module)
+        assert Torchutils.check_precision(dataset, model)
         
         use_cuda = next(model.parameters()).is_cuda
         dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
@@ -128,7 +160,7 @@ class Analyzer:
                 model.eval()
                 output = model(Variable(inputs)).cpu()
                 model.train()
-        return output.cpu()
+        return output.cpu().data
     
     
     @staticmethod
