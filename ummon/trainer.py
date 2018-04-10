@@ -200,9 +200,9 @@ class Trainer:
                                 Eps criterion for early stopping
         do_combined_retraining: bool
                                 Specifies whether retraining with validation AND training dataset should be done
-        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
+        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         args                :   OPTIONAL dict
                                 A dict that gets persisted and can hold arbitrary information about the trainine
@@ -289,7 +289,7 @@ class Trainer:
                 
                 # Run hooks
                 if after_backward_hook is not None:
-                    after_backward_hook(output.data, targets.data, loss.data)
+                    after_backward_hook(self.model, output.data, targets.data, loss.data)
                 
                 # Take gradient descent
                 self.optimizer.step()
