@@ -606,7 +606,6 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         Analyzer().inference(model, dataset_valid)
-       
         pass
         
     

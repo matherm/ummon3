@@ -9,7 +9,8 @@ import logging, warnings, os, time, socket
 from platform import platform
 import numpy as np
 import torch
-from .__version__ import version
+from ummon.__version__ import version
+import ummon.utils as utils
 
 __all__ = [ 'Logger' ]
 
@@ -184,12 +185,13 @@ class Logger(logging.getLoggerClass()):
     
     
     # evaluate model
-    def log_evaluation(self, learningstate, samples_per_seconds):
+    def log_evaluation(self, learningstate):
         epoch = learningstate.state["training_loss[]"][-1][0]
         lrate = learningstate.state["lrate[]"][-1][1]
         loss =  learningstate.state["validation_loss[]"][-1][1]
         acc  =  learningstate.state["validation_accuracy[]"][-1][1]
         batchsize = learningstate.state["validation_accuracy[]"][-1][2]
+        samples_per_seconds = learningstate.state["samples_per_second[]"][-1][1]
         regression = learningstate.state["regression"]
         is_best = learningstate.state["validation_loss[]"][-1][1] == \
             learningstate.state["best_validation_loss"][1]
@@ -204,8 +206,8 @@ class Logger(logging.getLoggerClass()):
             self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(
                 loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
                 "[BEST]" if is_best else ''))
+        self.info('       Detailed loss information: {}'.format(detailed_loss))
         self.info('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
-        self.info('       Detailed loss-information: {}\n'.format(detailed_loss))
     
     
     # output description of learning task
@@ -234,31 +236,18 @@ class Logger(logging.getLoggerClass()):
         self.debug(' ')
         self.debug('[Data]')
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Training', 
-            len(dataloader_train.dataset) if dataloader_train is not None else 0, 
-            str(dataloader_train.dataset[0][0].numpy().shape) + "/" + 
-                str(dataloader_train.dataset[0][1].numpy().shape 
-                if type(dataloader_train.dataset[0][1]) != int else "int") 
-                if dataloader_train is not None else "---", 
-            str(dataloader_train.dataset[0][0].numpy().dtype) + "/" + 
-                str(dataloader_train.dataset[0][1].numpy().dtype 
-                if type(dataloader_train.dataset[0][1]) != int else "int") 
-                if dataloader_train is not None else "---"))
+            utils.get_size_information(dataloader_train.dataset), 
+            utils.get_shape_information(dataloader_train.dataset), 
+            utils.get_type_information(dataloader_train.dataset)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
-            len(dataset_validation) if dataset_validation is not None else 0, 
-            str(dataset_validation[0][0].numpy().shape) + "/" +
-                str(dataset_validation[0][1].numpy().shape 
-                if type(dataset_validation[0][1]) != int else "int") 
-                if dataset_validation is not None else "---", 
-            str(dataset_validation[0][0].numpy().dtype)+ "/" + 
-                str(dataset_validation[0][1].numpy().dtype 
-                if type(dataset_validation[0][1]) != int else "int") 
-                if dataset_validation is not None else "---" ))
+            utils.get_size_information(dataset_validation), 
+            utils.get_shape_information(dataset_validation), 
+            utils.get_type_information(dataset_validation)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Test', 
-            len(dataset_test)  if dataset_test is not None else 0,  
-            str(dataset_test[0][0].numpy().shape) + "/" + 
-                str(dataset_test[0][1].numpy().shape) if dataset_test is not None else "---", 
-            str(dataset_test[0][0].numpy().dtype) + "/" + 
-                str(dataset_test[0][0].numpy().dtype) if dataset_test is not None else "---" ))
+            utils.get_size_information(dataset_test), 
+            utils.get_shape_information(dataset_test), 
+            utils.get_type_information(dataset_test)))
+        self.debug('')
     
     
     # print arguments when called as shell program

@@ -32,7 +32,7 @@ class Analyzer:
         self.name = "ummon.Analyzer"
 
     @staticmethod    
-    def evaluate(model, loss_function, dataset, regression):
+    def evaluate(model, loss_function, dataset, regression, after_eval_hook=None):
         """
         Evaluates a model with given validation dataset
         
@@ -46,6 +46,8 @@ class Analyzer:
                           Dataset to evaluate
         regression      : bool
                           Specifies if a classification needs to be done
+        after_eval_hook : OPTIONAL function(output, targets, loss)
+                          A hook that gets called after forward pass
         
         Return
         ------
@@ -80,6 +82,10 @@ class Analyzer:
                 targets = Variable(targets)
                 loss = loss_function(output, targets).cpu()
                 
+                # Run hook
+                if after_eval_hook is not None:
+                    after_eval_hook(output, targets, loss)
+                
                 # Compute classification accuracy
                 if not regression:
                     classes = Analyzer.classify(output.data)
@@ -87,7 +93,7 @@ class Analyzer:
                     evaluation_dict["accuracy"] = acc
                 else:
                     evaluation_dict["accuracy"] = 0.
-                evaluation_dict["samples_per_seconds"] = dataloader.batch_size / (time.time() - t)
+                evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
                 evaluation_dict["loss"] = loss.data[0]
                 evaluation_dict["detailed_loss"] = repr(loss_function)
                 evaluation_dict["args[]"] = {}

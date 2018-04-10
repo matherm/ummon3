@@ -7,6 +7,7 @@ sys.path.insert(0,'../ummon3')
 import torch
 import shutil
 import numpy as np
+import ummon.utils as utils
 
 class Trainingstate():
     """
@@ -50,6 +51,9 @@ class Trainingstate():
                      regression = False,
                      precision = np.float32,
                      detailed_loss = {},
+                     training_dataset = None,
+                     validation_dataset = None,
+                     samples_per_second = None,
                      args = None):
         if self.state is None:
             self.state = {  
@@ -58,6 +62,9 @@ class Trainingstate():
                              "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
                              "precision" : precision,
+                             "dataset_training" : utils.get_data_information(training_dataset),
+                             "dataset_validation" : utils.get_data_information(validation_dataset),
+                             "samples_per_second[]" : [(epoch, samples_per_second)],
                              "init_optimizer_state" : optimizer.state_dict(),
                              "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),
@@ -80,6 +87,9 @@ class Trainingstate():
                              "cuda" : self.state["cuda"], 
                              "regression" : regression,
                              "precision" : precision,
+                             "dataset_training" : self.state["dataset_training"] if "dataset_training" in self.state else utils.get_data_information(training_dataset),
+                             "dataset_validation" : self.state["dataset_validation"] if "dataset_validation" in self.state else utils.get_data_information(validation_dataset),
+                             "samples_per_second[]" : [*self.state["samples_per_second[]"], (epoch, samples_per_second)] if "samples_per_second[]" in self.state else [(epoch, samples_per_second)],
                              "init_optimizer_state" : self.state["init_optimizer_state"],
                              "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
                              "model_state" : model.state_dict(),

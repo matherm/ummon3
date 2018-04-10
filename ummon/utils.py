@@ -6,8 +6,8 @@ sys.path.insert(0,'../ummon3')
 #############################################################################################
 
 import numpy as np
-import torch
 import time
+import torch
 
 class Timer(object):
     def __init__(self, name=None):
@@ -44,3 +44,59 @@ def register_nan_checks(model):
 def unregister_hooks(handles):
     for handle in handles:
         handle.remove()
+
+def get_shape_information(dataset):
+    if dataset is None: return "---"
+    assert isinstance(dataset, torch.utils.data.Dataset)
+    
+    # CASE MULTIPLE INPUT
+    if type(dataset[0][0]) == tuple:
+        data_shape = "["
+        for di in dataset[0][0]:
+            data_shape = data_shape + str(di.numpy().shape) + " "
+        data_shape = data_shape + "]"
+    else:
+        data_shape = str(dataset[0][0].numpy().shape)
+    # CASE MULTIPLE OUTPUT
+    if type(dataset[0][1]) == tuple:
+        target_shape = "["
+        for di in dataset[0][1]:
+            target_shape = target_shape + str(di.numpy().shape if type(di) != int else "int")  + " "
+        target_shape = target_shape + "]"
+    else:
+        target_shape = str(dataset[0][1].numpy().shape if type(dataset[0][1]) != int else "int") 
+    return "Shape-IN:{}/OUT:{}".format(data_shape,target_shape)
+
+def get_type_information(dataset):
+    if dataset is None: return "---"
+    assert isinstance(dataset, torch.utils.data.Dataset)
+    
+    # CASE MULTIPLE INPUT
+    if type(dataset[0][0]) == tuple:
+        data_type = "["
+        for di in dataset[0][0]:
+            data_type = data_type + str(di.numpy().dtype) + " "
+        data_type = data_type + "]"
+    else:
+        data_type = str(dataset[0][0].numpy().dtype)
+    # CASE MULTIPLE OUTPUT
+    if type(dataset[0][1]) == tuple:
+        target_type = "["
+        for di in dataset[0][1]:
+            target_type = target_type + str(di.numpy().dtype if type(di) != int else "int")  + " "
+        target_type = target_type + "]"
+    else:
+        target_type = str(dataset[0][1].numpy().dtype if type(dataset[0][1]) != int else "int")
+    return "Type-IN:{}/OUT:{}".format(data_type,target_type)
+
+def get_size_information(dataset):
+    if dataset is None: return "---"
+    assert isinstance(dataset, torch.utils.data.Dataset)
+    
+    return len(dataset) if dataset is not None else 0
+
+def get_data_information(dataset):
+    if dataset is None: return "---"
+    assert isinstance(dataset, torch.utils.data.Dataset)
+    
+    return (get_size_information(dataset), get_shape_information(dataset), get_type_information(dataset))

@@ -160,8 +160,8 @@ class Trainer:
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        early_stopping=np.iinfo(np.int32).max, after_backward_hook=None, args=None, 
-        do_combined_retraining=False):
+        early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
+        after_backward_hook=None, after_eval_hook=None, args=None):
         
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
@@ -241,15 +241,15 @@ class Trainer:
                 targets = Variable(targets)
                 loss = self.criterion(output, targets).cpu()
                 
-                # Zero the gradoemt    
+                # Zero the gradient    
                 self.optimizer.zero_grad()
         
                 # Backpropagation
                 loss.backward()
                 
                 # Run hooks
-                if after_backward_hook:
-                    after_backward_hook()
+                if after_backward_hook is not None:
+                    after_backward_hook(output.data, targets.data, loss.data)
                 
                 # Take gradient descent
                 self.optimizer.step()
@@ -274,18 +274,19 @@ class Trainer:
             
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
-                self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, dataloader_training.batch_size, args)
+                self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
+                              dataloader_training.batch_size, dataloader_training, after_eval_hook, args)
                 
         return self.trainingstate
               
                 
     def evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
-        training_batch_size, args):
+        training_batch_size, dataloader_training, after_eval_hook, args):
         # INIT ARGS
         args = {} if args is None else args
         
         # MODEL EVALUATION
-        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression)
+        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, after_eval_hook)
         
         # UPDATE TRAININGSTATE
         self.trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
@@ -298,9 +299,12 @@ class Trainer:
                      regression = self.regression,
                      precision = self.precision,
                      detailed_loss = evaluation_dict["detailed_loss"],
+                     training_dataset = dataloader_training.dataset,
+                     validation_dataset = validation_set,
+                     samples_per_second = evaluation_dict["samples_per_second"],
                      args = {**args, **evaluation_dict["args[]"]})
         
-        self.logger.log_evaluation(self.trainingstate, evaluation_dict["samples_per_seconds"])
+        self.logger.log_evaluation(self.trainingstate)
         
         # SAVE MODEL
         self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
