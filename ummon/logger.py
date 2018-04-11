@@ -219,7 +219,8 @@ class Logger(logging.getLoggerClass()):
                 loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
                 "[BEST]" if is_best else ''))
         self.info('       Detailed loss information: {}'.format(detailed_loss))
-        self.info('       Throughput is {:.0f} samples/s\n'.format(samples_per_seconds))
+        self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
+        self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.\n'.format(Torchutils.get_memory_info()["mem"], Torchutils.get_cuda_memory_info()))
     
     
     # output description of learning task
