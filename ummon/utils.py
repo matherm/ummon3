@@ -94,10 +94,10 @@ class Torchutils:
         if type(dataset[0][1]) == tuple:
             target_type = "["
             for di in dataset[0][1]:
-                target_type = target_type + str(di.numpy().dtype if type(di) == np.array  else type(dataset[0][1]).__name__)  + " "
+                target_type = target_type + str(di.numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
             target_type = target_type + "]"
         else:
-            target_type = str(dataset[0][1].numpy().dtype if type(dataset[0][1]) == np.array  else type(dataset[0][1]).__name__)
+            target_type = str(dataset[0][1].numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
         return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
     
     @staticmethod
