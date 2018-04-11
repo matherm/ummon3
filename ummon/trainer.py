@@ -121,7 +121,7 @@ class Trainer:
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
         early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
-        after_backward_hook=None, after_eval_hook=None, args=None):
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1, args=None):
         """
         Fits a model with given training and validation dataset
         
@@ -143,6 +143,8 @@ class Trainer:
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
+        eval_batch_size      :  OPTIONAL int
+                                batch size used for evaluation (default: -1 == ALL)
         args                :   OPTIONAL dict
                                 A dict that gets persisted and can hold arbitrary information about the trainine
         
@@ -290,18 +292,18 @@ class Trainer:
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
                 self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
-                              dataloader_training.batch_size, dataloader_training, after_eval_hook, args)
+                              dataloader_training.batch_size, dataloader_training, after_eval_hook, eval_batch_size, args)
                 
         return self.trainingstate
               
                 
     def evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
-        training_batch_size, dataloader_training, after_eval_hook, args):
+        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, args):
         # INIT ARGS
         args = {} if args is None else args
         
         # MODEL EVALUATION
-        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, self.logger, after_eval_hook)
+        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, self.logger, after_eval_hook, batch_size=eval_batch_size)
         
         # UPDATE TRAININGSTATE
         self.trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 

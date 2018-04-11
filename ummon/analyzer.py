@@ -35,7 +35,7 @@ class Analyzer:
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, regression, logger=Logger(), after_eval_hook=None):
+    def evaluate(model, loss_function, dataset, regression, logger=Logger(), after_eval_hook=None, batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -53,6 +53,8 @@ class Analyzer:
                           The logger to be used for output messages
         after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
         
         Return
         ------
@@ -68,11 +70,14 @@ class Analyzer:
         assert isinstance(model, nn.Module)
         assert Torchutils.check_precision(dataset, model)
         
-        evaluation_dict = {}
         use_cuda = next(model.parameters()).is_cuda
-        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
+        evaluation_dict = {}
+        loss_average = 0.
+        acc_average = 0.
+        bs = len(dataset) if batch_size == -1 else batch_size
+        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)  
         for i, data in enumerate(dataloader, 0):
-            
+                
                 # Take time
                 t = time.time()
 
@@ -95,6 +100,7 @@ class Analyzer:
                 # Compute Loss
                 targets = Variable(targets)
                 loss = loss_function(output, targets).cpu()
+                loss_average = Analyzer._online_average(loss.data[0], i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
@@ -110,16 +116,23 @@ class Analyzer:
                     else:
                         classes = Analyzer.classify(output[0].data)
                     acc = Analyzer.compute_accuracy(classes, targets.data)
-                    evaluation_dict["accuracy"] = acc
+                    acc_average = Analyzer._online_average(acc, i + 1, acc_average)
+                    evaluation_dict["accuracy"] = acc_average
                 else:
                     evaluation_dict["accuracy"] = 0.
+                
                 evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
-                evaluation_dict["loss"] = loss.data[0]
+                evaluation_dict["loss"] = loss_average
                 evaluation_dict["detailed_loss"] = repr(loss_function)
                 evaluation_dict["args[]"] = {}
                 
         return evaluation_dict
-        
+    
+    @staticmethod
+    def _online_average(data, count, avg):
+        navg = avg + (data - avg) / count
+        return navg
+    
     # Get index of class with max probability
     @staticmethod
     def classify(output):
@@ -168,9 +181,12 @@ class Analyzer:
                 
                 # Execute Model
                 model.eval()
-                output = model(Variable(inputs)).cpu()
+                output = model(Variable(inputs))
                 model.train()
-        return output.cpu().data
+        if type(output) != tuple:
+            return output.cpu().data
+        else:
+            return output
     
     
     @staticmethod
