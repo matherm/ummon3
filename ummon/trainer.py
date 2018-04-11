@@ -191,6 +191,12 @@ class Trainer:
         for epoch in range(self.epoch, self.epoch + epochs):
             
             # TAKE TIME
+            time_dict = {"loader"   : 0,
+                         "model"    : 0,
+                         "loss"     : 0,
+                         "backprop" : 0,
+                         "hooks"    : 0,
+                         "total"    : 0}
             t = time.time()
             
             # ANNEAL LEARNING RATE
@@ -205,7 +211,10 @@ class Trainer:
             
             # COMPUTE ONE EPOCH                
             for batch, data in enumerate(dataloader_training, 0):
-            
+                
+                # time dataloader
+                time_dict["loader"] = time_dict["loader"] + (time.time() - t)
+                
                 # Get the inputs
                 inputs, targets = data
                 
@@ -216,6 +225,9 @@ class Trainer:
                 # Execute Model
                 output = self.model(Variable(inputs))
                 
+                # time model
+                time_dict["model"] = time_dict["model"] + (time.time() - t)
+
                 #Transfer to CPU
                 if type(output) != tuple: 
                     output = output.cpu() 
@@ -224,11 +236,17 @@ class Trainer:
                 targets = Variable(targets)
                 loss = self.criterion(output, targets).cpu()
                 
+                # time loss
+                time_dict["loss"] = time_dict["loss"] + (time.time() - t)
+                
                 # Zero the gradient    
                 self.optimizer.zero_grad()
         
                 # Backpropagation
                 loss.backward()
+                
+                # time backprop
+                time_dict["backprop"] = time_dict["backprop"] + (time.time() - t)
                 
                 # Run hooks
                 if after_backward_hook is not None:
@@ -236,6 +254,9 @@ class Trainer:
                         after_backward_hook(self.model, output.data, targets.data, loss.data)
                     else:
                         after_backward_hook(self.model, output[0].data, targets.data, loss.data)
+                
+                # time hooks
+                time_dict["hooks"] = time_dict["hooks"] + (time.time() - t)
                 
                 # Take gradient descent
                 self.optimizer.step()
@@ -255,11 +276,16 @@ class Trainer:
                 else:
                     avg_training_acc = 0.
                     
+                # total time
+                time_dict["total"] = time_dict["total"] + (time.time() - t)
+                
                 # Log status
-                self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, t)
+                self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
+                
+                t = time.time()
             
             # Log epoch
-            self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, t)
+            self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
             
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:

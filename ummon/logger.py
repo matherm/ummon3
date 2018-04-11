@@ -170,18 +170,30 @@ class Logger(logging.getLoggerClass()):
         self.logger.removeHandler(self.logger.handlers[-1])
     
     
-    # log one batch
-    def log_one_batch(self, epoch, batch, batches, loss, t):
+    # log one batch # 
+    def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict):
         if batch % self.log_batch_interval == 0:
-            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:02} s] '.format(
-                epoch, batch, batches, loss, int(time.time() - t)))
+            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:2} s total | {:2} s loader | {:2} s model | {:2} s loss | {:2} s backprop | {:2} s hooks]'.format(
+                epoch, batch, batches, loss, 
+                int(time_dict["total"]), 
+                int(time_dict["loader"]), 
+                int(time_dict["model"] - time_dict["loader"]), 
+                int(time_dict["loss"] - time_dict["model"]), 
+                int(time_dict["backprop"] - time_dict["loss"]), 
+                int(time_dict["hooks"] - time_dict["backprop"])))
     
     
     # log at end of epoch
-    def log_epoch(self, epoch, batch, batches, loss, batchsize, t):
-        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:02} s ({} samples/s)] '.format(
-            epoch, batch, batches, loss, int(time.time() - t), int((batches * 
-            batchsize/(time.time() - t)))))
+    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict):
+        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:2} s total | {:2} s loader | {:2} s model | {:2} s loss | {:2} s backprop | {:2} s hooks] ~ {:5} samples/s '.format(
+            epoch, batch, batches, loss, 
+            int(time_dict["total"]),
+            int(time_dict["loader"]), 
+            int(time_dict["model"] - time_dict["loader"]), 
+            int(time_dict["loss"] - time_dict["model"]), 
+            int(time_dict["backprop"] - time_dict["loss"]), 
+            int(time_dict["hooks"] - time_dict["backprop"]),
+            int((batches * batchsize/(time_dict["total"])))))
     
     
     # evaluate model
