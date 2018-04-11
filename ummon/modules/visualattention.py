@@ -53,7 +53,13 @@ class VisualAttentionLoss(nn.Module):
         ------                      
         loss    :   float
         """
+        assert len(output) == 4
         class_scores, saved_baselines, saved_ln_pis, rewards = output
+
+        assert len(saved_ln_pis) == len(saved_baselines) == rewards.size(1)
+        assert type(labels) == torch.LongTensor
+        if labels.dim() > 1:
+            labels = labels.view(labels.size(0))
         
         # Loss
         criterion = nn.CrossEntropyLoss()

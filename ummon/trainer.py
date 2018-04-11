@@ -219,7 +219,7 @@ class Trainer:
                 
                 # Get the inputs
                 inputs, targets = data
-                
+
                 # Handle cuda
                 if self.use_cuda:
                     inputs = inputs.cuda()
