@@ -173,7 +173,7 @@ class Logger(logging.getLoggerClass()):
     # log one batch # 
     def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict):
         if batch % self.log_batch_interval == 0:
-            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:2} s total | {:2} s loader | {:2} s model | {:2} s loss | {:2} s backprop | {:2} s hooks]'.format(
+            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks]'.format(
                 epoch, batch, batches, loss, 
                 int(time_dict["total"]), 
                 int(time_dict["loader"]), 
@@ -185,7 +185,7 @@ class Logger(logging.getLoggerClass()):
     
     # log at end of epoch
     def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict):
-        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:2} s total | {:2} s loader | {:2} s model | {:2} s loss | {:2} s backprop | {:2} s hooks] ~ {:5} samples/s '.format(
+        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
             epoch, batch, batches, loss, 
             int(time_dict["total"]),
             int(time_dict["loader"]), 
