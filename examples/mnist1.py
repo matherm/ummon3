@@ -108,7 +108,7 @@ if __name__ == "__main__":
         mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
         mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
        
-        dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None, num_workers=2)
             
         # CHOOSE MODEL
         model = Net()  
