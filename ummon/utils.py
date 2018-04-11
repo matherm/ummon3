@@ -178,7 +178,7 @@ class Torchutils:
         return X, y
     
     @staticmethod
-    def construct_dataset_from_tuple(logger, data_tuple, train = True, precision = np.float32):
+    def construct_dataset_from_tuple(logger, data_tuple, train = True):
         if train == True and len(data_tuple) != 3:
                 logger.error('Training data must be provided as a tuple (X,y,batch) or as PyTorch DataLoader.',
                     TypeError)
@@ -193,7 +193,8 @@ class Torchutils:
         
         # construct pytorch dataloader from 2-tupel
         x = torch.from_numpy(Xtrn)
-        y = torch.from_numpy(ytrn) 
+        y = torch.from_numpy(ytrn)
+        precision = Xtr.dtype
         if precision == np.float32:
             if ytr.dtype == np.int64:
                 dataset = TensorDataset(x.float(), y.long())
@@ -209,11 +210,14 @@ class Torchutils:
 
     @staticmethod
     def get_memory_info():
-          process = psutil.Process(os.getpid())
-          percentage = process.memory_percent()
-          memory = process.memory_info()[0] / float(2 ** 30)
-          return {"mem" : memory,
+        try:
+            process = psutil.Process(os.getpid())
+            percentage = process.memory_percent()
+            memory = process.memory_info()[0] / float(2 ** 30)
+            return {"mem" : memory,
                   "usage" : percentage}
+        except Exception:
+            return None
       
     @staticmethod    
     def get_cuda_memory_info():
@@ -226,15 +230,19 @@ class Torchutils:
             Keys are device ids as integers.
             Values are memory usage as integers in MB.
         """
-        if torch.cuda.is_available == False:
+        try:
+            if torch.cuda.is_available() == False:
+                return None
+            result = subprocess.check_output(
+                [
+                    'nvidia-smi', '--query-gpu=memory.used',
+                    '--format=csv,nounits,noheader'
+                ]).decode('utf-8')
+            # Convert lines into a dictionary
+            gpu_memory = [int(x) for x in result.strip().split('\n')]
+            gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
+            return gpu_memory_map
+        except Exception:
             return None
-        result = subprocess.check_output(
-            [
-                'nvidia-smi', '--query-gpu=memory.used',
-                '--format=csv,nounits,noheader'
-            ]).decode('utf-8')
-        # Convert lines into a dictionary
-        gpu_memory = [int(x) for x in result.strip().split('\n')]
-        gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
-        return gpu_memory_map
+            
         

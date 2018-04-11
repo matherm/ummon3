@@ -230,10 +230,10 @@ class Trainer:
                 # time model
                 time_dict["model"] = time_dict["model"] + (time.time() - t)
 
-                #Transfer to CPU
+                # Transfer to CPU
                 if type(output) != tuple: 
                     output = output.cpu() 
-                
+                    
                 # Compute Loss
                 targets = Variable(targets)
                 loss = self.criterion(output, targets).cpu()

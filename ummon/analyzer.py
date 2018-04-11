@@ -92,7 +92,7 @@ class Analyzer:
                 model.eval()
                 output = model(Variable(inputs))
                 
-                #Transfer to CPU
+                # Transfer to CPU
                 if type(output) != tuple: 
                     output = output.cpu() 
                 model.train()
@@ -136,6 +136,11 @@ class Analyzer:
     # Get index of class with max probability
     @staticmethod
     def classify(output):
+        """
+        Return
+        ------
+        classes (torch.LongTensor) - Shape [B x 1]
+        """
         assert isinstance(output, torch.Tensor)
         classes = output.max(1, keepdim=True)[1] 
         return classes
@@ -194,13 +199,12 @@ class Analyzer:
         assert isinstance(classes, torch.LongTensor)
         assert targets.shape[0] == classes.shape[0]
         
-        if not isinstance(targets, torch.LongTensor):
-            targets = targets.long()
-        
-        # one-hot coded targets are first converted in class labels
+        # Classification one-hot coded targets are first converted in class labels
         if targets.dim() > 1:
             targets = targets.max(1, keepdim=True)[1]
-        
+        if not isinstance(targets, torch.LongTensor):
+            targets = targets.long()
+                
         # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
         

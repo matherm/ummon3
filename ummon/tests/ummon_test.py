@@ -343,7 +343,7 @@ class TestUmmon(unittest.TestCase):
         print(w)
         print('Ref. bias:')
         print(b.T[0])
-            
+
         # fit
         with Logger(logdir='', loglevel=20) as lg:
             trn = Trainer(lg, cnet, loss, opt)
@@ -604,7 +604,7 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         model = Trainingstate.initialize_model(model, None, precision=np.float32)
-        self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid, regression=False)["loss"] < 1.)
+        self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"] < 1.)
         self.assertTrue(type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
         pass
         

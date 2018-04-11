@@ -261,7 +261,7 @@ class Logger(logging.getLoggerClass()):
             Torchutils.get_shape_information(dataset_test), 
             Torchutils.get_type_information(dataset_test)))
         self.debug('')
-    
+   
     
     # print arguments when called as shell program
     def print_args(self, args):
