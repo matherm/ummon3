@@ -45,12 +45,14 @@ class Trainer:
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
+    profile           : bool
+                        OPTIONAL Activates some advanced timing and profiling logs (default False)
     
     Methods
     -------
-    fit()           :  trains a model
-    evaluate()      :  validates the model
-    output()        :  handles output and user feedback
+    fit()            :  trains a model
+    _evaluate()      :  validates the model
+    _moving_average():  helper method
              
     """
     def __init__(self, logger, model, loss_function, optimizer, 
@@ -60,7 +62,8 @@ class Trainer:
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
                  precision = np.float32,
-                 use_cuda = False):
+                 use_cuda = False,
+                 profile = False):
         
         assert type(logger) == Logger
         assert isinstance(model, nn.Module)
@@ -83,6 +86,7 @@ class Trainer:
         self.epoch = 0
         self.precision = precision
         self.use_cuda = use_cuda
+        self.profile = profile
         
         #  Persistency parameters
         self.model_filename = model_filename
@@ -101,7 +105,8 @@ class Trainer:
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
             self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
-            self.model.load_state_dict(trainingstate.state["model_state"])            
+            self.model.load_state_dict(trainingstate.state["model_state"])  
+            self.logger.info("")
             
             assert precision == self.trainingstate.state["precision"]
             self.precision = precision
@@ -183,12 +188,17 @@ class Trainer:
         if do_combined_retraining:
             raise NotImplementedError("Combined retraining not implemented yet.")
         
+        # COMPUTE BATCHES PER EPOCH
+        batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
+        
+        # Preflight check in case model has some lazy initialization routines
+        memory_baseline = Torchutils.get_memory_info()["mem"]
+        output = self.model(Variable(next(iter(dataloader_training))[0]))
+        self.logger.preflight(memory_baseline)
+        
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
             dataloader_training, validation_set, epochs, early_stopping)
-        
-        # COMPUTE BATCHES PER EPOCH
-        batches = sum(1 for _ in iter(dataloader_training))
         
         for epoch in range(self.epoch, self.epoch + epochs):
             
@@ -224,14 +234,13 @@ class Trainer:
 
                 # Handle cuda
                 if self.use_cuda:
-                    inputs = inputs.cuda()
-                    targets = targets.cuda()
+                    inputs, targets = inputs.cuda(), targets.cuda()
                 
                 # Execute Model
                 output = self.model(inputs)
                 
                 # time model
-                if self.use_cuda: torch.cuda.synchronize()
+                if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["model"] = time_dict["model"] + (time.time() - t)
 
                 
@@ -249,7 +258,7 @@ class Trainer:
                 loss = self.criterion(output, targets)
                 
                 # time loss
-                if self.use_cuda: torch.cuda.synchronize()
+                if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["loss"] = time_dict["loss"] + (time.time() - t)
                 
                 # Zero the gradient    
@@ -259,7 +268,7 @@ class Trainer:
                 loss.backward()
                 
                 # time backprop
-                if self.use_cuda: torch.cuda.synchronize()
+                if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["backprop"] = time_dict["backprop"] + (time.time() - t)
                 
                 # Run hooks
@@ -270,7 +279,7 @@ class Trainer:
                         after_backward_hook(self.model, output[0].data, targets.data, loss.cpu().data)
                 
                 # time hooks
-                if self.use_cuda: torch.cuda.synchronize()
+                if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["hooks"] = time_dict["hooks"] + (time.time() - t)
                 
                 # Take gradient descent
@@ -280,10 +289,11 @@ class Trainer:
                 avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss)
                 
                 # total time
+                if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["total"] = time_dict["total"] + (time.time() - t)
                 
                 # Log status
-                self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
+                self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict, self.profile)
                 
                 # Reset time
                 t = time.time()
@@ -299,7 +309,7 @@ class Trainer:
           
             
             # Log epoch
-            self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
+            self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict, self.profile)
             
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
@@ -312,7 +322,7 @@ class Trainer:
                     acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
 
-                self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
+                self._evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
                               dataloader_training.batch_size, dataloader_training, after_eval_hook, eval_batch_size, args)
             # CLEAN UP
             del output_buffer[:]
@@ -321,7 +331,7 @@ class Trainer:
         return self.trainingstate
               
                 
-    def evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
+    def _evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
         training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, args):
         # INIT ARGS
         args = {} if args is None else args

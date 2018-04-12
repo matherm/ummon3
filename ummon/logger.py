@@ -65,7 +65,7 @@ class Logger(logging.getLoggerClass()):
     levels, independently of what is set for console output.
     '''
     def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', 
-        log_batch_interval=500, profile = False):
+        log_batch_interval=500):
         self.name = str(name)
         self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
@@ -73,7 +73,6 @@ class Logger(logging.getLoggerClass()):
         self.logdir = str(logdir)
         log_batch_interval = int(log_batch_interval,)
         self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500
-        self.profile = profile
     
     
     # setup logging
@@ -172,9 +171,9 @@ class Logger(logging.getLoggerClass()):
     
     
     # log one batch # 
-    def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict):
+    def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict, profile):
         if batch % self.log_batch_interval == 0:
-            if self.profile == True:
+            if profile == True:
                 self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks]'.format(
                     epoch, batch, batches, loss, 
                     int(time_dict["total"]), 
@@ -190,8 +189,8 @@ class Logger(logging.getLoggerClass()):
                 
     
     # log at end of epoch
-    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict):
-        if self.profile == True:
+    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict, profile):
+        if profile == True:
             self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
                 epoch, batch, batches, loss, 
                 int(time_dict["total"]),
@@ -235,6 +234,9 @@ class Logger(logging.getLoggerClass()):
         self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
         self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.\n'.format(Torchutils.get_memory_info()["mem"], Torchutils.get_cuda_memory_info()))
     
+    def preflight(self, memory_baseline):
+        self.debug("Preflight checks...")
+        self.debug("Memory consumption per batch: {:.2f} MB".format((Torchutils.get_memory_info()["mem"] - memory_baseline) * 1000))
     
     # output description of learning task
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
