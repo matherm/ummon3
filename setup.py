@@ -12,7 +12,6 @@ import numpy
 import torch
 import torchvision
 import shutil
-import tabulate
 
 
 """
@@ -79,7 +78,7 @@ setup(
           'Programming Language :: Python',
       ],
       platforms=["OS Independent"],
-      install_requires=['numpy>=1.5.0', "tabulate", "scipy", "torchvision"],
+      install_requires=['numpy>=1.5.0', "scipy", "torchvision"],
       python_requires='>=3.5',
       setup_requires=[
         'numpy',
