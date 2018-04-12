@@ -20,7 +20,7 @@ import argparse
 parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1')
 #
 # TRAINING PARAMS
-parser.add_argument('--epochs', type=int, default=2, metavar='',
+parser.add_argument('--epochs', type=int, default=3, metavar='',
                     help='Amount of epochs for training (default: 2)')
 parser.add_argument('--batch_size', type=int, default=40, metavar='',
                     help='Batch size for SGD (default: 40)')

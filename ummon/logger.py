@@ -65,14 +65,15 @@ class Logger(logging.getLoggerClass()):
     levels, independently of what is set for console output.
     '''
     def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', 
-        log_batch_interval=500):
+        log_batch_interval=500, profile = False):
         self.name = str(name)
         self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
-        log_batch_interval = int(log_batch_interval)
+        log_batch_interval = int(log_batch_interval,)
         self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500
+        self.profile = profile
     
     
     # setup logging
@@ -173,27 +174,39 @@ class Logger(logging.getLoggerClass()):
     # log one batch # 
     def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict):
         if batch % self.log_batch_interval == 0:
-            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks]'.format(
+            if self.profile == True:
+                self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks]'.format(
+                    epoch, batch, batches, loss, 
+                    int(time_dict["total"]), 
+                    int(time_dict["loader"]), 
+                    int(time_dict["model"] - time_dict["loader"]), 
+                    int(time_dict["loss"] - time_dict["model"]), 
+                    int(time_dict["backprop"] - time_dict["loss"]), 
+                    int(time_dict["hooks"] - time_dict["backprop"])))
+            else:
+                self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s]'.format(
+                    epoch, batch, batches, loss, 
+                    int(time_dict["total"])))
+                
+    
+    # log at end of epoch
+    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict):
+        if self.profile == True:
+            self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
                 epoch, batch, batches, loss, 
-                int(time_dict["total"]), 
+                int(time_dict["total"]),
                 int(time_dict["loader"]), 
                 int(time_dict["model"] - time_dict["loader"]), 
                 int(time_dict["loss"] - time_dict["model"]), 
                 int(time_dict["backprop"] - time_dict["loss"]), 
-                int(time_dict["hooks"] - time_dict["backprop"])))
-    
-    
-    # log at end of epoch
-    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict):
-        self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
-            epoch, batch, batches, loss, 
-            int(time_dict["total"]),
-            int(time_dict["loader"]), 
-            int(time_dict["model"] - time_dict["loader"]), 
-            int(time_dict["loss"] - time_dict["model"]), 
-            int(time_dict["backprop"] - time_dict["loss"]), 
-            int(time_dict["hooks"] - time_dict["backprop"]),
-            int((batches * batchsize/(time_dict["total"])))))
+                int(time_dict["hooks"] - time_dict["backprop"]),
+                int((batches * batchsize/(time_dict["total"])))))
+        else:
+            self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s] ~ {:5} samples/s '.format(
+                epoch, batch, batches, loss, 
+                int(time_dict["total"]),
+                int((batches * batchsize/(time_dict["total"])))))
+            
     
     
     # evaluate model
