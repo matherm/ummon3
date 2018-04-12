@@ -85,7 +85,7 @@ class Trainingstate():
              self.state = {  
                              "model_desc" : str(model),
                              "loss_desc"  : str(loss_function),
-                             "cuda" : self.state["cuda"], 
+                             "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
                              "precision" : precision,
                              "dataset_training" : self.state["dataset_training"] if "dataset_training" in self.state else Torchutils.get_data_information(training_dataset),
