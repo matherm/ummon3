@@ -74,10 +74,7 @@ class VisualAttentionLoss(nn.Module):
             assert type(saved_ln_pis[0].data) == torch.FloatTensor or type(saved_ln_pis[0].data) == torch.cuda.FloatTensor
         else:
             assert type(saved_ln_pis[0]) == torch.FloatTensor or type(saved_ln_pis[0]) == torch.cuda.FloatTensor
-        if type(rewards[0]) == torch.autograd.Variable:
-            assert type(rewards[0].data) == torch.FloatTensor or type(rewards[0].data) == torch.cuda.FloatTensor
-        else:
-            assert type(rewards[0]) == torch.FloatTensor or type(rewards[0]) == torch.cuda.FloatTensor
+        assert type(rewards[0]) == torch.FloatTensor or type(rewards[0]) == torch.cuda.FloatTensor
         
         # ENSURE CUDA
         if labels.is_cuda or class_scores.is_cuda:
