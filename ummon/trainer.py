@@ -193,23 +193,24 @@ class Trainer:
         for epoch in range(self.epoch, self.epoch + epochs):
             
             # TAKE TIME
+            t = time.time()
             time_dict = {"loader"   : 0,
                          "model"    : 0,
                          "loss"     : 0,
                          "backprop" : 0,
                          "hooks"    : 0,
                          "total"    : 0}
-            t = time.time()
             
             # ANNEAL LEARNING RATE
             if self.scheduler: 
                 self.scheduler.step()
            
             # Moving average
-            n = 5
-            avg_training_loss, avg_training_acc = None, None
+            n, avg_training_loss, avg_training_acc = 5, None, None
             training_loss, training_acc  = np.zeros(n, dtype=np.float64), np.zeros(n, 
                 dtype=np.float64)
+            
+            # Buffer for asynchronous model evaluation
             output_buffer = []
             
             # COMPUTE ONE EPOCH                
@@ -288,10 +289,14 @@ class Trainer:
                 t = time.time()
                 
                 # Save output for later evaluation
-                if type(output) != tuple:
-                    output_buffer.append((output.data.clone(), targets.data.clone(), batch))
+                if not self.regression:
+                    if type(output) != tuple:
+                        output_buffer.append((output.data.clone(), targets.data.clone(), batch))
+                    else:
+                        output_buffer.append((output[0].data.clone(), targets.data.clone(), batch))
                 else:
-                    output_buffer.append((output[0].data.clone(), targets.data.clone(), batch))
+                    avg_training_acc = 0.
+          
             
             # Log epoch
             self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
@@ -299,20 +304,18 @@ class Trainer:
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
                 # Compute Running average accuracy
-                if not self.regression:
-                    for saved_output, saved_targets, batch in output_buffer:
-                        if type(saved_output) != tuple:
-                            classes = Analyzer.classify(saved_output.cpu())
-                        else:
-                            classes = Analyzer.classify(saved_output[0].cpu())
-                        acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
-                        avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
-                else:
-                    avg_training_acc = 0.
-                del output_buffer[:]
+                for saved_output, saved_targets, batch in output_buffer:
+                    if type(saved_output) != tuple:
+                        classes = Analyzer.classify(saved_output.cpu())
+                    else:
+                        classes = Analyzer.classify(saved_output[0].cpu())
+                    acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
+                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
 
                 self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
                               dataloader_training.batch_size, dataloader_training, after_eval_hook, eval_batch_size, args)
+            # CLEAN UP
+            del output_buffer[:]
                 
                 
         return self.trainingstate
