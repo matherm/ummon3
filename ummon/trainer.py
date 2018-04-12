@@ -193,7 +193,7 @@ class Trainer:
         
         # Preflight check in case model has some lazy initialization routines
         memory_baseline = Torchutils.get_memory_info()["mem"]
-        testpilot = Variable(next(iter(dataloader_training))[0]).cuda() if self.cuda else Variable(next(iter(dataloader_training))[0])
+        testpilot = Variable(next(iter(dataloader_training))[0]).cuda() if self.use_cuda else Variable(next(iter(dataloader_training))[0])
         output = self.model(testpilot)
         self.logger.preflight(memory_baseline)
         
