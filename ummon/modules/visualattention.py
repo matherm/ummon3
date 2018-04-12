@@ -44,8 +44,8 @@ class VisualAttentionLoss(nn.Module):
                                                   Negative saved log propabilities of the taken actions as torch.FloatTensor with shape [B x 1]
                           saved_baselines     :   list(T)<torch.FloatTensor>
                                                   Saved baseline values of the predicted rewards per timestep as torch.FloatTensor with Shape [B x 1]
-                          rewards             :   torch.FloatTensor 
-                                                  Rewards with shape [B x T]
+                          rewards             :   list(T)<torch.FloatTensor>
+                                                  A list containing the rewards for every timestep as torch.FloatTensor with shape [B x 1].
         labels      : torch.LongTensor
                       Ground truth with shape [B]
 
@@ -56,14 +56,57 @@ class VisualAttentionLoss(nn.Module):
         assert len(output) == 4
         class_scores, saved_baselines, saved_ln_pis, rewards = output
 
-        assert len(saved_ln_pis) == len(saved_baselines) == rewards.size(1)
-        assert type(labels) == torch.LongTensor
+        assert len(saved_ln_pis) == len(saved_baselines) == len(rewards)
+        if type(labels) == torch.autograd.Variable:
+            assert type(class_scores) == torch.autograd.Variable
+            assert type(labels.data) == torch.LongTensor or type(labels.data) == torch.cuda.LongTensor
+        else:
+            assert type(labels) == torch.LongTensor
+        if type(class_scores) == torch.autograd.Variable:
+            assert type(class_scores.data) == torch.FloatTensor or type(class_scores.data) == torch.cuda.FloatTensor 
+        else:
+            assert type(class_scores) == torch.LongTensor
+        if type(saved_baselines[0]) == torch.autograd.Variable:
+            assert type(saved_baselines[0].data) == torch.FloatTensor or type(saved_baselines[0].data) == torch.cuda.FloatTensor
+        else:
+            assert type(saved_baselines[0]) == torch.FloatTensor or type(saved_baselines[0]) == torch.cuda.FloatTensor
+        if type(saved_ln_pis[0]) == torch.autograd.Variable:
+            assert type(saved_ln_pis[0].data) == torch.FloatTensor or type(saved_ln_pis[0].data) == torch.cuda.FloatTensor
+        else:
+            assert type(saved_ln_pis[0]) == torch.FloatTensor or type(saved_ln_pis[0]) == torch.cuda.FloatTensor
+        if type(rewards[0]) == torch.autograd.Variable:
+            assert type(rewards[0].data) == torch.FloatTensor or type(rewards[0].data) == torch.cuda.FloatTensor
+        else:
+            assert type(rewards[0]) == torch.FloatTensor or type(rewards[0]) == torch.cuda.FloatTensor
+        
+        # ENSURE CUDA
+        if labels.is_cuda or class_scores.is_cuda:
+            class_scores = class_scores.cuda()
+            labels = labels.cuda()
+        else:
+            class_scores = class_scores.cpu()
+            labels = labels.cpu()
+        
+        
         if labels.dim() > 1:
             labels = labels.view(labels.size(0))
         
         # Loss
         criterion = nn.CrossEntropyLoss()
-        classification_loss = criterion(class_scores, labels)
+        classification_loss = criterion(class_scores, labels).cpu()
+        
+        # GOTO CPU
+        class_scores = class_scores.cpu()
+        labels = labels.cpu()
+        if saved_baselines[0].is_cuda:
+            saved_baselines = [sb.cpu() for sb in saved_baselines]
+        
+        if saved_ln_pis[0].is_cuda:
+            saved_ln_pis = [ln_pi.cpu() for ln_pi in saved_ln_pis]
+        
+        if rewards[0].is_cuda:
+            rewards = [r.cpu() for r in rewards]
+        
         
         # Compute rewards
         pred = class_scores.data.max(1, keepdim=True)[1]

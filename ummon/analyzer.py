@@ -72,10 +72,10 @@ class Analyzer:
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        loss_average = 0.
-        acc_average = 0.
+        loss_average, acc_average = 0.,0.
         bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)  
+        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
+        output_buffer = []
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
@@ -87,14 +87,11 @@ class Analyzer:
                 # Handle cuda
                 if use_cuda:
                     inputs = inputs.cuda()
+                    targets = targets.cuda()
                 
                 # Execute Model
                 model.eval()
                 output = model(Variable(inputs))
-                
-                # Transfer to CPU
-                if type(output) != tuple: 
-                    output = output.cpu() 
                 model.train()
                 
                 # Compute Loss
@@ -109,23 +106,30 @@ class Analyzer:
                     else:
                         after_eval_hook(model, output[0].data, targets.data, loss.data)
                 
-                # Compute classification accuracy
-                if not regression:
-                    if type(output) != tuple:
-                        classes = Analyzer.classify(output.data)  
-                    else:
-                        classes = Analyzer.classify(output[0].data)
-                    acc = Analyzer.compute_accuracy(classes, targets.data)
-                    acc_average = Analyzer._online_average(acc, i + 1, acc_average)
-                    evaluation_dict["accuracy"] = acc_average
+                 # Save output for later evaluation
+                if type(output) != tuple:
+                    output_buffer.append((output.data.clone(), targets.data.clone(), i))
                 else:
-                    evaluation_dict["accuracy"] = 0.
+                    output_buffer.append((output[0].data.clone(), targets.data.clone(), i))
                 
-                evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
-                evaluation_dict["loss"] = loss_average
-                evaluation_dict["detailed_loss"] = repr(loss_function)
-                evaluation_dict["args[]"] = {}
-                
+        # Compute classification accuracy
+        if not regression:
+            for saved_output, saved_targets, batch in output_buffer:
+                if type(saved_output) != tuple:
+                    classes = Analyzer.classify(saved_output.cpu())
+                else:
+                    classes = Analyzer.classify(saved_output[0].cpu())
+                acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
+                acc_average = Analyzer._online_average(acc, batch + 1, acc_average)
+            evaluation_dict["accuracy"] = acc_average
+        else:
+            evaluation_dict["accuracy"] = 0.
+        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["loss"] = loss_average
+        evaluation_dict["detailed_loss"] = repr(loss_function)
+        evaluation_dict["args[]"] = {}
+        del output_buffer[:]
+
         return evaluation_dict
     
     @staticmethod

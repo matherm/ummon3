@@ -613,8 +613,8 @@ class TestUmmon(unittest.TestCase):
         pass
     
     
-        
-        
+    def test_minimal_examples(self):
+        pass
 
 
 if __name__ == '__main__':

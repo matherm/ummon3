@@ -210,6 +210,7 @@ class Trainer:
             avg_training_loss, avg_training_acc = None, None
             training_loss, training_acc  = np.zeros(n, dtype=np.float64), np.zeros(n, 
                 dtype=np.float64)
+            output_buffer = []
             
             # COMPUTE ONE EPOCH                
             for batch, data in enumerate(dataloader_training, 0):
@@ -218,27 +219,36 @@ class Trainer:
                 time_dict["loader"] = time_dict["loader"] + (time.time() - t)
                 
                 # Get the inputs
-                inputs, targets = data
+                inputs, targets = Variable(data[0]), Variable(data[1])
 
                 # Handle cuda
                 if self.use_cuda:
                     inputs = inputs.cuda()
+                    targets = targets.cuda()
                 
                 # Execute Model
-                output = self.model(Variable(inputs))
+                output = self.model(inputs)
                 
                 # time model
+                if self.use_cuda: torch.cuda.synchronize()
                 time_dict["model"] = time_dict["model"] + (time.time() - t)
 
-                # Transfer to CPU
-                if type(output) != tuple: 
-                    output = output.cpu() 
-                    
+                
+                # Ensure Cuda for singular outputs
+                if type(output) != tuple:
+                    if targets.is_cuda or output.is_cuda:
+                        output, targets = output.cuda(), targets.cuda()
+                    else:
+                        output, targets = output.cpu(), targets.cpu()
+                    assert type(output) == torch.autograd.Variable
+                else:
+                    assert type(output[0]) == torch.autograd.Variable
+
                 # Compute Loss
-                targets = Variable(targets)
-                loss = self.criterion(output, targets).cpu()
+                loss = self.criterion(output, targets)
                 
                 # time loss
+                if self.use_cuda: torch.cuda.synchronize()
                 time_dict["loss"] = time_dict["loss"] + (time.time() - t)
                 
                 # Zero the gradient    
@@ -248,51 +258,62 @@ class Trainer:
                 loss.backward()
                 
                 # time backprop
+                if self.use_cuda: torch.cuda.synchronize()
                 time_dict["backprop"] = time_dict["backprop"] + (time.time() - t)
                 
                 # Run hooks
                 if after_backward_hook is not None:
                     if type(output) != tuple:
-                        after_backward_hook(self.model, output.data, targets.data, loss.data)
+                        after_backward_hook(self.model, output.data, targets.data, loss.cpu().data)
                     else:
-                        after_backward_hook(self.model, output[0].data, targets.data, loss.data)
+                        after_backward_hook(self.model, output[0].data, targets.data, loss.cpu().data)
                 
                 # time hooks
+                if self.use_cuda: torch.cuda.synchronize()
                 time_dict["hooks"] = time_dict["hooks"] + (time.time() - t)
                 
                 # Take gradient descent
                 self.optimizer.step()
                 
                 # Running average training loss
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.data[0], training_loss)
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss)
                 
-                # Running average accuracy
-                if not self.regression:
-                    avg_training_acc = 0.
-                    if type(output) != tuple:
-                        classes = Analyzer.classify(output.data)
-                    else:
-                        classes = Analyzer.classify(output[0].data)
-                    acc = Analyzer.compute_accuracy(classes, targets.data)
-                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
-                else:
-                    avg_training_acc = 0.
-                    
                 # total time
                 time_dict["total"] = time_dict["total"] + (time.time() - t)
                 
                 # Log status
                 self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
                 
+                # Reset time
                 t = time.time()
+                
+                # Save output for later evaluation
+                if type(output) != tuple:
+                    output_buffer.append((output.data.clone(), targets.data.clone(), batch))
+                else:
+                    output_buffer.append((output[0].data.clone(), targets.data.clone(), batch))
             
             # Log epoch
             self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict)
             
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
+                # Compute Running average accuracy
+                if not self.regression:
+                    for saved_output, saved_targets, batch in output_buffer:
+                        if type(saved_output) != tuple:
+                            classes = Analyzer.classify(saved_output.cpu())
+                        else:
+                            classes = Analyzer.classify(saved_output[0].cpu())
+                        acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
+                        avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
+                else:
+                    avg_training_acc = 0.
+                del output_buffer[:]
+
                 self.evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
                               dataloader_training.batch_size, dataloader_training, after_eval_hook, eval_batch_size, args)
+                
                 
         return self.trainingstate
               
