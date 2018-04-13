@@ -245,9 +245,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('[Model]')
         for lin in model.__repr__().splitlines():
             self.debug(lin)
-        def count_parameters(model):
-            return sum(p.numel() for p in model.parameters() if p.requires_grad)
-        self.debug('{0:20}{1}'.format("Trainable params:", count_parameters(model)))   
+        self.debug('{0:20}{1}'.format("Trainable params:", Torchutils.count_parameters(model)))   
         
         self.debug(' ')
         self.debug('[Loss]')
