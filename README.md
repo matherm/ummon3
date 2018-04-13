@@ -10,6 +10,15 @@ The package requires Python 3 and just needs the standard packages `numpy`, `sci
     conda create -n ummon3 python=3.6 anaconda 
     source activate ummon3
     conda install pytorch torchvision -c pytorch
+	
+On Windows there exist prebuilt libraries with cuda support packaged by peterjc123.
+Install on Windows via
+
+	conda install -c peterjc123 pytorch
+
+or for Cuda 9 (Windows)
+
+	conda install -c peterjc123 pytorch cuda90
 
 To remove an existing environment
 
@@ -40,7 +49,12 @@ or in linux
     apt-get install python3-setuptools python3-numpy python3-scipy
     pip3 install http://download.pytorch.org/whl/torch-0.3.1-cp35-cp35m-macosx_10_6_x86_64.whl 
     pip3 install torchvision
-    pip3 install scipy  
+    pip3 install scipy
+	
+or Windows
+
+	conda install numpy scipy setuptools scikit-learn matplotlib
+	pip install torchvision
 
 If you want to run the example and test code, you need additional Python packages
 (`scikit-learn` and `matplotlib`). On Anaconda
@@ -74,6 +88,11 @@ on MacOsx
 or
 
     apt-get install doxygen graphviz python3-sphinx
+	
+or on Windows
+
+	conda install -c conda-forge doxygen 
+	conda install sphinx graphviz
 
 ## Using the GPU
 To use the GPU, Nvidia’s GPU-programming toolchain is required. You should install at least the CUDA driver and the CUDA Toolkit.
