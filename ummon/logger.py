@@ -8,6 +8,7 @@ sys.path.insert(0,'../ummon3')
 import logging, warnings, os, time, socket
 import numpy as np
 import torch
+from torch.autograd import Variable
 from platform import platform
 from ummon.__version__ import version
 from ummon.utils import Torchutils
@@ -209,7 +210,7 @@ class Logger(logging.getLoggerClass()):
     
     
     # evaluate model
-    def log_evaluation(self, learningstate):
+    def log_evaluation(self, learningstate, profile = False):
         epoch = learningstate.state["training_loss[]"][-1][0]
         lrate = learningstate.state["lrate[]"][-1][1]
         loss =  learningstate.state["validation_loss[]"][-1][1]
@@ -232,24 +233,13 @@ class Logger(logging.getLoggerClass()):
                 "[BEST]" if is_best else ''))
         self.info('       Detailed loss information: {}'.format(detailed_loss))
         self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
-        self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.\n'.format(Torchutils.get_memory_info()["mem"], Torchutils.get_cuda_memory_info()))
-    
-    def preflight(self, memory_baseline):
-        self.debug("Preflight checks...")
-        self.debug("Memory consumption per batch: {:.2f} MB".format((Torchutils.get_memory_info()["mem"] - memory_baseline) * 1000))
+        if profile:
+            self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(Torchutils.get_proc_memory_info()["mem"], Torchutils.get_cuda_memory_info()))
+        self.info("")
     
     # output description of learning task
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
         dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
-        
-        self.debug(' ')
-        self.debug('[Parameters]')
-        self.debug('{0:20}{1}'.format("lrate" , 
-            optimizer.state_dict()["param_groups"][0]["lr"]))
-        self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
-        self.debug('{0:20}{1}'.format("epochs" , epochs))
-        self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
-        self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
         
         self.debug(' ')
         self.debug('[Model]')
@@ -275,8 +265,28 @@ class Logger(logging.getLoggerClass()):
             Torchutils.get_size_information(dataset_test), 
             Torchutils.get_shape_information(dataset_test), 
             Torchutils.get_type_information(dataset_test)))
-        self.debug('')
    
+        self.debug(' ')
+        self.debug("[Preflight]")
+        use_cuda = next(model.parameters()).is_cuda
+        memory_baseline = Torchutils.get_proc_memory_info()["mem"]
+        testpilot = Variable(next(iter(dataloader_train))[0]).cuda() if use_cuda else Variable(next(iter(dataloader_train))[0])
+        out = model(testpilot)
+        self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
+        self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((Torchutils.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
+        self.debug('{0:25}{1}'.format("Memory cuda (MB)", Torchutils.get_cuda_memory_info()))
+    
+        self.debug(' ')
+        self.debug('[Parameters]')
+        self.debug('{0:20}{1}'.format("lrate" , 
+            optimizer.state_dict()["param_groups"][0]["lr"]))
+        self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
+        self.debug('{0:20}{1}'.format("epochs" , epochs))
+        self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
+        self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
+        self.debug('')
+      
+    
     
     # print arguments when called as shell program
     def print_args(self, args):

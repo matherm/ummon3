@@ -98,7 +98,7 @@ class Trainer:
         # RESTORE STATE    
         if trainingstate:
             self.trainingstate = trainingstate
-            self.logger.info("Loading training state.." )
+            self.logger.info("[Status]" )
             trs = self.trainingstate.get_summary()
             self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
@@ -106,7 +106,6 @@ class Trainer:
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
             self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
             self.model.load_state_dict(trainingstate.state["model_state"])  
-            self.logger.info("")
             
             assert precision == self.trainingstate.state["precision"]
             self.precision = precision
@@ -190,12 +189,6 @@ class Trainer:
         
         # COMPUTE BATCHES PER EPOCH
         batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
-        
-        # Preflight check in case model has some lazy initialization routines
-        memory_baseline = Torchutils.get_memory_info()["mem"]
-        testpilot = Variable(next(iter(dataloader_training))[0]).cuda() if self.cuda else Variable(next(iter(dataloader_training))[0])
-        output = self.model(testpilot)
-        self.logger.preflight(memory_baseline)
         
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
@@ -356,7 +349,7 @@ class Trainer:
                      samples_per_second = evaluation_dict["samples_per_second"],
                      args = {**args, **evaluation_dict["args[]"]})
         
-        self.logger.log_evaluation(self.trainingstate)
+        self.logger.log_evaluation(self.trainingstate, self.profile)
         
         # SAVE MODEL
         self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)

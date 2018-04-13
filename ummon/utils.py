@@ -209,7 +209,7 @@ class Torchutils:
 
 
     @staticmethod
-    def get_memory_info():
+    def get_proc_memory_info():
         try:
             process = psutil.Process(os.getpid())
             percentage = process.memory_percent()
@@ -217,7 +217,7 @@ class Torchutils:
             return {"mem" : memory,
                   "usage" : percentage}
         except Exception:
-            return None
+            return 0.
       
     @staticmethod    
     def get_cuda_memory_info():
@@ -232,7 +232,7 @@ class Torchutils:
         """
         try:
             if torch.cuda.is_available() == False:
-                return None
+                return 0.
             result = subprocess.check_output(
                 [
                     'nvidia-smi', '--query-gpu=memory.used',
@@ -243,6 +243,6 @@ class Torchutils:
             gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
             return gpu_memory_map
         except Exception:
-            return None
+            return 0.
             
         
