@@ -59,6 +59,7 @@ class Trainingstate():
         if self.state is None:
             self.state = {  
                              "model_desc" : str(model),
+                             "model_trainable_params" : Torchutils.count_parameters(model),
                              "loss_desc"  : str(loss_function),
                              "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
@@ -84,6 +85,7 @@ class Trainingstate():
         else:
              self.state = {  
                              "model_desc" : str(model),
+                             "model_trainable_params" : Torchutils.count_parameters(model),
                              "loss_desc"  : str(loss_function),
                              "cuda" : next(model.parameters()).is_cuda, 
                              "regression" : regression,
@@ -104,7 +106,7 @@ class Trainingstate():
                              "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss, validation_batchsize)],
                              "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, validation_batchsize)],
                              "detailed_loss[]" : [*self.state["detailed_loss[]"], (epoch, detailed_loss)] if "detailed_loss[]" in self.state else [(epoch, detailed_loss)],
-                             "args[]" : [*self.state["args[]"], args]
+                             "args[]" : [*self.state["args[]"]]
                           }
         
     def get_summary(self):

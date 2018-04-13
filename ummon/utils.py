@@ -244,5 +244,9 @@ class Torchutils:
             return gpu_memory_map
         except Exception:
             return 0.
+        
+    @staticmethod
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
             
         
