@@ -33,8 +33,6 @@ class Trainer:
                         The optimizer for the training
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
-    trainingstate     : ummon.Trainingstate
-                        OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
     regression        : bool
                         OPTIONAL Speficies the problem type. Used for outputs etc (default False).
     model_filename    : String
@@ -57,7 +55,6 @@ class Trainer:
     """
     def __init__(self, logger, model, loss_function, optimizer, 
                  scheduler = None, 
-                 trainingstate = None, 
                  regression = False, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -70,7 +67,6 @@ class Trainer:
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
         assert isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) if not scheduler is None else True
-        assert type(trainingstate) == Trainingstate if not trainingstate is None else True
         assert precision == np.float32 or precision == np.float64
         
         self.name = "ummon.Trainer"
@@ -81,7 +77,6 @@ class Trainer:
         self.criterion = loss_function
         self.optimizer = optimizer
         self.scheduler = scheduler
-        self.trainingstate = Trainingstate()
         self.regression = regression
         self.epoch = 0
         self.precision = precision
@@ -94,21 +89,6 @@ class Trainer:
         
         # INITIALIZE LOGGER
         self.logger = logger
-        
-        # RESTORE STATE    
-        if trainingstate:
-            self.trainingstate = trainingstate
-            self.logger.info("[Status]" )
-            trs = self.trainingstate.get_summary()
-            self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
-                trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
-                trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
-            self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
-            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
-            self.model.load_state_dict(trainingstate.state["model_state"])  
-            
-            assert precision == self.trainingstate.state["precision"]
-            self.precision = precision
         
         # Computational configuration
         if self.precision == np.float32:
@@ -124,7 +104,7 @@ class Trainer:
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
+        trainingstate=None, early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1, args=None):
         """
         Fits a model with given training and validation dataset
@@ -139,6 +119,8 @@ class Trainer:
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
+        trainingstate       :   ummon.Trainingstate
+                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         early_stopping      :   float
                                 Eps criterion for early stopping
         do_combined_retraining: bool
@@ -147,7 +129,7 @@ class Trainer:
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
-        eval_batch_size      :  OPTIONAL int
+        eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         args                :   OPTIONAL dict
                                 A dict that gets persisted and can hold arbitrary information about the trainine
@@ -157,7 +139,22 @@ class Trainer:
         ummon.Trainingstate
         A dictionary containing the trainingstate
         """
-        
+        assert type(trainingstate) == Trainingstate if not trainingstate is None else True
+               
+        # RESTORE STATE    
+        if trainingstate:
+            self.logger.info("[Status]" )
+            trs = trainingstate.get_summary()
+            self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
+                trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
+                trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
+            self.epoch = trainingstate.state["training_loss[]"][-1][0]
+            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
+            self.model.load_state_dict(trainingstate.state["model_state"])  
+            assert self.precision == trainingstate.state["precision"]
+        else:
+            trainingstate = Trainingstate()
+            
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
             dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
@@ -303,7 +300,12 @@ class Trainer:
           
             
             # Log epoch
-            self.logger.log_epoch(epoch + 1, batch + 1, batches, avg_training_loss, dataloader_training.batch_size, time_dict, self.profile)
+            self.logger.log_epoch(epoch + 1, batch + 1, 
+                                  batches, 
+                                  avg_training_loss, 
+                                  dataloader_training.batch_size, 
+                                  time_dict, 
+                                  self.profile)
             
             # MODEL VALIDATION
             if validation_set is not None and (epoch +1) % eval_interval == 0:
@@ -316,25 +318,33 @@ class Trainer:
                     acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
 
-                self._evaluate(epoch + 1, validation_set, avg_training_loss, avg_training_acc, 
-                              dataloader_training.batch_size, dataloader_training, after_eval_hook, eval_batch_size, args)
+                trainingstate = self._evaluate(epoch + 1, validation_set, avg_training_loss, 
+                                               avg_training_acc, dataloader_training.batch_size, 
+                                               dataloader_training, after_eval_hook, eval_batch_size, 
+                                               trainingstate, args)
             # CLEAN UP
             del output_buffer[:]
                 
                 
-        return self.trainingstate
+        return trainingstate
               
                 
     def _evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
-        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, args):
+        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, trainingstate, args):
         # INIT ARGS
         args = {} if args is None else args
         
         # MODEL EVALUATION
-        evaluation_dict = Analyzer.evaluate(self.model, self.criterion, validation_set, self.regression, self.logger, after_eval_hook, batch_size=eval_batch_size)
+        evaluation_dict = Analyzer.evaluate(self.model, 
+                                            self.criterion, 
+                                            validation_set, 
+                                            self.regression, 
+                                            self.logger, 
+                                            after_eval_hook, 
+                                            batch_size=eval_batch_size)
         
         # UPDATE TRAININGSTATE
-        self.trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
+        trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
                      training_loss = avg_training_loss, 
                      validation_loss = evaluation_dict["loss"], 
                      training_accuracy = avg_training_acc,
@@ -349,10 +359,12 @@ class Trainer:
                      samples_per_second = evaluation_dict["samples_per_second"],
                      args = {**args, **evaluation_dict["args[]"]})
         
-        self.logger.log_evaluation(self.trainingstate, self.profile)
+        self.logger.log_evaluation(trainingstate, self.profile)
         
         # SAVE MODEL
-        self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+        trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+        
+        return trainingstate
         
         
     def _moving_average(self, t, ma, value, buffer):

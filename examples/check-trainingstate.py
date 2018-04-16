@@ -22,7 +22,7 @@ import argparse
 parser = argparse.ArgumentParser(description='ummon3 - example - trainingstate checker')
 parser.add_argument('--view', default="", metavar="",
                     help="Print summary about a trained model")
-parser.add_argument('--v', action='store_true', dest='verbose', 
+parser.add_argument('-v', action='store_true', dest='verbose', 
                     help="Verbose (default: False)")
 argv = parser.parse_args()
 sys.argv = [sys.argv[0]]                    

@@ -121,7 +121,7 @@ if __name__ == "__main__":
         
         # LOAD TRAINING STATE
         try:
-            ts = Trainingstate("MNIST1_best_validation_loss.pth.tar")
+            ts = Trainingstate("MNIST1.pth.tar")
         except FileNotFoundError:
             ts = None
         
@@ -133,7 +133,6 @@ if __name__ == "__main__":
                                 criterion, 
                                 optimizer, 
                                 model_filename="MNIST1", 
-                                trainingstate=ts, 
                                 precision=np.float32,
                                 use_cuda=argv.use_cuda)
             
@@ -141,4 +140,5 @@ if __name__ == "__main__":
             trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=argv.epochs,
                                         validation_set=mnist_data_test, 
-                                        eval_interval=argv.eval_interval)
+                                        eval_interval=argv.eval_interval,
+                                        trainingstate=ts)

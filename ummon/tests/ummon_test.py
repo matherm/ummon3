@@ -409,14 +409,17 @@ class TestUmmon(unittest.TestCase):
         
         # RESTORE STATE
         my_trainer = Trainer(Logger(logdir = '', log_batch_interval=500), model, criterion, 
-            optimizer, model_filename="testcase", trainingstate=trainingsstate, 
+            optimizer, model_filename="testcase", 
             regression=True, precision=np.float32)
         
         # RESTART TRAINING
-        my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
                                         epochs=1,
-                                        eval_interval=2)
+                                        eval_interval=1,
+                                        trainingstate=trainingsstate)
+        # ASSERT EPOCH
+        assert trainingsstate.state["training_loss[]"][-1][0] == 5
         
         files = os.listdir(".")
         dir = "."
@@ -475,13 +478,16 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(np.allclose(0.5051723122596741,trainingsstate.state["best_validation_loss"][1], 1e-2))
 
         # RESTORE STATE
-        my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", trainingstate=trainingsstate, regression=True, precision=np.float32, use_cuda=True)
+        my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), 
+                             model, criterion, optimizer, model_filename="testcase", 
+                             regression=True, precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2)
+                                        eval_interval=2,
+                                        trainingstate=trainingsstate)
         files = os.listdir(".")
         dir = "."
         for file in files:
