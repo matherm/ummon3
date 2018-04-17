@@ -31,10 +31,8 @@ sys.argv = [sys.argv[0]]
 # IMPORTS
 from ummon.trainingstate import Trainingstate
 
-
-if __name__ == "__main__":
-    
-    if argv.view is not "":
+def run():
+   if argv.view is not "":
         ts = Trainingstate(argv.view)
         if argv.verbose == True:
             # DELETE MODEL PARAMETERS
@@ -44,5 +42,10 @@ if __name__ == "__main__":
             pp.pprint(ts.state)
         else:
             print(ts.get_summary())
-    else:
-        print("No model was given..")
+   else:
+        print("No model was given..") 
+
+if __name__ == "__main__":
+    run()
+    
+    

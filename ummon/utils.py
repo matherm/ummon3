@@ -8,6 +8,7 @@ sys.path.insert(0,'../ummon3')
 import numpy as np
 import time
 import torch
+import torch.nn as nn
 from torch.utils.data.dataset import TensorDataset
 import os, psutil, subprocess
 
@@ -248,5 +249,26 @@ class Torchutils:
     @staticmethod
     def count_parameters(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+    
+    @staticmethod
+    def transform_model(model, precision, use_cuda = False):
+        assert isinstance(model, nn.Module)
+        assert precision == np.float32 or precision == np.float64
+        
+        # Computational configuration
+        if precision == np.float32:
+            model = model.float()
+        if precision == np.float64:
+            model = model.double()
+        if precision == np.int32:
+            # TODO: Custom model conversion FPGA-Teamproject
+            pass
+        if use_cuda:
+            assert torch.cuda.is_available() == True
+            model = model.cuda()
+        else:
+            model = model.cpu()
+        return model
             
         

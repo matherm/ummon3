@@ -65,7 +65,7 @@ setup(
       name = 'ummon',
       version = __version__,
       description= "ummon v3 is a neural network library written in Python, Numpy, Scipy and PyTorch.",
-      author = 'Matthias O. Franz, Matthias Heramnn, Michael Grunwald, Pascal Laube',
+      author = 'Matthias O. Franz, Matthias Heramann, Michael Grunwald, Pascal Laube',
       author_email = 'Matthias.Hermann@htwg-konstanz.de',
       keywords=['numpy', 'pytorch'],
       license = 'GNU Library or Lesser General Public License (LGPL)',

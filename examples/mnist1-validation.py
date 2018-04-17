@@ -52,7 +52,7 @@ torch.manual_seed(17)
 # DEFINE a neural network
 class Net(nn.Module):
     
-    def __init__(self, use_cuda = False):
+    def __init__(self):
         super(Net, self).__init__()
         # 1 input image channel, 6 output channels, 5x5 square convolution
         # kernel
@@ -91,8 +91,7 @@ class Net(nn.Module):
         return num_features
 
 
-if __name__ == "__main__":
-    
+def run():
     if argv.view is not "":
         ts = Trainingstate(argv.view)
         print(ts.get_summary())
@@ -108,13 +107,15 @@ if __name__ == "__main__":
         criterion = nn.CrossEntropyLoss()
         
         # LOAD TRAINING STATE
-        try:
-            ts = Trainingstate(argv.model)
-        except FileNotFoundError:
-            ts = None
+        ts = Trainingstate(argv.model)
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
-            model = Trainingstate.initialize_model(model, ts, precision=np.float32, use_cuda=argv.use_cuda)
+            model = ts.load_weights(model, precision=np.float32, use_cuda=argv.use_cuda)
             lg.info(Analyzer.evaluate(model, criterion, (Xtr, ytr), regression=False))
+    
+
+if __name__ == "__main__":
+    run()
+  
             
     

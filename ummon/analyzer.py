@@ -90,9 +90,9 @@ class Analyzer:
                     targets = targets.cuda()
                 
                 # Execute Model
-                model.eval()
+              #  model.eval()
                 output = model(Variable(inputs))
-                model.train()
+               # model.train()
                 
                 # Compute Loss
                 targets = Variable(targets)

@@ -59,7 +59,7 @@ torch.manual_seed(17)
 # DEFINE a neural network
 class Net(nn.Module):
     
-    def __init__(self, use_cuda = False):
+    def __init__(self):
         super(Net, self).__init__()
         # 1 input image channel, 6 output channels, 5x5 square convolution
         # kernel
@@ -98,8 +98,7 @@ class Net(nn.Module):
         return num_features
 
 
-if __name__ == "__main__":
-    
+def run():
     if argv.view is not "":
         ts = Trainingstate(argv.view)
         print(ts.get_summary())
@@ -141,4 +140,9 @@ if __name__ == "__main__":
                                         epochs=argv.epochs,
                                         validation_set=mnist_data_test, 
                                         eval_interval=argv.eval_interval,
-                                        trainingstate=ts)
+                                        trainingstate=ts,
+                                        early_stopping = 1)
+
+if __name__ == "__main__":
+    run()
+    

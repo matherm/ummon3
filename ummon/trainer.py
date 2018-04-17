@@ -91,16 +91,10 @@ class Trainer:
         self.logger = logger
         
         # Computational configuration
-        if self.precision == np.float32:
-            self.model = self.model.float()
-        if self.precision == np.float64:
-            self.model = self.model.double()
         if self.use_cuda:
             if not torch.cuda.is_available():
                 logger.error('CUDA is not available on your system.')
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
+        self.model = Torchutils.transform_model(model, precision, use_cuda)
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
@@ -149,9 +143,9 @@ class Trainer:
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
             self.epoch = trainingstate.state["training_loss[]"][-1][0]
-            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
-            self.model.load_state_dict(trainingstate.state["model_state"])  
-            assert self.precision == trainingstate.state["precision"]
+            self.model = trainingstate.load_weights(self.model, self.precision, self.use_cuda)
+            self.optimizer = trainingstate.load_optimizer(self.optimizer)
+            
         else:
             trainingstate = Trainingstate()
             
@@ -176,8 +170,8 @@ class Trainer:
             self.logger.error('Number of epochs must be > 0.', ValueError)
         eval_interval = int(eval_interval)
         early_stopping = np.int32(early_stopping)
-        if early_stopping < np.iinfo(np.int32).max:
-            raise NotImplementedError("Early Stopping is not implemented yet!")
+        #if early_stopping < np.iinfo(np.int32).max:
+        #    raise NotImplementedError("Early Stopping is not implemented yet!")
         if early_stopping != np.iinfo(np.int32).max and validation_set is None:
             self.logger.error('Early stopping needs validation data.')
         do_combined_retraining = bool(do_combined_retraining)
@@ -318,10 +312,12 @@ class Trainer:
                     acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
 
+                # EVALUATE
                 trainingstate = self._evaluate(epoch + 1, validation_set, avg_training_loss, 
                                                avg_training_acc, dataloader_training.batch_size, 
                                                dataloader_training, after_eval_hook, eval_batch_size, 
                                                trainingstate, args)
+            
             # CLEAN UP
             del output_buffer[:]
                 
