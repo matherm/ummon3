@@ -20,6 +20,19 @@ def sigmoid(z):
 
 class TestUmmon(unittest.TestCase):
     
+    def __init__(self, *args, **kwargs):
+        super(TestUmmon, self).__init__(*args, **kwargs)
+        
+        # BACKUP files
+        backup_dir = "_ummon_backup"
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(Trainingstate().extension) or file.endswith(".log"):
+                os.rename(os.path.join(dir,file), os.path.join(backup_dir,file))
+        
     # test fully connected layer
     def test_predict(self):
         print('\n')
@@ -409,7 +422,7 @@ class TestUmmon(unittest.TestCase):
         # [(1, 0.5116240382194519, 10000), 
         # (2, 0.5512791275978088, 10000), 
         # (3, 0.5019993185997009, 10000), 
-        # (4, 0.4970156252384186, 10000), 
+        # (4, 0.4970156252384186, 10000), Max
         # (5, 0.5055180191993713, 10000)]
         assert np.allclose(0.4970156252384186,
             trainingsstate.state["best_validation_loss"][1], 1e-5)
@@ -427,6 +440,10 @@ class TestUmmon(unittest.TestCase):
                                         trainingstate=trainingsstate)
         # ASSERT EPOCH
         assert trainingsstate.state["training_loss[]"][-1][0] == 5
+        
+        # ASSERT LOSS
+        assert np.allclose(0.4970156252384186,
+            trainingsstate.state["best_validation_loss"][1], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -473,24 +490,26 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
 
         # CREATE A TRAINER
         my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), model, criterion, optimizer, model_filename="testcase", regression=True, model_keep_epochs=True, use_cuda=True)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=5,
+                                        epochs=2,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-         # Validation Error
-        # [(1, 0.5116240382194519, 10000), 
-        # (2, 0.5512791275978088, 10000), 
-        # (3, 0.5019993185997009, 10000), 
-        # (4, 0.4970156252384186, 10000), 
-        # (5, 0.5055180191993713, 10000)]
-        self.assertTrue(np.allclose(0.4970156252384186, trainingsstate.state["best_validation_loss"][1], 1e-5))
+        best_validation_loss = trainingsstate.state["best_validation_loss"][1]
+        
+        # Validation Error
+        # (1, 0.4969218373298645, 10000), Max
+        # (2, 0.49693697690963745, 10000), 
+        # (3, 0.49688512086868286, 10000), 
+        # (4, 0.49684351682662964, 10000), 
+        # (5, 0.49691537022590637, 10000)]
+        self.assertTrue(np.allclose(0.4969218373298645, best_validation_loss, 1e-5))
 
         # RESTORE STATE
         my_trainer = Trainer(Logger( logdir = '', log_batch_interval=500), 
@@ -498,11 +517,14 @@ class TestUmmon(unittest.TestCase):
                              regression=True, precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
-        my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
                                         eval_interval=2,
                                         trainingstate=trainingsstate)
+        # Should improve
+        assert trainingsstate.state["best_validation_loss"][1] < best_validation_loss
+        
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -724,6 +746,8 @@ class TestUmmon(unittest.TestCase):
             optimizer, model_filename="testcase_cpu", regression=True, model_keep_epochs=True, use_cuda = False)
         
         state_cpu = Trainingstate("testcase_cuda_epoch_2")
+        state_cpu = Trainingstate(str("testcase_cuda_epoch_2" + Trainingstate().extension))
+       
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -781,7 +805,7 @@ class TestUmmon(unittest.TestCase):
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         my_trainer = Trainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
-            optimizer, model_filename="testcase_float", regression=True, model_keep_epochs=True, use_cuda = False)
+            optimizer, model_filename="testcase_float", regression=True, model_keep_epochs=True, use_cuda = False, precision = np.float32)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -793,7 +817,7 @@ class TestUmmon(unittest.TestCase):
             trainingsstate.state["best_validation_loss"][1], 1e-5)
         assert np.allclose(0.5055180191993713, Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"], 1e-5)
         
-        # CREATE A DOUBLE TRAINER
+        # CREATE A DOUBLE DATASET
         dataset = TensorDataset(x.double(), y.double())
         dataset_valid = TensorDataset(x_valid.double(), y_valid.double())
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
@@ -855,12 +879,11 @@ class TestUmmon(unittest.TestCase):
                                         epochs=5,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
-
         # Validation Error
         # [(1, 0.5116240382194519, 10000), 
         # (2, 0.5512791275978088, 10000), 
         # (3, 0.5019993185997009, 10000), 
-        # (4, 0.4970156252384186, 10000), 
+        # (4, 0.4970156252384186, 10000), MAX
         # (5, 0.5055180191993713, 10000)]
         assert np.allclose(0.4970156252384186,
             trainingsstate.state["best_validation_loss"][1], 1e-5)
@@ -869,9 +892,15 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(0.5055211959813041, Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"], 1e-5)
         
         # RESET STATE
-        model = trainingsstate.reset_to_best_validation_model(model)
+        model = trainingsstate.load_weights_best_validation(model)
         
-        # ASSERT INFERENCE             
+        # ASSERT INFERENCE   
+        assert np.allclose(0.4970156252384186, Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"], 1e-5)
+        
+        # RESET STATE 2
+        model = trainingsstate.load_weights_best_validation(model)
+        
+        # ASSERT INFERENCE   
         assert np.allclose(0.4970156252384186, Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"], 1e-5)
         
         
@@ -938,7 +967,7 @@ class TestUmmon(unittest.TestCase):
             trainingsstate.state["best_training_loss"][1], 1e-5)
 
         # RESET STATE
-        model = trainingsstate.reset_to_best_training_model(model)
+        model = trainingsstate.load_weights_best_training(model)
         
         # Validation Error
         # [(1, 0.5116240382194519, 10000), 
@@ -1035,9 +1064,85 @@ class TestUmmon(unittest.TestCase):
         criterion = nn.MSELoss()
         model = Torchutils.transform_model(model, precision=np.float32)
         self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size=1)["loss"] < 1.)
+        self.assertTrue(np.allclose(Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size= 1)["loss"],
+                                    Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size=10)["loss"]))
         self.assertTrue(type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
         pass
+     
         
+    def test_hooks(self):
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.sigmoid(self.fc1(x))
+                x = self.fc2(x)
+                return x
+        
+        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y = torch.from_numpy(np.sin(x.numpy())) 
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        
+        dataset = TensorDataset(x.float(), y.float())
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss()
+        
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        my_trainer = Trainer(Logger(), model, criterion, 
+            optimizer, model_filename="testcase", regression=True, model_keep_epochs=True)
+        
+        def backward(model, output, targets, loss):
+            assert not isinstance(output, torch.autograd.Variable)
+            assert not isinstance(targets, torch.autograd.Variable)
+            assert isinstance(loss, torch.Tensor)
+            
+        def eval(model, output, targets, loss):
+            assert not isinstance(output, torch.autograd.Variable)
+            assert not isinstance(targets, torch.autograd.Variable)
+            assert isinstance(loss, torch.Tensor)
+            
+        # START TRAINING
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        epochs=5,
+                                        validation_set=dataset_valid, 
+                                        eval_interval=1,
+                                        after_backward_hook=backward, 
+                                        after_eval_hook=eval)
+    
+    def test_examples(self):
+        import examples.checkstate
+        import examples.mnist1
+        import examples.validation
+        import examples.sine
+        examples.sine.example()
+        examples.mnist1.example()
+        examples.validation.example()
+        examples.checkstate.example()
+        
+        # Clean up
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(Trainingstate().extension) or file.endswith(".log"):
+                os.remove(os.path.join(dir,file))
+                
     
     def test_visualizer(self):
         pass

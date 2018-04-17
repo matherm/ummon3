@@ -172,6 +172,14 @@ class Trainingstate():
     def load_state(self, filename = None, force_weights_to_cpu = True):
         if filename is None:
             filename = self.filename
+            short_filename = self.short_filename
+        else:
+            if self.extension not in filename:
+                filename = str(filename + self.extension)
+            short_filename = filename.split(self.extension)[0]
+            self.short_filename = short_filename
+            self.filename = filename
+        assert filename is not None
         
         if force_weights_to_cpu:
             self.state = torch.load(filename, map_location=lambda storage, loc: storage)
@@ -225,53 +233,37 @@ class Trainingstate():
          return self.state[item]
     
     
-    def reset_to_best_validation_model(self, model, filename = None):
-        assert self.state is not None
+    def load_weights_best_training(self, model):
         assert isinstance(model, nn.Module)
-        if filename is None:
-            filename = self.filename
-            short_filename = self.short_filename
+        assert self.short_filename is not None
+
+        if self.train_pattern in self.short_filename:
+            self.load_state(str(self.short_filename + self.extension), self.force_weights_to_cpu)
         else:
-            if self.extension not in filename:
-                filename = str(filename + self.extension)
-            short_filename = filename.split(self.extension)[0]
-            
-        self.load_state(str(short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
-        
-        # RESTORE STATE    
-        model.load_state_dict(self.state["model_state"])            
-       
-        return model    
+            self.load_state(str(self.short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
+           
+        return self.load_weights(model)           
     
-    def reset_to_best_training_model(self, model, filename = None):
-        assert self.state is not None
+    def load_weights_best_validation(self, model):
         assert isinstance(model, nn.Module)
-        if filename is None:
-            filename = self.filename
-            short_filename = self.short_filename
+        assert self.short_filename is not None
+        
+        if self.valid_pattern in self.short_filename:
+            self.load_state(str(self.short_filename + self.extension), self.force_weights_to_cpu)
         else:
-            if self.extension not in filename:
-                filename = str(filename + self.extension)
-            short_filename = filename.split(self.extension)[0]
-            
-        self.load_state(str(short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
-        
-        # RESTORE STATE    
-        model.load_state_dict(self.state["model_state"])            
-       
-        return model
+            self.load_state(str(self.short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
+        return self.load_weights(model)           
     
     
-    def load_weights(self, model, precision, use_cuda = False):
+    def load_weights(self, model):
         assert self.state is not None
         assert isinstance(model, nn.Module)
-        assert precision == np.float32 or precision == np.float64
             
         # RESTORE STATE    
         model.load_state_dict(self.state["model_state"])            
        
         # Computational configuration
-        return Torchutils.transform_model(model, precision, use_cuda)  
+        return model
     
     
     def load_optimizer(self, optimizer):

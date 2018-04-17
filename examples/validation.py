@@ -9,26 +9,14 @@ sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
 
 ummon3 Examples
 
-MNIST 1
+MNIST 1-validation
 
 Run command:
     
-    python MNIST1.py --epochs 1 --batch_size 40
+    python mnist1-validation.py
 
 """
-import argparse
-parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1 (Validation Mode)')
-#
-# TRAINING PARAMS
-parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',
-                    help="Shall cuda be used (default: False)")
-parser.add_argument('--model', default="", metavar="",
-                    help="Path to trained model")
-parser.add_argument('--view', default="", metavar="",
-                    help="Print summary about a trained model")
-
-argv = parser.parse_args()
-sys.argv = [sys.argv[0]]                    
+              
 
 #
 # IMPORTS
@@ -90,12 +78,19 @@ class Net(nn.Module):
             num_features *= s
         return num_features
 
+class DefaultValues(dict):
+    def __init__(self):
+        dict.__init__(self, {
+                        "use_cuda" : False,
+                        "model" : ""
+                        })
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__  
 
-def run():
-    if argv.view is not "":
-        ts = Trainingstate(argv.view)
-        print(ts.get_summary())
-    else:
+
+def example(argv = DefaultValues()):
+    
         # PREPARE TEST DATA
         Xtr = np.random.randn(10*28*28).reshape(10,28,28).astype(np.float32)
         ytr = np.arange(10, dtype=np.int64)
@@ -107,15 +102,28 @@ def run():
         criterion = nn.CrossEntropyLoss()
         
         # LOAD TRAINING STATE
-        ts = Trainingstate(argv.model)
+        if argv.model is not "":
+            ts = Trainingstate(argv.model)
+            model = ts.load_weights(model, precision=np.float32, use_cuda=argv.use_cuda)
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
-            model = ts.load_weights(model, precision=np.float32, use_cuda=argv.use_cuda)
             lg.info(Analyzer.evaluate(model, criterion, (Xtr, ytr), regression=False))
     
 
 if __name__ == "__main__":
-    run()
+    import argparse
+    parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1 (Validation Mode)')
+    #
+    # TRAINING PARAMS
+    parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',
+                        help="Shall cuda be used (default: False)")
+    parser.add_argument('--model', default="MNIST1", metavar="",
+                        help="Path to trained model")
+    
+    argv = parser.parse_args()
+    sys.argv = [sys.argv[0]]     
+    
+    example(argv)
   
             
     

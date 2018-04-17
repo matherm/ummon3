@@ -139,7 +139,7 @@ class Trainer:
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
             self.epoch = trainingstate.state["training_loss[]"][-1][0]
-            self.model = trainingstate.load_weights(self.model, self.precision, self.use_cuda)
+            self.model = trainingstate.load_weights(self.model)
             self.optimizer = trainingstate.load_optimizer(self.optimizer)
             
         else:
