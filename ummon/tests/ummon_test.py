@@ -25,12 +25,12 @@ class TestUmmon(unittest.TestCase):
         
         # BACKUP files
         backup_dir = "_ummon_backup"
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir)
         files = os.listdir(".")
         dir = "."
         for file in files:
             if file.endswith(Trainingstate().extension) or file.endswith(".log"):
+                if not os.path.exists(backup_dir):
+                    os.makedirs(backup_dir)
                 os.rename(os.path.join(dir,file), os.path.join(backup_dir,file))
         
     # test fully connected layer

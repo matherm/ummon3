@@ -86,7 +86,7 @@ setup(
         'scipy',
         ],
       test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.tests'],
+      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.tests'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )
