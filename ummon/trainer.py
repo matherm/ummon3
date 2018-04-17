@@ -104,8 +104,8 @@ class Trainer:
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        trainingstate=None, early_stopping=np.iinfo(np.int32).max, do_combined_retraining=False,
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1, args=None):
+        trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
+        eval_batch_size=-1, args=None):
         """
         Fits a model with given training and validation dataset
         
@@ -121,10 +121,6 @@ class Trainer:
                                 Evaluation interval for validation dataset in epochs
         trainingstate       :   ummon.Trainingstate
                                 OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
-        early_stopping      :   float
-                                Eps criterion for early stopping
-        do_combined_retraining: bool
-                                Specifies whether retraining with validation AND training dataset should be done
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
@@ -163,7 +159,6 @@ class Trainer:
                 sampler=None, batch_sampler=None)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
         assert Torchutils.check_precision(dataloader_training.dataset, self.model, self.precision)
-
         if validation_set is not None:
             if type(validation_set) == tuple:
                 validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
@@ -175,14 +170,6 @@ class Trainer:
         if epochs < 1:
             self.logger.error('Number of epochs must be > 0.', ValueError)
         eval_interval = int(eval_interval)
-        early_stopping = np.int32(early_stopping)
-        if early_stopping < np.iinfo(np.int32).max:
-            raise NotImplementedError("Early Stopping is not implemented yet!")
-        if early_stopping != np.iinfo(np.int32).max and validation_set is None:
-            self.logger.error('Early stopping needs validation data.')
-        do_combined_retraining = bool(do_combined_retraining)
-        if do_combined_retraining:
-            raise NotImplementedError("Combined retraining not implemented yet.")
         
         # COMPUTE BATCHES PER EPOCH
         batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
@@ -191,6 +178,8 @@ class Trainer:
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
             dataloader_training, validation_set, epochs, early_stopping)
         
+        # training startup message
+        self.logger.info('Begin training: {} epochs.'.format(epochs))        
         for epoch in range(self.epoch, self.epoch + epochs):
             
             # TAKE TIME
@@ -222,7 +211,7 @@ class Trainer:
                 
                 # Get the inputs
                 inputs, targets = Variable(data[0]), Variable(data[1])
-
+                
                 # Handle cuda
                 if self.use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
@@ -233,7 +222,6 @@ class Trainer:
                 # time model
                 if self.profile and self.use_cuda: torch.cuda.synchronize()
                 time_dict["model"] = time_dict["model"] + (time.time() - t)
-
                 
                 # Ensure Cuda for singular outputs
                 if type(output) != tuple:
@@ -244,7 +232,7 @@ class Trainer:
                     assert type(output) == torch.autograd.Variable
                 else:
                     assert type(output[0]) == torch.autograd.Variable
-
+                
                 # Compute Loss
                 loss = self.criterion(output, targets)
                 
@@ -254,7 +242,7 @@ class Trainer:
                 
                 # Zero the gradient    
                 self.optimizer.zero_grad()
-        
+                
                 # Backpropagation
                 loss.backward()
                 
@@ -297,7 +285,6 @@ class Trainer:
                         output_buffer.append((output[0].data.clone(), targets.data.clone(), batch))
                 else:
                     avg_training_acc = 0.
-          
             
             # Log epoch
             self.logger.log_epoch(epoch + 1, batch + 1, 
@@ -307,30 +294,58 @@ class Trainer:
                                   time_dict, 
                                   self.profile)
             
-            # MODEL VALIDATION
-            if validation_set is not None and (epoch +1) % eval_interval == 0:
-                # Compute Running average accuracy
-                for saved_output, saved_targets, batch in output_buffer:
-                    if type(saved_output) != tuple:
-                        classes = Analyzer.classify(saved_output.cpu())
-                    else:
-                        classes = Analyzer.classify(saved_output[0].cpu())
-                    acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
-                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
-
-                trainingstate = self._evaluate(epoch + 1, validation_set, avg_training_loss, 
-                                               avg_training_acc, dataloader_training.batch_size, 
-                                               dataloader_training, after_eval_hook, eval_batch_size, 
-                                               trainingstate, args)
+            # reporting interval
+            if (epoch + 1) % eval_interval == 0:
+                
+                # MODEL VALIDATION
+                if validation_set is not None:
+                    
+                    # Compute Running average accuracy
+                    for saved_output, saved_targets, batch in output_buffer:
+                        if type(saved_output) != tuple:
+                            classes = Analyzer.classify(saved_output.cpu())
+                        else:
+                            classes = Analyzer.classify(saved_output[0].cpu())
+                        acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
+                        avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
+                    
+                    trainingstate = self._evaluate(epoch + 1, validation_set, avg_training_loss, 
+                                                   avg_training_acc, dataloader_training.batch_size, 
+                                                   dataloader_training, after_eval_hook, eval_batch_size, 
+                                                   trainingstate, args)
+                
+                else: # no validation set
+                    
+                    trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
+                        training_loss = avg_training_loss, 
+                        validation_loss = None, 
+                        training_accuracy = avg_training_acc,
+                        training_batchsize = dataloader_training.batch_size,
+                        validation_accuracy = None, 
+                        validation_batchsize = None,
+                        regression = self.regression,
+                        precision = self.precision,
+                        detailed_loss = repr(self.criterion),
+                        training_dataset = dataloader_training.dataset,
+                        validation_dataset = None,
+                        samples_per_second = None,
+                        args = {})
+                    
+                    self.logger.log_evaluation(trainingstate, self.profile)
+                    
+                # SAVE MODEL
+                trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            
             # CLEAN UP
             del output_buffer[:]
                 
-                
         return trainingstate
-              
-                
+    
+    
     def _evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
-        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, trainingstate, args):
+        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, 
+        trainingstate, args):
+        
         # INIT ARGS
         args = {} if args is None else args
         
@@ -360,9 +375,6 @@ class Trainer:
                      args = {**args, **evaluation_dict["args[]"]})
         
         self.logger.log_evaluation(trainingstate, self.profile)
-        
-        # SAVE MODEL
-        trainingstate.save_state(self.model_filename, self.model_keep_epochs)
         
         return trainingstate
         
