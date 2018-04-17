@@ -24,7 +24,7 @@ class TestUmmon(unittest.TestCase):
         super(TestUmmon, self).__init__(*args, **kwargs)
         
         # BACKUP files
-        backup_dir = "_ummon_backup"
+        backup_dir = "_backup"
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -823,7 +823,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         state = Trainingstate("testcase_float_epoch_5")
-        model = Torchutils.transform_model(model, np.float64)
+        model = uu.transform_model(model, np.float64)
      
         # ASSERT INFERENCE             
         assert np.allclose(0.5055211959813041, Analyzer.evaluate(model, criterion, dataset_valid, regression=True)["loss"], 1e-5)
@@ -1062,7 +1062,7 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
-        model = Torchutils.transform_model(model, precision=np.float32)
+        model = uu.transform_model(model, precision=np.float32)
         self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size=1)["loss"] < 1.)
         self.assertTrue(np.allclose(Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size= 1)["loss"],
                                     Analyzer.evaluate(model, criterion, dataset_valid, regression=True, batch_size=10)["loss"]))

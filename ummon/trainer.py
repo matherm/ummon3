@@ -10,9 +10,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
+import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon.utils import Torchutils
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
@@ -94,7 +94,7 @@ class Trainer:
         if self.use_cuda:
             if not torch.cuda.is_available():
                 logger.error('CUDA is not available on your system.')
-        self.model = Torchutils.transform_model(model, precision, use_cuda)
+        self.model = uu.transform_model(model, precision, use_cuda)
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
@@ -147,17 +147,17 @@ class Trainer:
             
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
+            dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
             batch = int(dataloader_training[2])
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert Torchutils.check_precision(dataloader_training.dataset, self.model, self.precision)
+        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
         if validation_set is not None:
             if type(validation_set) == tuple:
-                validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
+                validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
-            assert Torchutils.check_precision(validation_set, self.model, self.precision)
+            assert uu.check_precision(validation_set, self.model, self.precision)
         
         # check parameters
         epochs = int(epochs)

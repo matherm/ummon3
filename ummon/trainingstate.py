@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import shutil
 import numpy as np
-from ummon.utils import Torchutils
+import ummon.utils as uu
 
 class Trainingstate():
     """
@@ -73,7 +73,7 @@ class Trainingstate():
                 validation_loss_list = [(epoch, validation_loss, validation_batchsize)]
                 best_validation_accuracy = (epoch, validation_accuracy, validation_batchsize)
                 best_validation_loss = (epoch, validation_loss, validation_batchsize)
-                validation_dataset = Torchutils.get_data_information(validation_dataset)
+                validation_dataset = uu.get_data_information(validation_dataset)
             else:
                 validation_accuracy_list = []
                 validation_loss_list = []
@@ -82,12 +82,12 @@ class Trainingstate():
                 validation_dataset = None
             self.state = {  
                          "model_desc" : str(model),
-                         "model_trainable_params" : Torchutils.count_parameters(model),
+                         "model_trainable_params" : uu.count_parameters(model),
                          "loss_desc"  : str(loss_function),
                          "cuda" : next(model.parameters()).is_cuda, 
                          "regression" : regression,
                          "precision" : precision,
-                         "dataset_training" : Torchutils.get_data_information(training_dataset),
+                         "dataset_training" : uu.get_data_information(training_dataset),
                          "dataset_validation" : validation_dataset,
                          "samples_per_second[]" : [(epoch, samples_per_second)],
                          "init_optimizer_state" : optimizer.state_dict(),
@@ -111,7 +111,7 @@ class Trainingstate():
                 if "dataset_validation" in self.state:
                     dataset_validation_info = self.state["dataset_validation"] 
                 else:
-                    dataset_validation_info = Torchutils.get_data_information(validation_dataset)                
+                    dataset_validation_info = uu.get_data_information(validation_dataset)                
                 if validation_loss < self.state["best_validation_loss"][1]:
                     best_validation_loss = (epoch, validation_loss, validation_batchsize) 
                 else: 
@@ -132,7 +132,7 @@ class Trainingstate():
             if "dataset_training" in self.state:
                 dataset_training_info = self.state["dataset_training"] 
             else: 
-                dataset_training_info = Torchutils.get_data_information(training_dataset)
+                dataset_training_info = uu.get_data_information(training_dataset)
             if "samples_per_second[]" in self.state:
                 samples_per_second_info = [*self.state["samples_per_second[]"], (epoch, samples_per_second)] 
             else:
@@ -155,7 +155,7 @@ class Trainingstate():
                 args = [*self.state["args[]"]]
             self.state = {  
                          "model_desc" : str(model),
-                         "model_trainable_params" : Torchutils.count_parameters(model),
+                         "model_trainable_params" : uu.count_parameters(model),
                          "loss_desc"  : str(loss_function),
                          "cuda" : next(model.parameters()).is_cuda, 
                          "regression" : regression,

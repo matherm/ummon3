@@ -8,10 +8,10 @@ sys.path.insert(0,'../ummon3')
 import logging, warnings, os, time, socket
 import numpy as np
 import torch
+import ummon.utils as uu
 from torch.autograd import Variable
 from platform import platform
 from ummon.__version__ import version
-from ummon.utils import Torchutils
 
 __all__ = [ 'Logger' ]
 
@@ -236,7 +236,7 @@ class Logger(logging.getLoggerClass()):
         self.info('       Detailed loss information: {}'.format(detailed_loss))
         self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
         if profile:
-            self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(Torchutils.get_proc_memory_info()["mem"], Torchutils.get_cuda_memory_info()))
+            self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
         self.info("")
     
     # output description of learning task
@@ -247,7 +247,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('[Model]')
         for lin in model.__repr__().splitlines():
             self.debug(lin)
-        self.debug('{0:20}{1}'.format("Trainable params:", Torchutils.count_parameters(model)))   
+        self.debug('{0:20}{1}'.format("Trainable params:", uu.count_parameters(model)))   
         
         self.debug(' ')
         self.debug('[Loss]')
@@ -257,27 +257,27 @@ class Logger(logging.getLoggerClass()):
         self.debug(' ')
         self.debug('[Data]')
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Training', 
-            Torchutils.get_size_information(dataloader_train.dataset), 
-            Torchutils.get_shape_information(dataloader_train.dataset), 
-            Torchutils.get_type_information(dataloader_train.dataset)))
+            uu.get_size_information(dataloader_train.dataset), 
+            uu.get_shape_information(dataloader_train.dataset), 
+            uu.get_type_information(dataloader_train.dataset)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
-            Torchutils.get_size_information(dataset_validation), 
-            Torchutils.get_shape_information(dataset_validation), 
-            Torchutils.get_type_information(dataset_validation)))
+            uu.get_size_information(dataset_validation), 
+            uu.get_shape_information(dataset_validation), 
+            uu.get_type_information(dataset_validation)))
         self.debug('{0:18}{1:8}    {2:18} {3}'.format('Test', 
-            Torchutils.get_size_information(dataset_test), 
-            Torchutils.get_shape_information(dataset_test), 
-            Torchutils.get_type_information(dataset_test)))
+            uu.get_size_information(dataset_test), 
+            uu.get_shape_information(dataset_test), 
+            uu.get_type_information(dataset_test)))
    
         self.debug(' ')
         self.debug("[Preflight]")
         use_cuda = next(model.parameters()).is_cuda
-        memory_baseline = Torchutils.get_proc_memory_info()["mem"]
+        memory_baseline = uu.get_proc_memory_info()["mem"]
         testpilot = Variable(next(iter(dataloader_train))[0]).cuda() if use_cuda else Variable(next(iter(dataloader_train))[0])
         out = model(testpilot)
         self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((Torchutils.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory cuda (MB)", Torchutils.get_cuda_memory_info()))
+        self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
+        self.debug('{0:25}{1}'.format("Memory cuda (MB)", uu.get_cuda_memory_info()))
     
         self.debug(' ')
         self.debug('[Parameters]')

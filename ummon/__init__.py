@@ -22,6 +22,8 @@ import ummon.__version__
 import ummon.utils as utils
 import ummon.functionals
 import ummon.preprocessing
+import ummon.utils as uu
+
 version = ummon.__version__.version
 
 def system_info():
@@ -46,4 +48,3 @@ from .trainingstate import Trainingstate
 from .analyzer import Analyzer
 from .trainer import Trainer
 from .visualizer import Visualizer
-from .utils import Torchutils
