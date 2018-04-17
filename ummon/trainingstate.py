@@ -65,50 +65,74 @@ class Trainingstate():
                      validation_dataset = None,
                      samples_per_second = None,
                      args = None):
-        if validation_accuracy is None:
-            validation_accuracy = -1
-        if validation_batchsize is None:
-            validation_batchsize = 0
-        if validation_loss is None:
-            validation_loss  = np.finfo(np.float32).max
         
         # INITIALIZE NEW STATE
         if self.state is None:
+            if validation_accuracy is not None and validation_batchsize is not None and validation_loss is not None and validation_dataset is not None:
+                validation_accuracy_list = [(epoch, validation_accuracy, validation_batchsize)]
+                validation_loss_list = [(epoch, validation_loss, validation_batchsize)]
+                best_validation_accuracy = (epoch, validation_accuracy, validation_batchsize)
+                best_validation_loss = (epoch, validation_loss, validation_batchsize)
+                validation_dataset = Torchutils.get_data_information(validation_dataset)
+            else:
+                validation_accuracy_list = []
+                validation_loss_list = []
+                best_validation_accuracy = (epoch, 0., 0.)
+                best_validation_loss = (epoch, np.finfo(np.float32).max, 0)
+                validation_dataset = None
             self.state = {  
-                             "model_desc" : str(model),
-                             "model_trainable_params" : Torchutils.count_parameters(model),
-                             "loss_desc"  : str(loss_function),
-                             "cuda" : next(model.parameters()).is_cuda, 
-                             "regression" : regression,
-                             "precision" : precision,
-                             "dataset_training" : Torchutils.get_data_information(training_dataset),
-                             "dataset_validation" : Torchutils.get_data_information(validation_dataset),
-                             "samples_per_second[]" : [(epoch, samples_per_second)],
-                             "init_optimizer_state" : optimizer.state_dict(),
-                             "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
-                             "model_state" : model.state_dict(),
-                             "optimizer_state": optimizer.state_dict(),
-                             "best_training_loss" : (epoch, training_loss, training_batchsize),
-                             "best_training_accuracy" : (epoch, training_accuracy, training_batchsize),
-                             "training_loss[]" : [(epoch, training_loss, training_batchsize)],
-                             "training_accuracy[]" : [(epoch, training_accuracy, training_batchsize)],
-                             "best_validation_loss" : (epoch, validation_loss, validation_batchsize),
-                             "best_validation_accuracy" : (epoch, validation_accuracy, validation_batchsize),
-                             "validation_loss[]" : [(epoch, validation_loss, validation_batchsize)],
-                             "validation_accuracy[]" : [(epoch, validation_accuracy, validation_batchsize)],
-                             "detailed_loss[]" : [(epoch, detailed_loss)],
-                             "args[]" : [args]
+                         "model_desc" : str(model),
+                         "model_trainable_params" : Torchutils.count_parameters(model),
+                         "loss_desc"  : str(loss_function),
+                         "cuda" : next(model.parameters()).is_cuda, 
+                         "regression" : regression,
+                         "precision" : precision,
+                         "dataset_training" : Torchutils.get_data_information(training_dataset),
+                         "dataset_validation" : validation_dataset,
+                         "samples_per_second[]" : [(epoch, samples_per_second)],
+                         "init_optimizer_state" : optimizer.state_dict(),
+                         "lrate[]" : [(epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
+                         "model_state" : model.state_dict(),
+                         "optimizer_state": optimizer.state_dict(),
+                         "best_training_loss" : (epoch, training_loss, training_batchsize),
+                         "best_training_accuracy" : (epoch, training_accuracy, training_batchsize),
+                         "training_loss[]" : [(epoch, training_loss, training_batchsize)],
+                         "training_accuracy[]" : [(epoch, training_accuracy, training_batchsize)],
+                         "best_validation_loss" :  best_validation_loss,
+                         "best_validation_accuracy" : best_validation_accuracy,
+                         "validation_loss[]" : validation_loss_list,
+                         "validation_accuracy[]" : validation_accuracy_list ,
+                         "detailed_loss[]" : [(epoch, detailed_loss)],
+                         "args[]" : [args]
                           }
         else:
             # APPEND STATE
+            if validation_accuracy is not None and validation_batchsize is not None and validation_loss is not None and validation_dataset is not None:                
+                if "dataset_validation" in self.state:
+                    dataset_validation_info = self.state["dataset_validation"] 
+                else:
+                    dataset_validation_info = Torchutils.get_data_information(validation_dataset)                
+                if validation_loss < self.state["best_validation_loss"][1]:
+                    best_validation_loss = (epoch, validation_loss, validation_batchsize) 
+                else: 
+                    best_validation_loss = self.state["best_validation_loss"]
+                if validation_accuracy > self.state["best_validation_accuracy"][1]:
+                    best_validation_acc = (epoch, validation_accuracy, validation_batchsize) 
+                else:
+                    best_validation_acc  = self.state["best_validation_accuracy"]
+                validation_loss_list = [*self.state["validation_loss[]"], (epoch, validation_loss, validation_batchsize)]
+                validation_acc_list = [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, validation_batchsize)]
+            else:
+                dataset_validation_info = self.state["dataset_validation"] 
+                best_validation_loss = self.state["best_validation_loss"]
+                best_validation_acc = self.state["best_validation_accuracy"]
+                validation_loss_list = self.state["validation_loss[]"]
+                validation_acc_list = self.state["validation_accuracy[]"]
+
             if "dataset_training" in self.state:
                 dataset_training_info = self.state["dataset_training"] 
             else: 
                 dataset_training_info = Torchutils.get_data_information(training_dataset)
-            if "dataset_validation" in self.state:
-                dataset_validation_info = self.state["dataset_validation"] 
-            else:
-                dataset_validation_info = Torchutils.get_data_information(validation_dataset)                
             if "samples_per_second[]" in self.state:
                 samples_per_second_info = [*self.state["samples_per_second[]"], (epoch, samples_per_second)] 
             else:
@@ -121,42 +145,38 @@ class Trainingstate():
                 best_training_acc = (epoch, training_accuracy, training_batchsize) 
             else:
                 best_training_acc = self.state["best_training_accuracy"]
-            if validation_loss < self.state["best_validation_loss"][1]:
-                best_validation_loss = (epoch, validation_loss, validation_batchsize) 
-            else: 
-                best_validation_loss = self.state["best_validation_loss"]
-            if validation_accuracy > self.state["best_validation_accuracy"][1]:
-                best_validation_acc = (epoch, validation_accuracy, validation_batchsize) 
-            else:
-                best_validation_acc  = self.state["best_validation_accuracy"]
             if "detailed_loss[]" in self.state:
                 detailed_loss_info = [*self.state["detailed_loss[]"], (epoch, detailed_loss)] 
             else:
                 detailed_loss_info = [(epoch, detailed_loss)]
+            if len(args) == 0:
+                args = self.state["args[]"]
+            else:
+                args = [*self.state["args[]"]]
             self.state = {  
-                             "model_desc" : str(model),
-                             "model_trainable_params" : Torchutils.count_parameters(model),
-                             "loss_desc"  : str(loss_function),
-                             "cuda" : next(model.parameters()).is_cuda, 
-                             "regression" : regression,
-                             "precision" : precision,
-                             "dataset_training" : dataset_training_info,
-                             "dataset_validation" : dataset_validation_info,
-                             "samples_per_second[]" : samples_per_second_info,
-                             "init_optimizer_state" : self.state["init_optimizer_state"],
-                             "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
-                             "model_state" : model.state_dict(),
-                             "optimizer_state": optimizer.state_dict(),
-                             "best_training_loss" : best_training_loss,
-                             "best_training_accuracy" : best_training_acc,
-                             "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss, training_batchsize)],
-                             "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy, training_batchsize)],
-                             "best_validation_loss" : best_validation_loss,
-                             "best_validation_accuracy" : best_validation_acc,
-                             "validation_loss[]" : [*self.state["validation_loss[]"], (epoch, validation_loss, validation_batchsize)],
-                             "validation_accuracy[]" : [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, validation_batchsize)],
-                             "detailed_loss[]" : detailed_loss_info,
-                             "args[]" : [*self.state["args[]"]]
+                         "model_desc" : str(model),
+                         "model_trainable_params" : Torchutils.count_parameters(model),
+                         "loss_desc"  : str(loss_function),
+                         "cuda" : next(model.parameters()).is_cuda, 
+                         "regression" : regression,
+                         "precision" : precision,
+                         "dataset_training" : dataset_training_info,
+                         "dataset_validation" : dataset_validation_info,
+                         "samples_per_second[]" : samples_per_second_info,
+                         "init_optimizer_state" : self.state["init_optimizer_state"],
+                         "lrate[]" : [*self.state["lrate[]"], (epoch, optimizer.state_dict()["param_groups"][0]["lr"])],
+                         "model_state" : model.state_dict(),
+                         "optimizer_state": optimizer.state_dict(),
+                         "best_training_loss" : best_training_loss,
+                         "best_training_accuracy" : best_training_acc,
+                         "training_loss[]" : [*self.state["training_loss[]"], (epoch, training_loss, training_batchsize)],
+                         "training_accuracy[]" : [*self.state["training_accuracy[]"], (epoch, training_accuracy, training_batchsize)],
+                         "best_validation_loss" : best_validation_loss,
+                         "best_validation_accuracy" : best_validation_acc,
+                         "validation_loss[]" : validation_loss_list,
+                         "validation_accuracy[]" : validation_acc_list,
+                         "detailed_loss[]" : detailed_loss_info,
+                         "args[]" : args
                           }
         
     def get_summary(self):
@@ -209,9 +229,13 @@ class Trainingstate():
             torch.save(self.state, filename)  
         
         def is_best_train(state):
+            if len(state["training_loss[]"]) == 0:
+                return True
             return state["training_loss[]"][-1][1] == state["best_training_loss"][1]
         
         def is_best_valid(state):
+            if len(state["validation_loss[]"]) == 0:
+                return True
             return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
         if is_best_train(self.state):
@@ -259,10 +283,8 @@ class Trainingstate():
         assert self.state is not None
         assert isinstance(model, nn.Module)
             
-        # RESTORE STATE    
         model.load_state_dict(self.state["model_state"])            
        
-        # Computational configuration
         return model
     
     
