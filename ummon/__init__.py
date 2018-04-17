@@ -20,6 +20,8 @@ import sys
 from platform import platform
 import ummon.__version__
 import ummon.utils as utils
+import ummon.functionals
+import ummon.preprocessing
 version = ummon.__version__.version
 
 def system_info():
