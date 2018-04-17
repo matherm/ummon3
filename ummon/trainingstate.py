@@ -189,11 +189,9 @@ class Trainingstate():
             short_filename = filename.split(self.extension)[0]
             self.short_filename = short_filename
             self.filename = filename
-    
         assert filename is not None
         
         file_extension = self.extension
-                
         if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
             filename = short_filename + "_epoch_" + str(epoch) + file_extension

@@ -140,8 +140,7 @@ def run():
                                         epochs=argv.epochs,
                                         validation_set=mnist_data_test, 
                                         eval_interval=argv.eval_interval,
-                                        trainingstate=ts,
-                                        early_stopping = 1)
+                                        trainingstate=ts)
 
 if __name__ == "__main__":
     run()
