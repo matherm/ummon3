@@ -230,12 +230,12 @@ class Trainingstate():
         
         def is_best_train(state):
             if len(state["training_loss[]"]) == 0:
-                return True
+                return False
             return state["training_loss[]"][-1][1] == state["best_training_loss"][1]
         
         def is_best_valid(state):
             if len(state["validation_loss[]"]) == 0:
-                return True
+                return False
             return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
         if is_best_train(self.state):

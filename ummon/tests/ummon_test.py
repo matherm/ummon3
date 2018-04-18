@@ -599,6 +599,11 @@ class TestUmmon(unittest.TestCase):
                     x = F.softmax(x, dim=1)
                     return x
         
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+        
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(Net().parameters(), lr=0.01)
         
@@ -609,9 +614,24 @@ class TestUmmon(unittest.TestCase):
                      training_batchsize = 0,
                      validation_accuracy = 0, 
                      validation_batchsize = 0,
+                     validation_dataset = dataset_valid,
                      args = { "args" : 1 , "argv" : 2})
+        
+        ts2 = Trainingstate()
         ts.save_state("test.pth.tar")
-        ts.load_state("test.pth.tar")
+        ts2.load_state("test")
+
+        ts.save_state("test")
+        ts2.load_state("test.pth.tar")
+
+        ts.save_state("test.pth.tar")
+        ts2.load_state("test.pth.tar")
+
+        assert ts2["validation_accuracy[]"][-1][0] == ts["validation_accuracy[]"][-1][0]
+        assert ts2["validation_loss[]"][-1][0] == ts["validation_loss[]"][-1][0]
+        assert ts2["lrate[]"][-1][1] == ts["lrate[]"][-1][1]
+        assert ts2["model_trainable_params"] == ts["model_trainable_params"]
+        
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -1005,6 +1025,9 @@ class TestUmmon(unittest.TestCase):
                     x = F.relu(self.fc1(x))
                     x = F.softmax(x, dim=1)
                     return x
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(Net().parameters(), lr=0.01)
@@ -1016,7 +1039,11 @@ class TestUmmon(unittest.TestCase):
                      training_batchsize = 0,
                      validation_accuracy = 0, 
                      validation_batchsize = 0,
+                     validation_dataset = dataset_valid,
                      args = { "args" : 1 , "argv" : 2})
+
+        assert len(ts["validation_accuracy[]"]) == 1
+        
         ts.update_state(0, Net(), criterion, optimizer, 0, 
                      validation_loss = None, 
                      training_accuracy = 0,
@@ -1024,6 +1051,19 @@ class TestUmmon(unittest.TestCase):
                      validation_accuracy = None, 
                      validation_batchsize = None,
                      args = { "args" : 1 , "argv" : 2})
+        assert len(ts["validation_accuracy[]"]) == 1
+        
+        ts.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_batchsize = 0,
+                     validation_dataset = dataset_valid,
+                     args = { "args" : 1 , "argv" : 2})
+
+        assert len(ts["validation_accuracy[]"]) == 2
+
         ts = Trainingstate()
         ts.update_state(0, Net(), criterion, optimizer, 0, 
                      validation_loss = None, 
@@ -1032,6 +1072,8 @@ class TestUmmon(unittest.TestCase):
                      validation_accuracy = 0, 
                      validation_batchsize = 0,
                      args = { "args" : 1 , "argv" : 2})
+        
+        assert len(ts["validation_accuracy[]"]) == 0
     
     def test_analyzer(self):
         np.random.seed(17)
