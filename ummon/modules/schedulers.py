@@ -66,7 +66,7 @@ class StepLR_earlystop(object):
             raise ValueError('Early stopping patience must be > 0.')        
         
         # init scheduler state
-        self.last_epoch = 1 # we assume that step() is called the first time after training in the first epoch
+        self.last_epoch = 0 # we assume that step() is called the first time after training in the first epoch
         if self.mode == 'min':
             self.best = np.iinfo(np.float32).max
         else:
