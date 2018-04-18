@@ -10,9 +10,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
+import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon.utils import Torchutils
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
@@ -91,16 +91,10 @@ class Trainer:
         self.logger = logger
         
         # Computational configuration
-        if self.precision == np.float32:
-            self.model = self.model.float()
-        if self.precision == np.float64:
-            self.model = self.model.double()
         if self.use_cuda:
             if not torch.cuda.is_available():
                 logger.error('CUDA is not available on your system.')
-            self.model = self.model.cuda()
-        else:
-            self.model = self.model.cpu()
+        self.model = uu.transform_model(model, precision, use_cuda)
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
@@ -145,25 +139,25 @@ class Trainer:
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
             self.epoch = trainingstate.state["training_loss[]"][-1][0]
-            self.optimizer.load_state_dict(trainingstate.state["optimizer_state"])
-            self.model.load_state_dict(trainingstate.state["model_state"])  
-            assert self.precision == trainingstate.state["precision"]
+            self.model = trainingstate.load_weights(self.model)
+            self.optimizer = trainingstate.load_optimizer(self.optimizer)
+            
         else:
             trainingstate = Trainingstate()
             
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            dataset = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
+            dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
             batch = int(dataloader_training[2])
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert Torchutils.check_precision(dataloader_training.dataset, self.model, self.precision)
+        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
         if validation_set is not None:
             if type(validation_set) == tuple:
-                validation_set = Torchutils.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
+                validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
-            assert Torchutils.check_precision(validation_set, self.model, self.precision)
+            assert uu.check_precision(validation_set, self.model, self.precision)
         
         # check parameters
         epochs = int(epochs)
@@ -176,7 +170,7 @@ class Trainer:
         
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
-            dataloader_training, validation_set, epochs, early_stopping)
+            dataloader_training, validation_set, epochs, None)
         
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))        
@@ -294,27 +288,66 @@ class Trainer:
                                   time_dict, 
                                   self.profile)
             
-            # reporting interval
-            if (epoch + 1) % eval_interval == 0:
-                
-                # MODEL VALIDATION
-                if validation_set is not None:
+            # MODEL VALIDATION
+            trainingstate = self._evaluate(epoch + 1, eval_interval, validation_set, avg_training_loss, 
+                                               avg_training_acc, training_acc, dataloader_training.batch_size, 
+                                               dataloader_training, after_eval_hook, eval_batch_size, 
+                                               trainingstate, output_buffer, args)
                     
-                    # Compute Running average accuracy
-                    for saved_output, saved_targets, batch in output_buffer:
-                        if type(saved_output) != tuple:
-                            classes = Analyzer.classify(saved_output.cpu())
-                        else:
-                            classes = Analyzer.classify(saved_output[0].cpu())
-                        acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
-                        avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
-                    
-                    trainingstate = self._evaluate(epoch + 1, validation_set, avg_training_loss, 
-                                                   avg_training_acc, dataloader_training.batch_size, 
-                                                   dataloader_training, after_eval_hook, eval_batch_size, 
-                                                   trainingstate, args)
+            # SAVE MODEL
+            trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            
+            # CLEAN UP
+            del output_buffer[:]
                 
-                else: # no validation set
+        return trainingstate
+    
+    
+    def _evaluate(self, epoch, eval_interval, validation_set, avg_training_loss, avg_training_acc, training_acc,
+        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, 
+        trainingstate, output_buffer, args):
+        # INIT ARGS
+        args = {} if args is None else args
+        
+        if (epoch +1) % eval_interval == 0 and validation_set is not None:
+                # Compute Running average accuracy
+                for saved_output, saved_targets, batch in output_buffer:
+                    if type(saved_output) != tuple:
+                        classes = Analyzer.classify(saved_output.cpu())
+                    else:
+                        classes = Analyzer.classify(saved_output[0].cpu())
+                    acc = Analyzer.compute_accuracy(classes, saved_targets.cpu())
+                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc)
+        
+            
+                # MODEL EVALUATION
+                evaluation_dict = Analyzer.evaluate(self.model, 
+                                                    self.criterion, 
+                                                    validation_set, 
+                                                    self.regression, 
+                                                    self.logger, 
+                                                    after_eval_hook, 
+                                                    batch_size=eval_batch_size)
+                
+                # UPDATE TRAININGSTATE
+                trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
+                             training_loss = avg_training_loss, 
+                             validation_loss = evaluation_dict["loss"], 
+                             training_accuracy = avg_training_acc,
+                             training_batchsize = training_batch_size,
+                             validation_accuracy = evaluation_dict["accuracy"], 
+                             validation_batchsize = len(validation_set),
+                             regression = self.regression,
+                             precision = self.precision,
+                             detailed_loss = evaluation_dict["detailed_loss"],
+                             training_dataset = dataloader_training.dataset,
+                             validation_dataset = validation_set,
+                             samples_per_second = evaluation_dict["samples_per_second"],
+                             args = {**args, **evaluation_dict["args[]"]})
+
+                self.logger.log_evaluation(trainingstate, self.profile)
+                        
+        else: # no validation set
                     
                     trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
                         training_loss = avg_training_loss, 
@@ -330,52 +363,7 @@ class Trainer:
                         validation_dataset = None,
                         samples_per_second = None,
                         args = {})
-                    
-                    self.logger.log_evaluation(trainingstate, self.profile)
-                    
-                # SAVE MODEL
-                trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-            
-            # CLEAN UP
-            del output_buffer[:]
-                
-        return trainingstate
-    
-    
-    def _evaluate(self, epoch, validation_set, avg_training_loss, avg_training_acc, 
-        training_batch_size, dataloader_training, after_eval_hook, eval_batch_size, 
-        trainingstate, args):
-        
-        # INIT ARGS
-        args = {} if args is None else args
-        
-        # MODEL EVALUATION
-        evaluation_dict = Analyzer.evaluate(self.model, 
-                                            self.criterion, 
-                                            validation_set, 
-                                            self.regression, 
-                                            self.logger, 
-                                            after_eval_hook, 
-                                            batch_size=eval_batch_size)
-        
-        # UPDATE TRAININGSTATE
-        trainingstate.update_state(epoch, self.model, self.criterion, self.optimizer, 
-                     training_loss = avg_training_loss, 
-                     validation_loss = evaluation_dict["loss"], 
-                     training_accuracy = avg_training_acc,
-                     training_batchsize = training_batch_size,
-                     validation_accuracy = evaluation_dict["accuracy"], 
-                     validation_batchsize = len(validation_set),
-                     regression = self.regression,
-                     precision = self.precision,
-                     detailed_loss = evaluation_dict["detailed_loss"],
-                     training_dataset = dataloader_training.dataset,
-                     validation_dataset = validation_set,
-                     samples_per_second = evaluation_dict["samples_per_second"],
-                     args = {**args, **evaluation_dict["args[]"]})
-        
-        self.logger.log_evaluation(trainingstate, self.profile)
-        
+
         return trainingstate
         
         

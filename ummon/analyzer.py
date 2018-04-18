@@ -9,9 +9,9 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import ummon.utils as uu
 from ummon.trainingstate import Trainingstate
 from ummon.logger import Logger
-from ummon.utils import Torchutils
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
@@ -63,12 +63,12 @@ class Analyzer:
         """
         # simple interface: training and test data given as numpy arrays
         if type(dataset) == tuple:
-                 dataset = Torchutils.construct_dataset_from_tuple(logger, dataset, train=False)
+                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
         
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(loss_function, nn.Module)
         assert isinstance(model, nn.Module)
-        assert Torchutils.check_precision(dataset, model)
+        assert uu.check_precision(dataset, model)
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
@@ -90,9 +90,9 @@ class Analyzer:
                     targets = targets.cuda()
                 
                 # Execute Model
-                model.eval()
+              #  model.eval()
                 output = model(Variable(inputs))
-                model.train()
+               # model.train()
                 
                 # Compute Loss
                 targets = Variable(targets)
@@ -171,11 +171,11 @@ class Analyzer:
         """
         # simple interface: training and test data given as numpy arrays
         if type(dataset) == tuple:
-                 dataset = Torchutils.construct_dataset_from_tuple(logger, dataset, train=False)
+                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
                  
         assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(model, nn.Module)
-        assert Torchutils.check_precision(dataset, model)
+        assert uu.check_precision(dataset, model)
         
         use_cuda = next(model.parameters()).is_cuda
         dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  

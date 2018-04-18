@@ -9,26 +9,23 @@ sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
 
 ummon3 Examples
 
-MNIST 1
+SINE
 
 Run command:
     
-    python MNIST1.py --epochs 1 --batch_size 40
+    python sine.py
 
 """
+
 #
 # IMPORTS
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader
-from ummon.trainer import Trainer
-from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
-from ummon.modules.container import Sequential
+from ummon.logger import Logger
+from ummon.trainer import Trainer
 
 #
 # SET inital seed for reproducibility 
@@ -41,41 +38,19 @@ class Net(nn.Module):
     
     def __init__(self):
         super(Net, self).__init__()
-        # 1 input image channel, 6 output channels, 5x5 square convolution
-        # kernel
-        self.conv1 = nn.Conv2d(1, 6, 5)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(16 * 4 * 4, 256)
-        self.fc2 = nn.Linear(256, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc1 = nn.Linear(1, 5)
+        self.fc2 = nn.Linear(5, 1)
         
         # Initialization
         def weights_init_normal(m):
             if type(m) == nn.Linear:
                 nn.init.normal(m.weight, mean=0, std=0.1)
-            if type(m) == nn.Conv2d:
-                nn.init.normal(m.weight, mean=0, std=0.1)
         self.apply(weights_init_normal)
     
     def forward(self, x):
-        # Max pooling over a (2, 2) window
-        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
-        # If the size is a square you can only specify a single number
-        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-        x = x.view(-1, self.num_flat_features(x))
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        x = F.softmax(x, dim=1)
+        x = self.fc2(x)
         return x
-    
-    def num_flat_features(self, x):
-        size = x.size()[1:]  # all dimensions except the batch dimension
-        num_features = 1
-        for s in size:
-            num_features *= s
-        return num_features
 
 
 class DefaultValues(dict):
@@ -84,67 +59,70 @@ class DefaultValues(dict):
                         "epochs" : 1,
                         "lrate": 0.01,
                         "use_cuda" : False,
-                        "batch_size" : 40,
+                        "batch_size" : 2,
                         "view" : "",
                         "eval_interval" : 1
                         })
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__  
-
-def example(argv = DefaultValues()):
     
+def example(argv = DefaultValues()):
+   
     if argv.view is not "":
         ts = Trainingstate(argv.view)
         print(ts.get_summary())
     else:
         # PREPARE TEST DATA
-        mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
-        mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
-       
-        dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None, num_workers=2)
-            
+        Xtr = np.arange(1000).reshape(1000,1).astype(np.float32)
+        ytr = np.sin(Xtr) + np.random.normal(0,1, size=Xtr.shape)
+
+        Xts = np.arange(100).reshape(100,1).astype(np.float32)
+        yts = np.sin(Xts)
+        
         # CHOOSE MODEL
         model = Net()  
         
         # CHOOSE LOSS-Function
-        criterion = nn.CrossEntropyLoss()
-          
-        # INSTANTIATE OPTIMIZER
+        criterion = nn.MSELoss()
+        
+          # INSTANTIATE OPTIMIZER
         optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
         
         # LOAD TRAINING STATE
         try:
-            ts = Trainingstate("MNIST1.pth.tar")
+            ts = Trainingstate("SINE.pth.tar")
         except FileNotFoundError:
             ts = None
         
-        with Logger(logdir='.', log_batch_interval=500) as lg:
+        with Logger(logdir='.', log_batch_interval=100) as lg:
             
             # CREATE A TRAINER
-            my_trainer = Trainer(   lg, 
+            my_trainer = Trainer(lg, 
                                 model, 
                                 criterion, 
                                 optimizer, 
-                                model_filename="MNIST1", 
+                                model_filename="SINE", 
                                 precision=np.float32,
+                                regression = True,
                                 use_cuda=argv.use_cuda)
             
             # START TRAINING
-            trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+            trainingsstate = my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
                                         epochs=argv.epochs,
-                                        validation_set=mnist_data_test, 
+                                        validation_set=(Xts, yts), 
                                         eval_interval=argv.eval_interval,
                                         trainingstate=ts)
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1')
+    parser = argparse.ArgumentParser(description='ummon3 - example - Sine')
+    #
     #
     # TRAINING PARAMS
-    parser.add_argument('--epochs', type=int, default=3, metavar='',
+    parser.add_argument('--epochs', type=int, default=5, metavar='',
                         help='Amount of epochs for training (default: 2)')
-    parser.add_argument('--batch_size', type=int, default=40, metavar='',
+    parser.add_argument('--batch_size', type=int, default=2, metavar='',
                         help='Batch size for SGD (default: 40)')
     parser.add_argument('--eval_interval', type=int, default=1, metavar='',
                         help='Evaluate model in given interval (epochs) (default: 1)')
@@ -159,4 +137,6 @@ if __name__ == "__main__":
 
     
     example(argv)
+
+            
     

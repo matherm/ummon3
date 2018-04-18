@@ -1,12 +1,14 @@
 import unittest
 import torch
 import numpy
+from ummon.logger import Logger
 
 class TestCuda(unittest.TestCase):
 
     def test_cuda(self):
-        self.assertTrue(torch.cuda.is_available())
-        if torch.cuda.is_available():
+        if not torch.cuda.is_available():
+            Logger().error("CUDA is not available on your system.")
+        else:
             CPU = torch.IntTensor(1000, 1000).zero_()
             torch.cuda.synchronize()
             for i in range(2):
