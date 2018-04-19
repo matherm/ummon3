@@ -13,9 +13,10 @@ import torch.utils.data
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from ummon import *
-from .trainer import Trainer
+from .trainer import MetaTrainer
+from .analyzer import MetaAnalyzer
 
-class ClassificationTrainer(Trainer):
+class ClassificationTrainer(MetaTrainer):
     """
     This class provides a specialized trainer for training Regression PyTorch-models.
     
@@ -236,7 +237,7 @@ class ClassificationTrainer(Trainer):
         return trainingstate
 
 
-class RegressionTrainer(Trainer):
+class Trainer(MetaTrainer):
     """
     This class provides a specialized trainer for training Regression PyTorch-models.
     
@@ -277,7 +278,7 @@ class RegressionTrainer(Trainer):
                  precision = np.float32,
                  use_cuda = False,
                  profile = False):
-           super(RegressionTrainer, self).__init__(logger, model, loss_function, optimizer, 
+           super(Trainer, self).__init__(logger, model, loss_function, optimizer, 
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -316,19 +317,19 @@ class RegressionTrainer(Trainer):
         A dictionary containing the trainingstate
         """
         # RESTORE TRAINING STATE
-        trainingstate = super(RegressionTrainer, self)._restore_training_state(trainingstate)
+        trainingstate = super(Trainer, self)._restore_training_state(trainingstate)
         
         # INPUT VALIDATION
-        dataloader_training, validation_set, batches = super(RegressionTrainer, self)._input_data_validation(dataloader_training, validation_set)
-        epochs, eval_interval = super(RegressionTrainer, self)._input_params_validation(epochs, eval_interval)
+        dataloader_training, validation_set, batches = super(Trainer, self)._input_data_validation(dataloader_training, validation_set)
+        epochs, eval_interval = super(Trainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(RegressionTrainer, self)._problem_summary(epochs, dataloader_training, validation_set)
+        super(Trainer, self)._problem_summary(epochs, dataloader_training, validation_set)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
             # EPOCH PREPARATION
-            time_dict = super(RegressionTrainer, self)._prepare_epoch()
+            time_dict = super(Trainer, self)._prepare_epoch()
             
             # Moving average
             n, avg_training_loss = 5, None
@@ -347,16 +348,16 @@ class RegressionTrainer(Trainer):
                 if self.use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
                 
-                output, time_dict = super(RegressionTrainer, self)._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = super(RegressionTrainer, self)._loss_one_batch(output, targets, time_dict)
+                output, time_dict = super(Trainer, self)._forward_one_batch(inputs, time_dict)
+                loss,   time_dict = super(Trainer, self)._loss_one_batch(output, targets, time_dict)
                 
                 # Backpropagation
-                time_dict = super(RegressionTrainer, self)._backward_one_batch(loss, 
+                time_dict = super(Trainer, self)._backward_one_batch(loss, 
                                                       after_backward_hook, output, targets, 
                                                       time_dict)
                 
                 # Reporting
-                avg_training_loss, time_dict = super(RegressionTrainer, self)._finish_one_batch(batch, batches, 
+                avg_training_loss, time_dict = super(Trainer, self)._finish_one_batch(batch, batches, 
                                                     epoch, 
                                                     avg_training_loss, loss, training_loss_buffer, 
                                                     dataloader_training.batch_size, 
@@ -400,7 +401,7 @@ class RegressionTrainer(Trainer):
         if (epoch +1) % eval_interval == 0 and validation_set is not None:
             
                 # MODEL EVALUATION
-                evaluation_dict = RegressionAnalyzer.evaluate(self.model, 
+                evaluation_dict = Analyzer.evaluate(self.model, 
                                                     self.criterion, 
                                                     validation_set, 
                                                     self.logger, 
@@ -433,79 +434,7 @@ class RegressionTrainer(Trainer):
         return trainingstate
 
 
-class Analyzer:
-    """
-    This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
-    computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
-    
-    Methods
-    -------
-    inference()         : Computes model outputs
-    compute_roc()       : [Not implemented yet]
-
-    """
-    
-    @staticmethod
-    def _online_average(data, count, avg):
-        navg = avg + (data - avg) / count
-        return navg
-    
-    
-    @staticmethod
-    def inference(model, dataset, logger=Logger()):
-        """
-        Computes the output of a model for a given dataset
-        
-        Arguments
-        ---------
-        model           : nn.module
-                          The model
-        dataset         : torch.utils.data.Dataset OR tuple (X,y)
-                          Dataset to evaluate
-        logger          : ummon.Logger (Optional)
-                          The logger to be used for output messages
-        
-        Return
-        ------
-        torch.tensor
-        The output
-        """
-        # simple interface: training and test data given as numpy arrays
-        if type(dataset) == tuple:
-                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
-                 
-        assert isinstance(dataset, torch.utils.data.Dataset)
-        assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataset, model)
-        
-        use_cuda = next(model.parameters()).is_cuda
-        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False, sampler=None, batch_sampler=None)  
-        for i, data in enumerate(dataloader, 0):
-
-                # Get the inputs
-                inputs, targets = data
-                
-                 # Handle cuda
-                if use_cuda:
-                    inputs = inputs.cuda()
-                
-                # Execute Model
-                model.eval()
-                output = model(Variable(inputs))
-                model.train()
-        if type(output) != tuple:
-            return output.cpu().data
-        else:
-            return output
-    
-    
-    @staticmethod
-    def compute_roc(model, dataset):
-        raise NotImplementedError
-        pass
-
-
-class ClassificationAnalyzer(Analyzer):
+class ClassificationAnalyzer(MetaAnalyzer):
     """
     This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
@@ -642,7 +571,7 @@ class ClassificationAnalyzer(Analyzer):
         return accuracy
     
     
-class RegressionAnalyzer(Analyzer):
+class Analyzer(MetaAnalyzer):
     """
     This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.

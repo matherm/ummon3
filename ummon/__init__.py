@@ -45,6 +45,10 @@ from .modules.container import *
 from .modules.linear import *
 from .logger import Logger
 from .trainingstate import Trainingstate
-from .analyzer import Analyzer
-from .trainer import Trainer
+from .supervised import Trainer
+from .supervised import ClassificationTrainer
+from .supervised import Analyzer
+from .supervised import ClassificationAnalyzer
 from .visualizer import Visualizer
+from .trainer import MetaTrainer
+from .analyzer import MetaAnalyzer

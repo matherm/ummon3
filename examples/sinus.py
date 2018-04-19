@@ -138,7 +138,7 @@ if __name__ == "__main__":
         with Logger(logdir='.', log_batch_interval=1000, log_epoch_interval=100, loglevel=1) as lg:
 
             # CREATE A TRAINER
-            my_trainer = RegressionTrainer(lg,
+            my_trainer = Trainer(lg,
                                  model,
                                  criterion,
                                  optimizer,
@@ -153,7 +153,7 @@ if __name__ == "__main__":
                                             eval_interval=argv.eval_interval,
                                             trainingstate=ts)
 
-            results = RegressionAnalyzer.inference(model, dataset=TensorDataset(tes, test), logger=lg)
+            results = Analyzer.inference(model, dataset=TensorDataset(tes, test), logger=lg)
 
             #PLOT results
             if argv.plot:

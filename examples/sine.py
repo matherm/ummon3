@@ -25,7 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ummon.trainingstate import Trainingstate
 from ummon.logger import Logger
-from ummon.trainer import Trainer
+from ummon.supervised import Trainer
 
 #
 # SET inital seed for reproducibility 
@@ -104,7 +104,6 @@ def example(argv = DefaultValues()):
                                 optimizer, 
                                 model_filename="SINE", 
                                 precision=np.float32,
-                                regression = True,
                                 use_cuda=argv.use_cuda)
             
             # START TRAINING
