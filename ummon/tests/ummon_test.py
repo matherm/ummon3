@@ -1253,6 +1253,12 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=1)
         
         assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(trainingsstate.extension):
+                os.remove(os.path.join(dir,file))
 
     def test_siamese(self):
         np.random.seed(17)
@@ -1294,7 +1300,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = SiameseTrainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, model_filename="testcase",  model_keep_epochs=False)
         
         # START TRAINING
         trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
@@ -1303,6 +1309,12 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=1)
         assert np.allclose(trainingsstate["training_loss[]"][-1][1], 0.034056082367897172, 1e-5)
         assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(trainingsstate.extension):
+                os.remove(os.path.join(dir,file))
 
 if __name__ == '__main__':
     import argparse
