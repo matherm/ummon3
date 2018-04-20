@@ -8,3 +8,4 @@ local*
 **/raw/**
 *.pth.tar
 *.log
+examples/MNIST
