@@ -105,9 +105,6 @@ class MetaTrainer:
                      "hooks"    : 0,
                      "total"    : 0}
         
-        # ANNEAL LEARNING RATE
-        if self.scheduler: 
-            self.scheduler.step()
         
         return time_dict
 

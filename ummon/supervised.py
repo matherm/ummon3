@@ -195,10 +195,15 @@ class Trainer(MetaTrainer):
                           after_eval_hook, 
                           eval_batch_size, 
                           trainingstate)
-    
+            
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
                      
+
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                self.scheduler.step()
+    
         return trainingstate
     
     
@@ -444,6 +449,10 @@ class ClassificationTrainer(Trainer):
                
              # CLEAN UP
             del output_buffer[:]
+            
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                self.scheduler.step()
                      
         return trainingstate
     
@@ -822,6 +831,11 @@ class SiameseTrainer(Trainer):
     
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            
+          
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                self.scheduler.step()
                      
         return trainingstate
     

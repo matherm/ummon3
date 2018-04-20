@@ -197,6 +197,11 @@ class UnsupervisedTrainer(MetaTrainer):
     
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            
+           
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                self.scheduler.step()
                      
         return trainingstate
     
