@@ -25,6 +25,10 @@ class MetaAnalyzer:
 
     """
     
+    def _evaluate(*args):
+        raise NotImplementedError("This class is superclass")
+    
+    
     @staticmethod
     def _online_average(data, count, avg):
         navg = avg + (data - avg) / count

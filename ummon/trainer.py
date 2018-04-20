@@ -2,9 +2,12 @@ import time
 import numpy as np
 import torch.nn as nn
 import torch.utils.data
+import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon import *
+from ummon.logger import Logger
+from ummon.trainingstate import Trainingstate
+from ummon.schedulers import StepLR_earlystop
 
 class MetaTrainer:
     """
@@ -53,7 +56,10 @@ class MetaTrainer:
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
-        assert isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) if not scheduler is None else True
+        if scheduler is not None:
+            if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not \
+                isinstance(scheduler, StepLR_earlystop):
+                raise TypeError('{} is not a scheduler'.format(type(scheduler).__name__))
         assert precision == np.float32 or precision == np.float64
         
         # MEMBER VARIABLES
@@ -276,16 +282,18 @@ class MetaTrainer:
         assert type(trainingstate) == Trainingstate if not trainingstate is None else True
                
         # RESTORE STATE    
-        if trainingstate:
-            self.logger.info("[Status]" )
-            trs = trainingstate.get_summary()
-            self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
-                trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
-                trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
-            self.epoch = trainingstate.state["training_loss[]"][-1][0]
-            self.model = trainingstate.load_weights(self.model)
-            self.optimizer = trainingstate.load_optimizer(self.optimizer)
-            
+        if trainingstate is not None:
+            if trainingstate.state is not None:
+                self.logger.info("[Status]" )
+                trs = trainingstate.get_summary()
+                self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
+                    trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
+                    trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
+                self.epoch = trainingstate.state["training_loss[]"][-1][0]
+                self.model = trainingstate.load_weights(self.model)
+                self.optimizer = trainingstate.load_optimizer(self.optimizer)
+                if isinstance(self.scheduler, StepLR_earlystop):
+                    self.scheduler = trainingstate.load_scheduler(self.scheduler)
         else:
             trainingstate = Trainingstate()
         return trainingstate
@@ -330,3 +338,79 @@ class MetaTrainer:
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
 
+    def _evaluate_training(self, Analyzer, batch, batches, 
+                  time_dict, 
+                  epoch, eval_interval, 
+                  validation_set, 
+                  avg_training_loss,
+                  dataloader_training, 
+                  after_eval_hook, 
+                  eval_batch_size, 
+                  trainingstate):
+        """
+        Evaluates the current training state against agiven analyzer
+        
+        Arguments
+        ---------
+        *Analyzer (ummon.Analyzer) : A training type specific analyzer.
+        *batch (int) : The batch number.
+        *batches (int) : The total number of batches.
+        *time_dict (dict) : Dictionary that is used for profiling executing time.
+        *epoch (int) : The current epoch.
+        *eval_interval (int) : The interval in epochs for evaluation against validation dataset.
+        *validation_set (torch.utils.data.Dataset) : Validation data.
+        *avg_training_loss (float) : the current training loss
+        *dataloader_training : The training data
+        *after_eval_hook : A hook that gets executed after evaluation
+        *eval_batch_size (int) : A custom batch size to be used during evaluation
+        *trainingstate (ummon.Trainingstate) : The trainingstate object to be updated
+        
+        Return
+        ------
+        *trainingstate (ummon.Trainingstate) : The updated trainingstate object
+        
+        """
+
+        # Log epoch
+        self.logger.log_epoch(epoch + 1, batch + 1, 
+                              batches, 
+                              avg_training_loss, 
+                              dataloader_training.batch_size, 
+                              time_dict, 
+                              self.profile)
+        
+        if (epoch +1) % eval_interval == 0 and validation_set is not None:
+            
+                # MODEL EVALUATION
+                evaluation_dict = Analyzer.evaluate(self.model, 
+                                                    self.criterion, 
+                                                    validation_set, 
+                                                    self.logger, 
+                                                    after_eval_hook, 
+                                                    batch_size=eval_batch_size)
+                
+                # UPDATE TRAININGSTATE
+                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+                                        training_loss = avg_training_loss, 
+                                        training_batchsize = dataloader_training.batch_size,
+                                        training_dataset = dataloader_training.dataset,
+                                        trainer_instance = type(self),
+                                        precision = self.precision,
+                                        detailed_loss = repr(self.criterion),
+                                        validation_loss = evaluation_dict["loss"], 
+                                        validation_dataset = validation_set,
+                                        samples_per_second = evaluation_dict["samples_per_second"],
+                                        scheduler = self.scheduler)
+        
+                self.logger.log_regression_evaluation(trainingstate, self.profile)
+                        
+        else: # no validation set
+                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+                training_loss = avg_training_loss, 
+                training_batchsize = dataloader_training.batch_size,
+                training_dataset = dataloader_training.dataset,
+                trainer_instance = type(self),
+                precision = self.precision,
+                detailed_loss = repr(self.criterion))
+        
+        return trainingstate

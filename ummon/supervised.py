@@ -186,7 +186,7 @@ class Trainer(MetaTrainer):
                                                     time_dict)
         
             # Evaluate
-            self._evaluate( batch, batches, 
+            super(Trainer, self)._evaluate_training(Analyzer, batch, batches, 
                           time_dict, 
                           epoch, eval_interval, 
                           validation_set, 
@@ -201,59 +201,6 @@ class Trainer(MetaTrainer):
                      
         return trainingstate
     
-    
-    def _evaluate(self, batch, batches, 
-                  time_dict, 
-                  epoch, eval_interval, 
-                  validation_set, 
-                  avg_training_loss,
-                  dataloader_training, 
-                  after_eval_hook, 
-                  eval_batch_size, 
-                  trainingstate):
-
-        # Log epoch
-        self.logger.log_epoch(epoch + 1, batch + 1, 
-                              batches, 
-                              avg_training_loss, 
-                              dataloader_training.batch_size, 
-                              time_dict, 
-                              self.profile)
-        
-        if (epoch +1) % eval_interval == 0 and validation_set is not None:
-            
-                # MODEL EVALUATION
-                evaluation_dict = Analyzer.evaluate(self.model, 
-                                                    self.criterion, 
-                                                    validation_set, 
-                                                    self.logger, 
-                                                    after_eval_hook, 
-                                                    batch_size=eval_batch_size)
-                
-                # UPDATE TRAININGSTATE
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                                        training_loss = avg_training_loss, 
-                                        training_batchsize = dataloader_training.batch_size,
-                                        training_dataset = dataloader_training.dataset,
-                                        trainer_instance = type(self),
-                                        precision = self.precision,
-                                        detailed_loss = repr(self.criterion),
-                                        validation_loss = evaluation_dict["loss"], 
-                                        validation_dataset = validation_set,
-                                        samples_per_second = evaluation_dict["samples_per_second"])
-        
-                self.logger.log_regression_evaluation(trainingstate, self.profile)
-                        
-        else: # no validation set
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                training_loss = avg_training_loss, 
-                training_batchsize = dataloader_training.batch_size,
-                training_dataset = dataloader_training.dataset,
-                trainer_instance = type(self),
-                precision = self.precision,
-                detailed_loss = repr(self.criterion))
-        
-        return trainingstate
     
 class Analyzer(MetaAnalyzer):
     """
@@ -481,7 +428,7 @@ class ClassificationTrainer(Trainer):
                 output_buffer.append((output.data.clone(), targets.data.clone(), batch))
                 
             #Evaluate                
-            self._evaluate(batch, batches, 
+            self._evaluate_training(batch, batches, 
                           time_dict, 
                           epoch, eval_interval, 
                           validation_set, 
@@ -501,7 +448,7 @@ class ClassificationTrainer(Trainer):
         return trainingstate
     
     
-    def _evaluate(self, batch, batches, 
+    def _evaluate_training(self, batch, batches, 
                   time_dict, 
                   epoch, eval_interval, 
                   validation_set, 
@@ -550,7 +497,8 @@ class ClassificationTrainer(Trainer):
                                         validation_loss = evaluation_dict["loss"], 
                                         validation_accuracy = evaluation_dict["accuracy"], 
                                         validation_dataset = validation_set,
-                                        samples_per_second = evaluation_dict["samples_per_second"])
+                                        samples_per_second = evaluation_dict["samples_per_second"],
+                                        scheduler = self.scheduler)
         
                 self.logger.log_classification_evaluation(trainingstate, self.profile)
                         
@@ -862,73 +810,21 @@ class SiameseTrainer(Trainer):
                                                     time_dict)
         
             # Evaluate
-            self._evaluate( batch, batches, 
-                              time_dict, 
-                              epoch, eval_interval, 
-                              validation_set, 
-                              avg_training_loss,
-                              dataloader_training, 
-                              after_eval_hook, 
-                              eval_batch_size, 
-                              trainingstate)
+            super(SiameseTrainer, self)._evaluate_training(SiameseAnalyzer, batch, batches, 
+                                                          time_dict, 
+                                                          epoch, eval_interval, 
+                                                          validation_set, 
+                                                          avg_training_loss,
+                                                          dataloader_training, 
+                                                          after_eval_hook, 
+                                                          eval_batch_size, 
+                                                          trainingstate)
     
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
                      
         return trainingstate
     
-    def _evaluate(self, batch, batches, 
-                      time_dict, 
-                      epoch, eval_interval, 
-                      validation_set, 
-                      avg_training_loss,
-                      dataloader_training, 
-                      after_eval_hook, 
-                      eval_batch_size, 
-                      trainingstate):
-    
-        # Log epoch
-        self.logger.log_epoch(epoch + 1, batch + 1, 
-                              batches, 
-                              avg_training_loss, 
-                              dataloader_training.batch_size, 
-                              time_dict, 
-                              self.profile)
-        
-        if (epoch +1) % eval_interval == 0 and validation_set is not None:
-            
-                # MODEL EVALUATION
-                evaluation_dict = SiameseAnalyzer.evaluate(self.model, 
-                                                    self.criterion, 
-                                                    validation_set, 
-                                                    self.logger, 
-                                                    after_eval_hook, 
-                                                    batch_size=eval_batch_size)
-                
-                # UPDATE TRAININGSTATE
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                                        training_loss = avg_training_loss, 
-                                        training_batchsize = dataloader_training.batch_size,
-                                        training_dataset = dataloader_training.dataset,
-                                        trainer_instance = type(self),
-                                        precision = self.precision,
-                                        detailed_loss = repr(self.criterion),
-                                        validation_loss = evaluation_dict["loss"], 
-                                        validation_dataset = validation_set,
-                                        samples_per_second = evaluation_dict["samples_per_second"])
-        
-                self.logger.log_regression_evaluation(trainingstate, self.profile)
-                        
-        else: # no validation set
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                training_loss = avg_training_loss, 
-                training_batchsize = dataloader_training.batch_size,
-                training_dataset = dataloader_training.dataset,
-                trainer_instance = type(self),
-                precision = self.precision,
-                detailed_loss = repr(self.criterion))
-        
-        return trainingstate
        
     
 class SiameseAnalyzer(Analyzer):

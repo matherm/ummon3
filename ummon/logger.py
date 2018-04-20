@@ -289,7 +289,7 @@ class Logger(logging.getLoggerClass()):
             uu.get_type_information(dataset_test)))
    
         self.debug(' ')
-        self.debug("[Preflight]")
+        self.debug("[Preflight 1-sample]")
         use_cuda = next(model.parameters()).is_cuda
         memory_baseline = uu.get_proc_memory_info()["mem"]
         testpilot = next(iter(dataloader_train))[0]
