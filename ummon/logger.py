@@ -66,13 +66,14 @@ class Logger(logging.getLoggerClass()):
     levels, independently of what is set for console output.
     '''
     def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', 
-        log_batch_interval=500):
+        log_batch_interval=500, log_epoch_interval=1):
         self.name = str(name)
         self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
         log_batch_interval = int(log_batch_interval,)
+        self.log_epoch_interval= int(log_epoch_interval) if log_epoch_interval > 0 else 1
         self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500
     
     
@@ -191,33 +192,31 @@ class Logger(logging.getLoggerClass()):
     
     # log at end of epoch
     def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict, profile):
-        if profile == True:
-            self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
-                epoch, batch, batches, loss, 
-                int(time_dict["total"]),
-                int(time_dict["loader"]), 
-                int(time_dict["model"] - time_dict["loader"]), 
-                int(time_dict["loss"] - time_dict["model"]), 
-                int(time_dict["backprop"] - time_dict["loss"]), 
-                int(time_dict["hooks"] - time_dict["backprop"]),
-                int((batches * batchsize/(time_dict["total"])))))
-        else:
-            self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s] ~ {:5} samples/s '.format(
-                epoch, batch, batches, loss, 
-                int(time_dict["total"]),
-                int((batches * batchsize/(time_dict["total"])))))
-            
+        if epoch % self.log_epoch_interval == 0:
+            if profile == True:
+                self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
+                    epoch, batch, batches, loss, 
+                    int(time_dict["total"]),
+                    int(time_dict["loader"]), 
+                    int(time_dict["model"] - time_dict["loader"]), 
+                    int(time_dict["loss"] - time_dict["model"]), 
+                    int(time_dict["backprop"] - time_dict["loss"]), 
+                    int(time_dict["hooks"] - time_dict["backprop"]),
+                    int((batches * batchsize/(time_dict["total"])))))
+            else:
+                self.info('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s] ~ {:5} samples/s '.format(
+                    epoch, batch, batches, loss, 
+                    int(time_dict["total"]),
+                    int((batches * batchsize/(time_dict["total"])))))
+                
     
     
     # evaluate model
-    def log_evaluation(self, learningstate, profile = False):
+    def log_regression_evaluation(self, learningstate, profile = False):
         epoch = learningstate.state["training_loss[]"][-1][0]
         lrate = learningstate.state["lrate[]"][-1][1]
         loss =  learningstate.state["validation_loss[]"][-1][1]
-        acc  =  learningstate.state["validation_accuracy[]"][-1][1]
-        batchsize = learningstate.state["validation_accuracy[]"][-1][2]
         samples_per_seconds = learningstate.state["samples_per_second[]"][-1][1]
-        regression = learningstate.state["regression"]
         is_best = learningstate.state["validation_loss[]"][-1][1] == \
             learningstate.state["best_validation_loss"][1]
         detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
@@ -225,19 +224,39 @@ class Logger(logging.getLoggerClass()):
         self.info(' ')
         self.info('Model Evaluation, Epoch #{}, lrate {}'.format(epoch, lrate))
         self.info("----------------------------------------")  
-        if regression == True:
-            self.info('       Validation set: loss: {:.4f}. {}'.format(loss, 
+        self.info('       Validation set: loss: {:.4f}. {}'.format(loss, 
                 '[BEST]' if is_best else ''))
-        else:
-            self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(
-                loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
-                "[BEST]" if is_best else ''))
+        self.info('       Detailed loss information: {}'.format(detailed_loss))
+        self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
+        if profile:
+            self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
+        self.info("")
+    
+       # evaluate model
+    def log_classification_evaluation(self, learningstate, profile = False):
+        epoch = learningstate.state["training_loss[]"][-1][0]
+        lrate = learningstate.state["lrate[]"][-1][1]
+        loss =  learningstate.state["validation_loss[]"][-1][1]
+        acc  =  learningstate.state["validation_accuracy[]"][-1][1]
+        batchsize = learningstate.state["validation_accuracy[]"][-1][2]
+        samples_per_seconds = learningstate.state["samples_per_second[]"][-1][1]
+        is_best = learningstate.state["validation_loss[]"][-1][1] == \
+            learningstate.state["best_validation_loss"][1]
+        detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
+        
+        self.info(' ')
+        self.info('Model Evaluation, Epoch #{}, lrate {}'.format(epoch, lrate))
+        self.info("----------------------------------------")  
+        self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(
+            loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 
+            "[BEST]" if is_best else ''))
         detailed_loss = detailed_loss.replace('\n', ' ').replace('\r', ' ')
         self.info('       Detailed loss information: {}'.format(detailed_loss))
         self.info('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
         if profile:
             self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
         self.info("")
+    
     
     # output description of learning task
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
@@ -270,15 +289,22 @@ class Logger(logging.getLoggerClass()):
             uu.get_type_information(dataset_test)))
    
         self.debug(' ')
-        self.debug("[Preflight]")
+        self.debug("[Preflight 1-sample]")
         use_cuda = next(model.parameters()).is_cuda
         memory_baseline = uu.get_proc_memory_info()["mem"]
-        testpilot = Variable(next(iter(dataloader_train))[0]).cuda() if use_cuda else Variable(next(iter(dataloader_train))[0])
+        testpilot = next(iter(dataloader_train))[0]
+        if type(testpilot) == tuple or type(testpilot) == list:
+            testpilot = uu.tensor_tuple_to_variables(testpilot)
+            if use_cuda:
+                testpilot = uu.tensor_tuple_to_cuda(testpilot)
+        else:
+            testpilot = Variable(testpilot)
+            testpilot = testpilot.cuda() if use_cuda else testpilot
         out = model(testpilot)
         self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
         self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory cuda (MB)", uu.get_cuda_memory_info()))
-    
+        self.debug('{0:25}{1}'.format("Memory cuda total (MB)", uu.get_cuda_memory_info()))
+       
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1}'.format("lrate" , 

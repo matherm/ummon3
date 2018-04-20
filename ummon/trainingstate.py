@@ -55,27 +55,32 @@ class Trainingstate():
         
     def update_state(self, 
                      epoch, model, loss_function, optimizer, training_loss, 
-                     validation_loss = None, 
                      training_accuracy = 0,
+                     training_dataset = None,
                      training_batchsize = 0,
-                     validation_accuracy = None, 
-                     validation_batchsize = 0,
-                     regression = False,
+                     trainer_instance = "",
                      precision = np.float32,
                      detailed_loss = {},
-                     training_dataset = None,
+                     validation_loss = None, 
+                     validation_accuracy = 0., 
                      validation_dataset = None,
                      samples_per_second = None,
                      scheduler = None,
-                     args = None):
+                     args = {}):
+        """
+        Updates the trainingstate with the given parameters.
+        If no validation data available, validation data will not be persisted and therefor no dummy data 
+        occurs in the resulting dictionary.
+        
+        """
         
         # INITIALIZE NEW STATE
         if self.state is None:
-            if validation_accuracy is not None and validation_batchsize is not None and validation_loss is not None and validation_dataset is not None:
-                validation_accuracy_list = [(epoch, validation_accuracy, validation_batchsize)]
-                validation_loss_list = [(epoch, validation_loss, validation_batchsize)]
-                best_validation_accuracy = (epoch, validation_accuracy, validation_batchsize)
-                best_validation_loss = (epoch, validation_loss, validation_batchsize)
+            if validation_accuracy is not None and validation_loss is not None and validation_dataset is not None:
+                validation_accuracy_list = [(epoch, validation_accuracy, len(validation_dataset))]
+                validation_loss_list = [(epoch, validation_loss, len(validation_dataset))]
+                best_validation_accuracy = (epoch, validation_accuracy, len(validation_dataset))
+                best_validation_loss = (epoch, validation_loss, len(validation_dataset))
                 validation_dataset = uu.get_data_information(validation_dataset)
             else:
                 validation_accuracy_list = []
@@ -88,7 +93,7 @@ class Trainingstate():
                          "model_trainable_params" : uu.count_parameters(model),
                          "loss_desc"  : str(loss_function),
                          "cuda" : next(model.parameters()).is_cuda, 
-                         "regression" : regression,
+                         "trainer_instance" : trainer_instance,
                          "precision" : precision,
                          "dataset_training" : uu.get_data_information(training_dataset),
                          "dataset_validation" : validation_dataset,
@@ -111,21 +116,21 @@ class Trainingstate():
                           }
         else:
             # APPEND STATE
-            if validation_accuracy is not None and validation_batchsize is not None and validation_loss is not None and validation_dataset is not None:                
+            if validation_accuracy is not None and validation_loss is not None and validation_dataset is not None:                
                 if "dataset_validation" in self.state:
                     dataset_validation_info = self.state["dataset_validation"] 
                 else:
                     dataset_validation_info = uu.get_data_information(validation_dataset)                
                 if validation_loss < self.state["best_validation_loss"][1]:
-                    best_validation_loss = (epoch, validation_loss, validation_batchsize) 
+                    best_validation_loss = (epoch, validation_loss, len(validation_dataset)) 
                 else: 
                     best_validation_loss = self.state["best_validation_loss"]
                 if validation_accuracy > self.state["best_validation_accuracy"][1]:
-                    best_validation_acc = (epoch, validation_accuracy, validation_batchsize) 
+                    best_validation_acc = (epoch, validation_accuracy, len(validation_dataset)) 
                 else:
                     best_validation_acc  = self.state["best_validation_accuracy"]
-                validation_loss_list = [*self.state["validation_loss[]"], (epoch, validation_loss, validation_batchsize)]
-                validation_acc_list = [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, validation_batchsize)]
+                validation_loss_list = [*self.state["validation_loss[]"], (epoch, validation_loss, len(validation_dataset))]
+                validation_acc_list = [*self.state["validation_accuracy[]"], (epoch, validation_accuracy, len(validation_dataset))]
             else:
                 dataset_validation_info = self.state["dataset_validation"] 
                 best_validation_loss = self.state["best_validation_loss"]
@@ -162,7 +167,7 @@ class Trainingstate():
                          "model_trainable_params" : uu.count_parameters(model),
                          "loss_desc"  : str(loss_function),
                          "cuda" : next(model.parameters()).is_cuda, 
-                         "regression" : regression,
+                         "trainer_instance" : trainer_instance,
                          "precision" : precision,
                          "dataset_training" : dataset_training_info,
                          "dataset_validation" : dataset_validation_info,
@@ -185,6 +190,14 @@ class Trainingstate():
                           }
         
     def get_summary(self):
+        """
+        Returns a summary of the trainingstate
+        
+        Return
+        ------
+        *summary (dict) : A summary containing 'epochs', 'Best Training Loss' and 'Best Validation Loss'
+        
+        """
         summary = {
                     "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
@@ -192,9 +205,17 @@ class Trainingstate():
                   }
         return summary   
     
-           
-  
     def load_state(self, filename = None, force_weights_to_cpu = True):
+        """
+        Loads the state from file.
+        
+        Arguments
+        ------
+        *filename (String) : A file on disk representing a trainingstate
+        *OPTIONAL force_weights_to_cpu (bool) : PyTorch speciality 
+                                                that converts CUDA floats to CPU floats (default True)
+        
+        """
         if filename is None:
             filename = self.filename
             short_filename = self.short_filename
@@ -213,6 +234,15 @@ class Trainingstate():
             
         
     def save_state(self, filename = None, keep_epochs = False):
+        """
+        Saves the state to file and maintaines a copy of the best validation and training model.
+        
+        Arguments
+        ------
+        *filename (String) : A file on disk representing a trainingstate
+        *OPTIONAL keep_epochs (bool) : When TRUE the state of every epoch is stored 
+                                       with pattern "MODEL_epoch_{NUMBER}.pth.tar" (default False).
+        """
         if filename is None:
             filename = self.filename
             short_filename = self.short_filename
@@ -263,6 +293,22 @@ class Trainingstate():
     
     
     def load_weights_best_training(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert isinstance(model, nn.Module)
         assert self.short_filename is not None
 
@@ -274,6 +320,22 @@ class Trainingstate():
         return self.load_weights(model)           
     
     def load_weights_best_validation(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert isinstance(model, nn.Module)
         assert self.short_filename is not None
         
@@ -285,6 +347,22 @@ class Trainingstate():
     
     
     def load_weights(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert self.state is not None
         assert isinstance(model, nn.Module)
             
@@ -294,6 +372,18 @@ class Trainingstate():
     
     
     def load_optimizer(self, optimizer):
+        """
+        Loads the persisted weights into a given optimizer.
+        
+        Arguments
+        ---------
+        *model (torch.optim.Optimizer) : A optimizer that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.optim.Optimizer) : The initialized optimizer.
+        
+        """
         assert self.state is not None
         assert isinstance(optimizer, torch.optim.Optimizer)
             

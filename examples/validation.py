@@ -27,8 +27,8 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
 from ummon.trainingstate import Trainingstate
-from ummon.analyzer import Analyzer
 from ummon.logger import Logger
+from ummon.supervised import ClassificationAnalyzer
 
 #
 # SET inital seed for reproducibility 
@@ -104,10 +104,10 @@ def example(argv = DefaultValues()):
         # LOAD TRAINING STATE
         if argv.model is not "":
             ts = Trainingstate(argv.model)
-            model = ts.load_weights(model, precision=np.float32, use_cuda=argv.use_cuda)
+            model = ts.load_weights(model)
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
-            lg.info(Analyzer.evaluate(model, criterion, (Xtr, ytr), regression=False))
+            lg.info(ClassificationAnalyzer.evaluate(model, criterion, (Xtr, ytr)))
     
 
 if __name__ == "__main__":

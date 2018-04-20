@@ -46,7 +46,10 @@ from .schedulers import *
 from .modules.linear import *
 from .modules.flatten import *
 from .logger import Logger
-from .trainingstate import Trainingstate
-from .analyzer import Analyzer
-from .trainer import Trainer
-from .visualizer import Visualizer
+from .trainingstate import *
+from .supervised import *
+from .unsupervised import *
+from .visualizer import *
+from .trainer import *
+from .analyzer import *
+from .data import *

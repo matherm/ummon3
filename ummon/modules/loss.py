@@ -1,6 +1,12 @@
-import torch
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 18 11:21:57 2018
+
+@author: matthias
+"""
+
 import torch.nn as nn
-from torch.autograd import Variable
 import ummon.functionals.visualattention as va
 
 class VisualAttentionLoss(nn.Module):
@@ -15,11 +21,12 @@ class VisualAttentionLoss(nn.Module):
           value loss is ACTOR CRITIC loss with MSE between expected reward and actual reward
     """
     
-    def __init__(self, gamma): 
+    def __init__(self, model, gamma): 
         super(VisualAttentionLoss, self).__init__()
         
         # Parameters
         self.gamma = gamma
+        self.model = model
         
         # Save losses for log
         self.__policy_loss = None
@@ -33,7 +40,7 @@ class VisualAttentionLoss(nn.Module):
                                 self.__value_loss[0] if self.__value_loss is not None else "-")
     
     def forward(self, output, labels):
-       
+        output = (output, self.model.policy.saved_baselines, self.model.policy.saved_ln_pis, self.model.policy.rewards)
         classification_loss, _policy_loss, _value_loss = va.visual_attention_loss(output, labels, self.gamma)
         
         # Total loss
@@ -45,6 +52,4 @@ class VisualAttentionLoss(nn.Module):
         self.__value_loss = _value_loss.data
             
         return total_loss
-       
-
    

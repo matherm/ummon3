@@ -5,12 +5,14 @@ sys.path.insert(0,'../../ummon3')
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
+import os, psutil, subprocess
 import numpy as np
 import time
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
-import os, psutil, subprocess
+from ummon.data import UnsupTensorDataset
 
 
 class Timer(object):
@@ -54,46 +56,71 @@ def unregister_hooks(handles):
 def get_shape_information(dataset):
     if dataset is None: return "---"
     assert isinstance(dataset, torch.utils.data.Dataset)
-    
-    # CASE MULTIPLE INPUT
-    if type(dataset[0][0]) == tuple:
-        data_shape = "["
-        for di in dataset[0][0]:
-            data_shape = data_shape + str(di.numpy().shape) + " "
-        data_shape = data_shape + "]"
+    # CASE SUPERVISED
+    if type(dataset[0]) == tuple:    
+        # CASE MULTIPLE INPUT
+        if type(dataset[0][0]) == tuple:
+            data_shape = "["
+            for di in dataset[0][0]:
+                data_shape = data_shape + str(di.numpy().shape) + " "
+            data_shape = data_shape + "]"
+        else:
+            data_shape = str(dataset[0][0].numpy().shape)
+        # CASE MULTIPLE OUTPUT
+        if type(dataset[0][1]) == tuple:
+            target_shape = "["
+            for di in dataset[0][1]:
+                target_shape = target_shape + str(di.numpy().shape if isinstance(di, torch.Tensor)  else type(dataset[0][1])).__name__  + " "
+            target_shape = target_shape + "]"
+        else:
+            target_shape = str(dataset[0][1].numpy().shape if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__ ) 
+        return "Shape-IN:{}/TARGET:{}".format(data_shape,target_shape)
+    # CASE UNSUPERVISED 
     else:
-        data_shape = str(dataset[0][0].numpy().shape)
-    # CASE MULTIPLE OUTPUT
-    if type(dataset[0][1]) == tuple:
-        target_shape = "["
-        for di in dataset[0][1]:
-            target_shape = target_shape + str(di.numpy().shape if isinstance(di, torch.Tensor)  else type(dataset[0][1])).__name__  + " "
-        target_shape = target_shape + "]"
-    else:
-        target_shape = str(dataset[0][1].numpy().shape if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__ ) 
-    return "Shape-IN:{}/TARGET:{}".format(data_shape,target_shape)
+        # CASE MULTIPLE INPUT
+        if type(dataset[0]) == tuple:
+            data_shape = "["
+            for di in dataset[0]:
+                data_shape = data_shape + str(di.numpy().shape) + " "
+            data_shape = data_shape + "]"
+        else:
+            data_shape = str(dataset[0].numpy().shape)
+        return "Shape-IN:{}/".format(data_shape)
 
 def get_type_information(dataset):
     if dataset is None: return "---"
     assert isinstance(dataset, torch.utils.data.Dataset)
-    
-    # CASE MULTIPLE INPUT
-    if type(dataset[0][0]) == tuple:
-        data_type = "["
-        for di in dataset[0][0]:
-            data_type = data_type + str(di.numpy().dtype) + " "
-        data_type = data_type + "]"
+    # CASE SUPERVISED
+    if type(dataset[0]) == tuple:  
+        # CASE MULTIPLE INPUT
+        if type(dataset[0][0]) == tuple:
+            data_type = "["
+            for di in dataset[0][0]:
+                data_type = data_type + str(di.numpy().dtype) + " "
+            data_type = data_type + "]"
+        else:
+            data_type = str(dataset[0][0].numpy().dtype)
+        # CASE MULTIPLE OUTPUT
+        if type(dataset[0][1]) == tuple:
+            target_type = "["
+            for di in dataset[0][1]:
+                target_type = target_type + str(di.numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
+            target_type = target_type + "]"
+        else:
+            target_type = str(dataset[0][1].numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
+        return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
+     # CASE UNSUPERVISED 
     else:
-        data_type = str(dataset[0][0].numpy().dtype)
-    # CASE MULTIPLE OUTPUT
-    if type(dataset[0][1]) == tuple:
-        target_type = "["
-        for di in dataset[0][1]:
-            target_type = target_type + str(di.numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
-        target_type = target_type + "]"
-    else:
-        target_type = str(dataset[0][1].numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
-    return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
+        # CASE MULTIPLE INPUT
+        if type(dataset[0]) == tuple:
+            data_type = "["
+            for di in dataset[0]:
+                data_type = data_type + str(di.numpy().dtype) + " "
+            data_type = data_type + "]"
+        else:
+            data_type = str(dataset[0].numpy().dtype)
+        return "Type-IN:{}/".format(data_type)
+
 
 def get_size_information(dataset):
     if dataset is None: return "---"
@@ -117,7 +144,12 @@ def check_precision(dataset, model, precision=None):
                 return False
         return True                
     else:
-        return dataset[0][0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
+        # CASE UNSUPERVISED INPUT
+        if type(dataset[0]) != tuple:
+            return dataset[0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
+        # CASE SUPERVISED INPUT
+        else:
+            return dataset[0][0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
 
 def check_data(logger, X, y=[]):
     '''
@@ -165,33 +197,56 @@ def check_data(logger, X, y=[]):
     return X, y
 
 def construct_dataset_from_tuple(logger, data_tuple, train = True):
-    if train == True and len(data_tuple) != 3:
-            logger.error('Training data must be provided as a tuple (X,y,batch) or as PyTorch DataLoader.',
+    if train == True and len(data_tuple) != 3 and len(data_tuple) != 2:
+            logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
                 TypeError)
-    if train == False and len(data_tuple) != 2:
-                logger.error('Validation data must be provided as a tuple (X,y) or as PyTorch DataLoader.',
+    if train == False and len(data_tuple) != 2 and type(data_tuple) != 1 and type(data_tuple) != np.ndarray:
+                logger.error('Validation data must be provided as a tuple (X,(y)) or as PyTorch DataLoader.',
                     TypeError)          
-   
-    # extract training data
-    Xtr = data_tuple[0]
-    ytr = data_tuple[1]
-    Xtrn, ytrn = check_data(logger, Xtr, ytr)
-    
-    # construct pytorch dataloader from 2-tupel
-    x = torch.from_numpy(Xtrn)
-    y = torch.from_numpy(ytrn)
-    precision = Xtr.dtype
-    if precision == np.float32:
-        if ytr.dtype == np.int64:
-            dataset = TensorDataset(x.float(), y.long())
+ 
+    # SUPERVISED
+    if (len(data_tuple) == 2 and train == False) or (len(data_tuple) == 3 and train == True):
+        # extract training data
+        Xtr = data_tuple[0]
+        ytr = data_tuple[1]
+        Xtrn, ytrn = check_data(logger, Xtr, ytr)
+        
+        # construct pytorch dataloader from 2-tupel
+        x = torch.from_numpy(Xtrn)
+        y = torch.from_numpy(ytrn)
+        precision = Xtr.dtype
+        if precision == np.float32:
+            if ytr.dtype == np.int64:
+                dataset = TensorDataset(x.float(), y.long())
+            else:
+                dataset = TensorDataset(x.float(), y.float())
+        elif precision == np.float64:
+            if ytr.dtype == np.int64:
+                dataset = TensorDataset(x.double(), y.long())
+            else:
+                dataset = TensorDataset(x.double(), y.double())
         else:
-            dataset = TensorDataset(x.float(), y.float())
-    if precision == np.float64:
-        if ytr.dtype == np.int64:
-            dataset = TensorDataset(x.double(), y.long())
+            logger.error(str('Precision: ' + precision + ' is not supported yet.'))
+        return dataset
+    # UNSUPERVISED
+    else:
+        if type(data_tuple) != np.ndarray:
+            # extract training data
+            Xtr = data_tuple[0]
         else:
-            dataset = TensorDataset(x.double(), y.double())
-    return dataset
+            Xtr = data_tuple
+        
+        # construct pytorch dataloader from 2-tupel
+        x = torch.from_numpy(Xtr)
+        precision = Xtr.dtype
+        if precision == np.float32:
+            dataset = UnsupTensorDataset(x.float())
+        elif precision == np.float64:
+            dataset = UnsupTensorDataset(x.double())
+        else:
+            logger.error(str('Precision: ' + precision + ' is not supported yet.'))
+        return dataset
+        
 
 
 def get_proc_memory_info():
@@ -252,4 +307,14 @@ def transform_model(model, precision, use_cuda = False):
         model = model.cpu()
     return model
         
-        
+
+def tensor_tuple_to_variables(the_tuple):
+    assert type(the_tuple) == tuple or type(the_tuple) == list
+    assert isinstance(the_tuple[0], torch.Tensor)
+    return tuple([Variable(t) for t in the_tuple])        
+    
+def tensor_tuple_to_cuda(the_tuple):
+    assert type(the_tuple) == tuple or type(the_tuple) == list
+    return tuple([t.cuda() for t in the_tuple])       
+    
+      

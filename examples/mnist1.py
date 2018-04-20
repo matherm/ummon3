@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
-from ummon.trainer import Trainer
+from ummon.supervised import ClassificationTrainer
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.modules.container import Sequential
@@ -122,7 +122,7 @@ def example(argv = DefaultValues()):
         with Logger(logdir='.', log_batch_interval=500) as lg:
             
             # CREATE A TRAINER
-            my_trainer = Trainer(   lg, 
+            my_trainer = ClassificationTrainer(   lg, 
                                 model, 
                                 criterion, 
                                 optimizer, 
