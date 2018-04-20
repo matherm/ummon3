@@ -5,12 +5,13 @@ sys.path.insert(0,'../../ummon3')
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
+import os, psutil, subprocess
 import numpy as np
 import time
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
-import os, psutil, subprocess
 from ummon.data import UnsupTensorDataset
 
 
@@ -119,6 +120,7 @@ def get_type_information(dataset):
         else:
             data_type = str(dataset[0].numpy().dtype)
         return "Type-IN:{}/".format(data_type)
+
 
 def get_size_information(dataset):
     if dataset is None: return "---"
@@ -305,4 +307,14 @@ def transform_model(model, precision, use_cuda = False):
         model = model.cpu()
     return model
         
-        
+
+def tensor_tuple_to_variables(the_tuple):
+    assert type(the_tuple) == tuple or type(the_tuple) == list
+    assert isinstance(the_tuple[0], torch.Tensor)
+    return tuple([Variable(t) for t in the_tuple])        
+    
+def tensor_tuple_to_cuda(the_tuple):
+    assert type(the_tuple) == tuple or type(the_tuple) == list
+    return tuple([t.cuda() for t in the_tuple])       
+    
+      

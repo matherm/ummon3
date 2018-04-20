@@ -291,47 +291,6 @@ class MetaTrainer:
         return trainingstate
             
     
-    def _input_data_validation(self, dataloader_training, validation_set):
-        """
-        Does input data validation for training and validation data.
-        
-        Arguments
-        ---------
-        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
-        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
-        
-        Return
-        ------
-        *dataloader_training (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
-        *validation_set (torch.utils.data.Dataset) : Same as input or corrected versions from input.
-        *batches (int) : Computed total number of training batches.
-        """
-        # simple interface: training and test data given as numpy arrays
-        if type(dataloader_training) == tuple:
-            dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
-            # supervised
-            if len(dataloader_training) == 3:
-                batch = int(dataloader_training[2])
-            elif len(dataloader_training) == 2:
-                batch = int(dataloader_training[1])
-            else:
-                self.logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
-                TypeError)
-            dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
-                sampler=None, batch_sampler=None)
-        assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
-        if validation_set is not None:
-            if type(validation_set) == tuple or type(validation_set) == np.ndarray:
-                validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
-            assert isinstance(validation_set, torch.utils.data.Dataset)
-            assert uu.check_precision(validation_set, self.model, self.precision)
-            
-        # COMPUTE BATCHES PER EPOCH
-        batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
-       
-        return dataloader_training, validation_set, batches
-    
     def _input_params_validation(self, epochs, eval_interval):
         """
         Validates the given parameters

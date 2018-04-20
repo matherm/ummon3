@@ -65,6 +65,46 @@ class UnsupervisedTrainer(MetaTrainer):
                  use_cuda,
                  profile)
     
+     
+    def _input_data_validation_unsupervised(self, dataloader_training, validation_set):
+        """
+        Does input data validation for training and validation data.
+        
+        Arguments
+        ---------
+        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
+        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
+        
+        Return
+        ------
+        *dataloader_training (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
+        *validation_set (torch.utils.data.Dataset) : Same as input or corrected versions from input.
+        *batches (int) : Computed total number of training batches.
+        """
+        # simple interface: training and test data given as numpy arrays
+        if type(dataloader_training) == tuple:
+            dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
+            if len(dataloader_training) == 2:
+                batch = int(dataloader_training[1])
+            else:
+                self.logger.error('Training data must be provided as a tuple (X, batch) or as PyTorch DataLoader.',
+                TypeError)
+            dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
+                sampler=None, batch_sampler=None)
+        assert isinstance(dataloader_training, torch.utils.data.DataLoader)
+        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
+        if validation_set is not None:
+            if type(validation_set) == tuple or type(validation_set) == np.ndarray:
+                validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
+            assert isinstance(validation_set, torch.utils.data.Dataset)
+            assert uu.check_precision(validation_set, self.model, self.precision)
+            
+        # COMPUTE BATCHES PER EPOCH
+        batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
+       
+        return dataloader_training, validation_set, batches
+    
+    
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
         trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
         eval_batch_size=-1):
@@ -99,7 +139,7 @@ class UnsupervisedTrainer(MetaTrainer):
         trainingstate = super(UnsupervisedTrainer, self)._restore_training_state(trainingstate)
         
         # INPUT VALIDATION
-        dataloader_training, validation_set, batches = super(UnsupervisedTrainer, self)._input_data_validation(dataloader_training, validation_set)
+        dataloader_training, validation_set, batches = self._input_data_validation_unsupervised(dataloader_training, validation_set)
         epochs, eval_interval = super(UnsupervisedTrainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY

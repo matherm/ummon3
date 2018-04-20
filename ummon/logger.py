@@ -292,12 +292,19 @@ class Logger(logging.getLoggerClass()):
         self.debug("[Preflight]")
         use_cuda = next(model.parameters()).is_cuda
         memory_baseline = uu.get_proc_memory_info()["mem"]
-        testpilot = Variable(next(iter(dataloader_train))[0]).cuda() if use_cuda else Variable(next(iter(dataloader_train))[0])
+        testpilot = next(iter(dataloader_train))[0]
+        if type(testpilot) == tuple or type(testpilot) == list:
+            testpilot = uu.tensor_tuple_to_variables(testpilot)
+            if use_cuda:
+                testpilot = uu.tensor_tuple_to_cuda(testpilot)
+        else:
+            testpilot = Variable(testpilot)
+            testpilot = testpilot.cuda() if use_cuda else testpilot
         out = model(testpilot)
         self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
         self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory cuda (MB)", uu.get_cuda_memory_info()))
-    
+        self.debug('{0:25}{1}'.format("Memory cuda total (MB)", uu.get_cuda_memory_info()))
+       
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1}'.format("lrate" , 

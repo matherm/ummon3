@@ -1244,6 +1244,55 @@ class TestUmmon(unittest.TestCase):
         
         assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
 
+    def test_siamese(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(1, 10)
+                self.fc3 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x_l, x_r = x
+                x_l, x_r = self.fc1(x_l), self.fc2(x_r)
+                return self.fc3(x_l + x_r)
+    
+        
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        dataset_valid = SiameseTensorDataset(x_valid.float(), x_valid.float(), y_valid.float())
+        
+        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        y = torch.from_numpy(np.sin(x.numpy())) 
+        dataset = SiameseTensorDataset(x.float(), x.float(), y.float())
+        dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss()
+
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        my_trainer = SiameseTrainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
+            optimizer, model_filename="testcase",  model_keep_epochs=True)
+        
+        # START TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+                                        epochs=4,
+                                        validation_set=dataset_valid, 
+                                        eval_interval=1)
+        assert np.allclose(trainingsstate["training_loss[]"][-1][1], 0.034056082367897172, 1e-5)
+        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
 
 if __name__ == '__main__':
     import argparse
