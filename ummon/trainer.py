@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.analyzer import Analyzer
+from ummon.schedulers import StepLR_earlystop
 
 class Trainer:
     """
@@ -66,7 +67,10 @@ class Trainer:
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
-        assert isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) if not scheduler is None else True
+        if scheduler is not None:
+            if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not \
+                isinstance(scheduler, StepLR_earlystop):
+                raise TypeError('{} is not a scheduler'.format(type(scheduler).__name__))
         assert precision == np.float32 or precision == np.float64
         
         self.name = "ummon.Trainer"
@@ -141,7 +145,8 @@ class Trainer:
             self.epoch = trainingstate.state["training_loss[]"][-1][0]
             self.model = trainingstate.load_weights(self.model)
             self.optimizer = trainingstate.load_optimizer(self.optimizer)
-            
+            if isinstance(self.scheduler, StepLR_earlystop):
+                self.scheduler = trainingstate.load_scheduler(self.scheduler)
         else:
             trainingstate = Trainingstate()
             
@@ -184,10 +189,6 @@ class Trainer:
                          "backprop" : 0,
                          "hooks"    : 0,
                          "total"    : 0}
-            
-            # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                self.scheduler.step()
            
             # Moving average
             n, avg_training_loss, avg_training_acc = 5, None, None
@@ -293,7 +294,11 @@ class Trainer:
                                                avg_training_acc, training_acc, dataloader_training.batch_size, 
                                                dataloader_training, after_eval_hook, eval_batch_size, 
                                                trainingstate, output_buffer, args)
-                    
+            
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                self.scheduler.step()
+            
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
             
