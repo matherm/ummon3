@@ -64,6 +64,12 @@ class Trainingstate():
                      validation_dataset = None,
                      samples_per_second = None,
                      args = {}):
+        """
+        Updates the trainingstate with the given parameters.
+        If no validation data available, validation data will not be persisted and therefor no dummy data 
+        occurs in the resulting dictionary.
+        
+        """
         
         # INITIALIZE NEW STATE
         if self.state is None:
@@ -179,6 +185,14 @@ class Trainingstate():
                           }
         
     def get_summary(self):
+        """
+        Returns a summary of the trainingstate
+        
+        Return
+        ------
+        *summary (dict) : A summary containing 'epochs', 'Best Training Loss' and 'Best Validation Loss'
+        
+        """
         summary = {
                     "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
@@ -187,6 +201,16 @@ class Trainingstate():
         return summary   
     
     def load_state(self, filename = None, force_weights_to_cpu = True):
+        """
+        Loads the state from file.
+        
+        Arguments
+        ------
+        *filename (String) : A file on disk representing a trainingstate
+        *OPTIONAL force_weights_to_cpu (bool) : PyTorch speciality 
+                                                that converts CUDA floats to CPU floats (default True)
+        
+        """
         if filename is None:
             filename = self.filename
             short_filename = self.short_filename
@@ -205,6 +229,15 @@ class Trainingstate():
             
         
     def save_state(self, filename = None, keep_epochs = False):
+        """
+        Saves the state to file and maintaines a copy of the best validation and training model.
+        
+        Arguments
+        ------
+        *filename (String) : A file on disk representing a trainingstate
+        *OPTIONAL keep_epochs (bool) : When TRUE the state of every epoch is stored 
+                                       with pattern "MODEL_epoch_{NUMBER}.pth.tar" (default False).
+        """
         if filename is None:
             filename = self.filename
             short_filename = self.short_filename
@@ -255,6 +288,22 @@ class Trainingstate():
     
     
     def load_weights_best_training(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert isinstance(model, nn.Module)
         assert self.short_filename is not None
 
@@ -266,6 +315,22 @@ class Trainingstate():
         return self.load_weights(model)           
     
     def load_weights_best_validation(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert isinstance(model, nn.Module)
         assert self.short_filename is not None
         
@@ -277,6 +342,22 @@ class Trainingstate():
     
     
     def load_weights(self, model):
+        """
+        Loads the persisted weights into a given model.
+        
+        Attention
+        ---------
+        The model needs to be the same as the persisted model.
+        
+        Arguments
+        ---------
+        *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.nn.Module) : The weight initialized model.
+        
+        """
         assert self.state is not None
         assert isinstance(model, nn.Module)
             
@@ -286,6 +367,18 @@ class Trainingstate():
     
     
     def load_optimizer(self, optimizer):
+        """
+        Loads the persisted weights into a given optimizer.
+        
+        Arguments
+        ---------
+        *model (torch.optim.Optimizer) : A optimizer that needs to be filled with the stored weights.
+        
+        Return
+        ------
+        *model (torch.optim.Optimizer) : The initialized optimizer.
+        
+        """
         assert self.state is not None
         assert isinstance(optimizer, torch.optim.Optimizer)
             

@@ -1,3 +1,10 @@
+#############################################################################################
+# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
+import sys
+sys.path.insert(0,'../../ummon3')  
+sys.path.insert(0,'../ummon3')     
+#############################################################################################
+
 import unittest
 import os
 import numpy as np
@@ -1105,7 +1112,6 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(np.allclose(Analyzer.evaluate(model, criterion, dataset_valid,  batch_size= 1)["loss"],
                                     Analyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"]))
         self.assertTrue(type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
-        pass
      
         
     def test_hooks(self):
@@ -1182,9 +1188,71 @@ class TestUmmon(unittest.TestCase):
                 os.remove(os.path.join(dir,file))
                 
     
-    def test_visualizer(self):
-        pass
+    def test_unsupervised(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = self.fc1(x)
+                x = self.fc2(x)
+                return x
+    
+        
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        dataset_valid = UnsupTensorDataset(x_valid.float())
+        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        dataset = UnsupTensorDataset(x.float())
+        dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss()
+
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        my_trainer = UnsupervisedTrainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
+            optimizer, model_filename="testcase",  model_keep_epochs=True)
+        
+        # START TRAINING
+        trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+                                        epochs=5,
+                                        validation_set=dataset_valid, 
+                                        eval_interval=1)
+        
+        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        
+        xn_valid = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
+        xn = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
+        # TEST SIMPLIFIED INTERFACE 
+        trainingsstate = my_trainer.fit(dataloader_training=(xn, 10),
+                                        epochs=5,
+                                        validation_set=xn_valid,
+                                        eval_interval=1)
+        
+        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
 
 
 if __name__ == '__main__':
-    unittest.main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test', default="", metavar="",
+                        help="Execute a specific test")
+    argv = parser.parse_args()
+    sys.argv = [sys.argv[0]]
+    if argv.test is not "":
+        eval(str("TestUmmon()." + argv.test + '()'))
+    else:
+        unittest.main()

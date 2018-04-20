@@ -9,6 +9,7 @@ from ummon import *
 class MetaTrainer:
     """
     This class provides a generic trainer for training PyTorch-models.
+    For specialized use in Regression or Classification this class needs to be subclassed.
     
     Constructor
     -----------
@@ -80,7 +81,15 @@ class MetaTrainer:
         self.model = uu.transform_model(model, precision, use_cuda)
     
     
-    def _prepare_epoch(self):     
+    def _prepare_epoch(self):
+        """
+        Some epoch initialization stuff like adjusting the learning rate scheduler and initializing the clock.
+        
+        Return
+        ------
+        time_dict (dictionary of timestamps): Dictionary that is used for profiling executing time.
+        
+        """
         # TAKE TIME
         time_dict = {"t"        : time.time(),
                      "loader"   : 0,
@@ -98,6 +107,20 @@ class MetaTrainer:
 
         
     def _forward_one_batch(self, inputs, time_dict):
+        """
+        Some epoch initialization stuff like adjusting the learning rate scheduler and initializing the clock.
+        
+        Arguments
+        ---------
+        *inputs    (torch.autograd.Variable): A packed torch.Tensor representing a single mini-batch.
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        Return
+        ------
+        *output    (torch.autograd.Variable): A packed torch.Tensor representing a single output of a mini-batch.
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        """
         # Execute Model
         output = self.model(inputs)
         
@@ -108,7 +131,21 @@ class MetaTrainer:
         return output, time_dict
        
     def _loss_one_batch(self, output, targets, time_dict):
-
+        """
+        Computes the loss for a single mini-batch
+        
+        Arguments
+        ---------
+        *output    (torch.autograd.Variable): A packed torch.Tensor representing a single output of a mini-batch.
+        *targets   (torch.autograd.Variable): The targets for a mini-batch
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        Return
+        ------
+        *loss      (torch.autograd.Variable): The computed loss as scalar
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        """
         assert type(output) == torch.autograd.Variable
 
         if targets.is_cuda or output.is_cuda:
@@ -121,8 +158,25 @@ class MetaTrainer:
         time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
         return loss, time_dict
       
-    def _backward_one_batch(self, loss, after_backward_hook, output, targets, time_dict):
-
+    def _backward_one_batch(self, loss, time_dict, after_backward_hook=None, output=None, targets=None):
+        """
+        Computes the loss for a single mini-batch
+        
+        Arguments
+        ---------
+        *loss      (torch.autograd.Variable): The computed loss as scalar
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        *OPTIONAL after_backward_hook (function(model, output.data, targets.data, loss.data)):
+                                            : A hook that gets executed after backward pass.
+        *OPTIONAL output    (torch.autograd.Variable): A packed torch.Tensor representing a 
+                                              single output of a mini-batch.
+        *OPTIONAL targets   (torch.autograd.Variable): The targets for a mini-batch
+        
+        Return
+        ------
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        """
         # Zero the gradient    
         self.optimizer.zero_grad()
         
@@ -146,11 +200,24 @@ class MetaTrainer:
         
         return time_dict
 
-    def _finish_one_batch(self, batch, batches, epoch, avg_training_loss, current_loss, training_loss_buffer, training_batchsize, time_dict):
+    def _finish_one_batch(self, batch, batches, epoch, avg_training_loss, training_batchsize, time_dict):
+        """
+        Finishes a batch and updates moving average loss. Last it logs the current state.
         
-        # Running average training loss
-        avg_training_loss = self._moving_average(batch, avg_training_loss, current_loss.cpu().data[0], training_loss_buffer)
+        Arguments
+        ---------
+        *batch  (int) : The current batch number.
+        *batches (int) : The total batch number.
+        *epoch (int) : The current epoch number.
+        *avg_training_loss (float) : The current training loss.
+        *training_batchsize (int) ; The batch size of the scheduled training.
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
         
+        Return
+        ------
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        """
         # total time
         if self.profile and self.use_cuda: torch.cuda.synchronize()
         time_dict["total"] = time_dict["total"] + (time.time() - time_dict["t"])
@@ -160,10 +227,25 @@ class MetaTrainer:
         
         # Reset time
         time_dict["t"] = time.time()
-        return avg_training_loss, time_dict
+        return time_dict
         
-        
+
     def _moving_average(self, t, ma, value, buffer):
+        """
+        Helper method for computing moving averages.
+        
+        Arguments
+        ---------
+        * t (int) : The timestep
+        * ma (float) : Current moving average
+        * value (float) : Current value
+        * buffer (List<float>) : The buffer of size N
+        
+        Return
+        ------
+        * moving_average (float) : The new computed moving average.
+        
+        """
         n = buffer.shape[0]
         if ma is None:
             moving_average = value
@@ -175,6 +257,22 @@ class MetaTrainer:
     
     
     def _restore_training_state(self, trainingstate):
+        """
+        Restores the state from a given trainingstate:
+            - loads weights
+            - loads optimizer
+            - loads scheduler
+            - resets epoch
+        
+        Arguments
+        ---------
+        *trainingstate (ummon.Trainingstate) : A class representing persisted ummon training states
+        
+        Return
+        ------
+        *trainingstate (ummon.Trainingstate) : Same as input or NEW when trainingstate was None.
+        
+        """
         assert type(trainingstate) == Trainingstate if not trainingstate is None else True
                
         # RESTORE STATE    
@@ -194,16 +292,37 @@ class MetaTrainer:
             
     
     def _input_data_validation(self, dataloader_training, validation_set):
+        """
+        Does input data validation for training and validation data.
+        
+        Arguments
+        ---------
+        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
+        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
+        
+        Return
+        ------
+        *dataloader_training (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
+        *validation_set (torch.utils.data.Dataset) : Same as input or corrected versions from input.
+        *batches (int) : Computed total number of training batches.
+        """
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
             dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
-            batch = int(dataloader_training[2])
+            # supervised
+            if len(dataloader_training) == 3:
+                batch = int(dataloader_training[2])
+            elif len(dataloader_training) == 2:
+                batch = int(dataloader_training[1])
+            else:
+                self.logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
+                TypeError)
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
                 sampler=None, batch_sampler=None)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
         assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
         if validation_set is not None:
-            if type(validation_set) == tuple:
+            if type(validation_set) == tuple or type(validation_set) == np.ndarray:
                 validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
             assert uu.check_precision(validation_set, self.model, self.precision)
@@ -214,6 +333,19 @@ class MetaTrainer:
         return dataloader_training, validation_set, batches
     
     def _input_params_validation(self, epochs, eval_interval):
+        """
+        Validates the given parameters
+        
+        Arguments
+        ---------
+        *epochs (int) : The number of scheduled epochs.
+        *eval_interval (int) : The interval between model evaluation with validation dataset
+        
+        Return
+        ------
+        *epochs (int) : Same as input or corrected versions of input.
+        *eval_interval(int) : Same as input or corrected versions of input.
+        """
         # check parameters
         epochs = int(epochs)
         if epochs < 1:
@@ -223,6 +355,15 @@ class MetaTrainer:
         return epochs, eval_interval     
     
     def _problem_summary(self, epochs, dataloader_training, validation_set):
+        """
+        Prints the problem summary
+        
+        Arguments
+        ---------
+        *epochs (int) : The number of scheduled epochs.
+        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
+        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
+        """
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
             dataloader_training, validation_set, epochs, None)
@@ -230,4 +371,3 @@ class MetaTrainer:
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
 
-        

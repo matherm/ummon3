@@ -136,14 +136,16 @@ class ClassificationTrainer(MetaTrainer):
                 
                 # Backpropagation
                 time_dict = super(ClassificationTrainer, self)._backward_one_batch(loss, 
-                                                      after_backward_hook, output, targets, 
-                                                      time_dict)
+                                                      time_dict, after_backward_hook, output, targets)
+                
+                # Loss averaging
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
+        
                 
                 # Reporting
-                avg_training_loss, time_dict = super(ClassificationTrainer, self)._finish_one_batch(
-                                                    batch, batches, 
-                                                    epoch, 
-                                                    avg_training_loss, loss, training_loss_buffer, 
+                time_dict = super(ClassificationTrainer, self)._finish_one_batch(
+                                                    batch, batches, epoch, 
+                                                    avg_training_loss, 
                                                     dataloader_training.batch_size, 
                                                     time_dict)
                 
@@ -352,14 +354,16 @@ class Trainer(MetaTrainer):
                 loss,   time_dict = super(Trainer, self)._loss_one_batch(output, targets, time_dict)
                 
                 # Backpropagation
-                time_dict = super(Trainer, self)._backward_one_batch(loss, 
-                                                      after_backward_hook, output, targets, 
-                                                      time_dict)
+                time_dict = super(Trainer, self)._backward_one_batch(loss, time_dict,
+                                                      after_backward_hook, output, targets)
+                
+                # Loss averaging
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
                 
                 # Reporting
-                avg_training_loss, time_dict = super(Trainer, self)._finish_one_batch(batch, batches, 
+                time_dict = super(Trainer, self)._finish_one_batch(batch, batches, 
                                                     epoch, 
-                                                    avg_training_loss, loss, training_loss_buffer, 
+                                                    avg_training_loss,
                                                     dataloader_training.batch_size, 
                                                     time_dict)
         

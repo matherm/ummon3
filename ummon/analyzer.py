@@ -15,8 +15,8 @@ from ummon import *
 
 class MetaAnalyzer:
     """
-    This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
-    computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
+    This class provides a generic analyzer for PyTorch-models. 
+    For specialized models like Regression or Classification this class musst be subclassed.
     
     Methods
     -------
