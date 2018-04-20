@@ -44,6 +44,7 @@ def system_info():
 from .modules.container import *
 from .schedulers import *
 from .modules.linear import *
+from .modules.flatten import *
 from .logger import Logger
 from .trainingstate import Trainingstate
 from .analyzer import Analyzer
