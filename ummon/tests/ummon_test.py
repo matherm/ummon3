@@ -642,6 +642,11 @@ class TestUmmon(unittest.TestCase):
         np.random.seed(17)
         torch.manual_seed(17)
         #
+        # test makes only sense when your machine has cuda enabled
+        if not torch.cuda.is_available():
+            print('\nWarning: cannot run this test - Cuda is not enabled on your machine.')
+            return
+        
         # DEFINE a neural network
         class Net(nn.Module):
         
@@ -715,6 +720,11 @@ class TestUmmon(unittest.TestCase):
     def test_transform_model_from_cuda_to_cpu(self):
         np.random.seed(17)
         torch.manual_seed(17)
+       
+        # test makes only sense when your machine has cuda enabled
+        if not torch.cuda.is_available():
+            print('\nWarning: cannot run this test - Cuda is not enabled on your machine.')
+            return
         #
         # DEFINE a neural network
         class Net(nn.Module):

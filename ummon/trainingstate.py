@@ -9,6 +9,8 @@ import torch.nn as nn
 import shutil
 import numpy as np
 import ummon.utils as uu
+from ummon.schedulers import StepLR_earlystop
+
 
 class Trainingstate():
     """
@@ -64,6 +66,7 @@ class Trainingstate():
                      training_dataset = None,
                      validation_dataset = None,
                      samples_per_second = None,
+                     scheduler = None,
                      args = None):
         
         # INITIALIZE NEW STATE
@@ -103,6 +106,7 @@ class Trainingstate():
                          "validation_loss[]" : validation_loss_list,
                          "validation_accuracy[]" : validation_accuracy_list ,
                          "detailed_loss[]" : [(epoch, detailed_loss)],
+                         "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "args[]" : [args]
                           }
         else:
@@ -176,6 +180,7 @@ class Trainingstate():
                          "validation_loss[]" : validation_loss_list,
                          "validation_accuracy[]" : validation_acc_list,
                          "detailed_loss[]" : detailed_loss_info,
+                         "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "args[]" : args
                           }
         
@@ -296,3 +301,12 @@ class Trainingstate():
         
         return optimizer
     
+    
+    def load_scheduler(self, scheduler):
+        assert self.state is not None
+        
+        if isinstance(scheduler, StepLR_earlystop):
+            scheduler.load_state_dict(self.state['scheduler_state'])
+        
+        return scheduler
+

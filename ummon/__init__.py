@@ -42,7 +42,7 @@ def system_info():
 
 # import files from package
 from .modules.container import *
-from .modules.schedulers import *
+from .schedulers import *
 from .modules.linear import *
 from .logger import Logger
 from .trainingstate import Trainingstate
