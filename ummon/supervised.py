@@ -512,6 +512,15 @@ class ClassificationTrainer(Trainer):
                 self.logger.log_classification_evaluation(trainingstate, self.profile)
                         
         else: # no validation set
+                
+                # Compute Running average accuracy
+                avg_training_acc = None
+                training_acc_buffer = np.zeros(5, dtype=np.float32)
+                for saved_output, saved_targets, batch in output_buffer:
+                    classes = ClassificationAnalyzer.classify(saved_output.cpu())
+                    acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
+                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc_buffer)
+                
                 trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                     training_loss = avg_training_loss, 
                     training_accuracy = avg_training_acc,
