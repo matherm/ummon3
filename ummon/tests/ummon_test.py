@@ -1228,11 +1228,11 @@ class TestUmmon(unittest.TestCase):
     
     def test_examples(self):
         import examples.checkstate
-        import examples.mnist1
+        import examples.mnist1_conv
         import examples.validation
         import examples.sine
         examples.sine.example()
-        examples.mnist1.example()
+        examples.mnist1_conv.example()
         examples.validation.example()
         examples.checkstate.example()
         
