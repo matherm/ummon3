@@ -291,9 +291,9 @@ class Logger(logging.getLoggerClass()):
    
         self.debug(' ')
         self.debug("[Preflight 1-sample]")
-        use_cuda = next(model.parameters()).is_cuda
         memory_baseline = uu.get_proc_memory_info()["mem"]
         testpilot = next(iter(dataloader_train))[0]
+        use_cuda = next(model.parameters()).is_cuda
         if type(testpilot) == tuple or type(testpilot) == list:
             testpilot = uu.tensor_tuple_to_variables(testpilot)
             if use_cuda:
@@ -301,11 +301,12 @@ class Logger(logging.getLoggerClass()):
         else:
             testpilot = Variable(testpilot)
             testpilot = testpilot.cuda() if use_cuda else testpilot
-        out = model(testpilot)
+        _ = model(testpilot)
         self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
         self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
         self.debug('{0:25}{1}'.format("Memory cuda total (MB)", uu.get_cuda_memory_info()))
-       
+      
+        
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1}'.format("lrate" , 
@@ -315,8 +316,31 @@ class Logger(logging.getLoggerClass()):
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
         self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
         self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
-        if isinstance(loss_function, _Loss):
+        if hasattr(loss_function, "size_average"):
             self.debug('{0:20}{1}'.format("size_average" , loss_function.size_average))
+        self.debug('')
+        
+        
+    # output description of inference task
+    def print_summary(self, model,  dataset_validation = None):
+        
+        self.debug(' ')
+        self.debug('[Model]')
+        for lin in model.__repr__().splitlines():
+            self.debug(lin)
+        self.debug('{0:20}{1}'.format("Trainable params:", uu.count_parameters(model)))   
+        
+        self.debug(' ')
+        self.debug('[Data]')
+        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
+            uu.get_size_information(dataset_validation), 
+            uu.get_shape_information(dataset_validation), 
+            uu.get_type_information(dataset_validation)))
+       
+        self.debug(' ')
+        self.debug('[Parameters]')
+        self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
+        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
         self.debug('')
       
     
