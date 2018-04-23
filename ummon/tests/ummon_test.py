@@ -1179,6 +1179,52 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=1,
                                         after_backward_hook=backward, 
                                         after_eval_hook=eval)
+    def test_classification(self):
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.sigmoid(self.fc1(x))
+                x = self.fc2(x)
+                return x
+        
+        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y = torch.from_numpy(np.sin(x.numpy())) 
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        
+        dataset = TensorDataset(x.double(), y.double())
+        dataset_valid = TensorDataset(x_valid.double(), y_valid.double())
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        loss = nn.BCEWithLogitsLoss()
+        
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        my_trainer = Trainer(Logger(), model, loss, 
+            optimizer, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
+        
+        my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=1,  validation_set=dataset_valid)
+        
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(Trainingstate().extension):
+                os.remove(os.path.join(dir,file))
+
     
     def test_examples(self):
         import examples.checkstate

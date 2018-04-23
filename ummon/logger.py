@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import ummon.utils as uu
 from torch.autograd import Variable
+from torch.nn.modules.loss import _Loss
 from platform import platform
 from ummon.__version__ import version
 
@@ -313,6 +314,9 @@ class Logger(logging.getLoggerClass()):
         self.debug('{0:20}{1}'.format("epochs" , epochs))
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
         self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
+        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
+        if isinstance(loss_function, _Loss):
+            self.debug('{0:20}{1}'.format("size_average" , loss_function.size_average))
         self.debug('')
       
     
