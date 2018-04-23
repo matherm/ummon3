@@ -12,9 +12,13 @@ import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon import *
+import ummon.utils as uu
 from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
+from .logger import Logger
+from .supervised import Analyzer
+
+__all__ = ["UnsupervisedTrainer", "UnsupervisedAnalyzer"]
 
 class UnsupervisedTrainer(MetaTrainer):
     """
@@ -143,7 +147,7 @@ class UnsupervisedTrainer(MetaTrainer):
         epochs, eval_interval = super(UnsupervisedTrainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(UnsupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set)
+        super(UnsupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         

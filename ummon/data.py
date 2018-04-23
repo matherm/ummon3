@@ -1,5 +1,7 @@
 from torch.utils.data import Dataset
 
+__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "TripletTensorDataset"]
+
 class UnsupTensorDataset(Dataset):
     """Dataset wrapping tensors for unsupervised trainings.
 

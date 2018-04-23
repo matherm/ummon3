@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import copy
 from torch.optim import Optimizer
 
 
@@ -86,9 +87,9 @@ class StepLR_earlystop(object):
         Reset scheduler to initial state.
         '''
         if self.mode == 'min':
-            self.best = np.iinfo(np.float32).max
+            self.best = np.finfo(np.float32).max
         else:
-            self.best = np.iinfo(np.float32).min
+            self.best = np.finfo(np.float32).min
         self.num_bad_epochs = 0
         self.num_epochs_in_step = 0
     
@@ -127,26 +128,24 @@ class StepLR_earlystop(object):
             self._reduce_lr()
             self.num_bad_epochs = 0
             self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self, self.model)
+            self.trs.load_weights_best_validation(self.model)
         
         # end of current learning rate reached => go to next learning rate
         if self.num_epochs_in_step == self.step_size:
             self._reduce_lr()
             self.num_bad_epochs = 0
             self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self, self.model)
-    
+            self.trs.load_weights_best_validation(self.model)
+            
     
     def load_state_dict(self, state_dict):
         '''
         Returns the state of the scheduler as a :class:`dict`.
         '''
         # deepcopy, to be consistent with module API
-        state_dict = deepcopy(state_dict)
+        state_dict = copy.deepcopy(state_dict)
         
         self.optimizer = state_dict['optimizer']
-        self.trs = state_dict['trs']
-        self.model = state_dict['model']
         self.step_size = state_dict['step_size']
         self.mode = state_dict['mode']
         self.gamma = state_dict['gamma']
@@ -167,8 +166,6 @@ class StepLR_earlystop(object):
         '''
         return {
             'optimizer': self.optimizer,
-            'trs': self.trs,
-            'model': self.model,
             'step_size': self.step_size,
             'mode': self.mode,
             'gamma': self.gamma,
@@ -179,4 +176,4 @@ class StepLR_earlystop(object):
             'num_epochs_in_step': self.num_epochs_in_step
         }
 
-
+from .trainingstate import Trainingstate

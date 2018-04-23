@@ -5,6 +5,7 @@ sys.path.insert(0,'../../ummon3')
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
+__all__ = ["Visualizer"]
 
 class Visualizer:
     def __init__(self):

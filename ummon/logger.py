@@ -12,7 +12,7 @@ import ummon.utils as uu
 from torch.autograd import Variable
 from torch.nn.modules.loss import _Loss
 from platform import platform
-from ummon.__version__ import version
+import ummon
 
 __all__ = [ 'Logger' ]
 
@@ -161,7 +161,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('Python              {}'.format(sys.version.split('\n')))
         self.debug('Numpy               {}'.format(np.__version__))
         self.debug('Torch               {}'.format(torch.__version__))
-        self.debug('ummon               {}'.format(version))
+        self.debug('ummon               {}'.format(ummon.version))
         self.debug(' ')
     
     
@@ -233,7 +233,7 @@ class Logger(logging.getLoggerClass()):
             self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
         self.info("")
     
-       # evaluate model
+    # evaluate model
     def log_classification_evaluation(self, learningstate, profile = False):
         epoch = learningstate.state["training_loss[]"][-1][0]
         lrate = learningstate.state["lrate[]"][-1][1]
@@ -246,7 +246,7 @@ class Logger(logging.getLoggerClass()):
         detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
         
         self.info(' ')
-        self.info('Model Evaluation, Epoch #{}, lrate {}'.format(epoch, lrate))
+        self.info('Model Evaluation, Epoch #{}, lrate {:.2e}'.format(epoch, lrate))
         self.info("----------------------------------------")  
         self.info('       Validation set: loss: {:.4f}, Accuracy: {}/{} ({:.2f}%), Error: {:.2f}%. {}'.format(
             loss, int(acc * batchsize), batchsize, acc * 100, (1. - acc) * 100, 

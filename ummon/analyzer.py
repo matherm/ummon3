@@ -5,13 +5,15 @@ sys.path.insert(0,'../../ummon3')
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon import *
+from .logger import Logger
+import ummon.utils as uu
+
+__all__ = ["MetaAnalyzer"]
 
 class MetaAnalyzer:
     """

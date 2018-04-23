@@ -14,6 +14,7 @@ from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from ummon.data import UnsupTensorDataset
 
+__all__ = ["Timer"]
 
 class Timer(object):
     def __init__(self, name=None):

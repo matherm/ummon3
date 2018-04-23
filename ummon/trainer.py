@@ -5,9 +5,11 @@ import torch.utils.data
 import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon.logger import Logger
-from ummon.trainingstate import Trainingstate
-from ummon.schedulers import StepLR_earlystop
+from .logger import Logger
+from .schedulers import StepLR_earlystop
+from .trainingstate import *
+
+__all__ = ["MetaTrainer"]
 
 class MetaTrainer:
     """
@@ -318,7 +320,7 @@ class MetaTrainer:
         
         return epochs, eval_interval     
     
-    def _problem_summary(self, epochs, dataloader_training, validation_set):
+    def _problem_summary(self, epochs, dataloader_training, validation_set, scheduler = None):
         """
         Prints the problem summary
         
@@ -329,8 +331,9 @@ class MetaTrainer:
         *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
         """
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
+        early_stopping = isinstance(scheduler, StepLR_earlystop)
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
-            dataloader_training, validation_set, epochs, None)
+            dataloader_training, validation_set, epochs, early_stopping)
         
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    

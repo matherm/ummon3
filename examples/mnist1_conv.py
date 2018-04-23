@@ -25,10 +25,10 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
-from ummon.supervised import ClassificationTrainer
-from ummon.logger import Logger
-from ummon.trainingstate import Trainingstate
-from ummon.modules.container import Sequential
+from ummon import Trainingstate
+from ummon import Logger
+from ummon import StepLR_earlystop
+from ummon import ClassificationTrainer
 
 #
 # SET inital seed for reproducibility 
@@ -101,9 +101,9 @@ def example(argv = DefaultValues()):
         # PREPARE TEST DATA
         mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
         mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
-       
         dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None, num_workers=2)
-            
+       
+        
         # CHOOSE MODEL
         model = Net()  
         
@@ -117,8 +117,11 @@ def example(argv = DefaultValues()):
         try:
             ts = Trainingstate("MNIST1.pth.tar")
         except FileNotFoundError:
-            ts = None
+            ts = Trainingstate()
         
+        # EARLY STOPPING
+        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 100, patience=1)
+                
         with Logger(logdir='.', log_batch_interval=500) as lg:
             
             # CREATE A TRAINER
@@ -126,6 +129,7 @@ def example(argv = DefaultValues()):
                                 model, 
                                 criterion, 
                                 optimizer, 
+                                scheduler = earlystop,
                                 model_filename="MNIST1", 
                                 precision=np.float32,
                                 use_cuda=argv.use_cuda)
@@ -157,6 +161,5 @@ if __name__ == "__main__":
     argv = parser.parse_args()
     sys.argv = [sys.argv[0]]                    
 
-    
     example(argv)
     

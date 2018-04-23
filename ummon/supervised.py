@@ -12,10 +12,13 @@ import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from ummon.logger import Logger
 import ummon.utils as uu
 from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
+from .logger import Logger
+
+__all__ = ["Trainer" , "Analyzer", "ClassificationTrainer", "ClassificationAnalyzer", 
+           "SiameseTrainer", "SiameseAnalyzer" ]
 
 class Trainer(MetaTrainer):
     """
@@ -144,7 +147,7 @@ class Trainer(MetaTrainer):
         epochs, eval_interval = super(Trainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(Trainer, self)._problem_summary(epochs, dataloader_training, validation_set)
+        super(Trainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
@@ -384,7 +387,7 @@ class ClassificationTrainer(Trainer):
         epochs, eval_interval = super(ClassificationTrainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(ClassificationTrainer, self)._problem_summary(epochs, dataloader_training, validation_set)
+        super(ClassificationTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
@@ -782,7 +785,7 @@ class SiameseTrainer(Trainer):
         epochs, eval_interval = super(SiameseTrainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(SiameseTrainer, self)._problem_summary(epochs, dataloader_training, validation_set)
+        super(SiameseTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         

@@ -19,10 +19,23 @@ import numpy
 import sys
 from platform import platform
 import ummon.__version__
-import ummon.utils as utils
-import ummon.functionals
-import ummon.preprocessing
 import ummon.utils as uu
+import ummon.logger
+import ummon.analyzer
+import ummon.trainer
+import ummon.supervised
+import ummon.unsupervised
+import ummon.schedulers
+import ummon.trainingstate
+import ummon.visualizer
+import ummon.modules
+import ummon.preprocessing
+import ummon.functionals
+import ummon.tests
+
+__all__ = ["schedulers", "data", "logger", "trainingstate", 
+           "supervised" , "unsupervised", "trainer" , "utils" , "visualizer",
+           "preprocessing", "functionals", "modules", "tests"]
 
 version = ummon.__version__.version
 
@@ -39,17 +52,13 @@ def system_info():
         numpy.__config__.show()
         print("---------------------------------")
 
-
-# import files from package
-from .modules.container import *
 from .schedulers import *
-from .modules.linear import *
-from .modules.flatten import *
-from .logger import Logger
 from .trainingstate import *
-from .supervised import *
-from .unsupervised import *
-from .visualizer import *
-from .trainer import *
-from .analyzer import *
 from .data import *
+from .trainer import *
+from .unsupervised import *
+from .supervised import *
+from .logger import *
+from .trainingstate import *
+from .analyzer import *
+from .visualizer import *
