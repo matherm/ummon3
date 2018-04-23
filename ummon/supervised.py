@@ -638,7 +638,6 @@ class ClassificationAnalyzer(MetaAnalyzer):
         ------
         classes (torch.LongTensor) - Shape [B x 1]
         """
-        assert isinstance(output, torch.Tensor)
 
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
