@@ -21,12 +21,13 @@ class VisualAttentionLoss(nn.Module):
           value loss is ACTOR CRITIC loss with MSE between expected reward and actual reward
     """
     
-    def __init__(self, model, gamma): 
+    def __init__(self, model, gamma, size_average = False): 
         super(VisualAttentionLoss, self).__init__()
         
         # Parameters
         self.gamma = gamma
         self.model = model
+        self.size_average = size_average
         
         # Save losses for log
         self.__policy_loss = None
@@ -41,7 +42,7 @@ class VisualAttentionLoss(nn.Module):
     
     def forward(self, output, labels):
         output = (output, self.model.policy.saved_baselines, self.model.policy.saved_ln_pis, self.model.policy.rewards)
-        classification_loss, _policy_loss, _value_loss = va.visual_attention_loss(output, labels, self.gamma)
+        classification_loss, _policy_loss, _value_loss = va.visual_attention_loss(output, labels, self.gamma, self.size_average)
         
         # Total loss
         total_loss =  classification_loss + _policy_loss + _value_loss 

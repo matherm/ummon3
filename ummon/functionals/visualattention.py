@@ -13,7 +13,7 @@ where classification loss is CrossEntropy between the last predicted class and t
       value loss is ACTOR CRITIC loss with MSE between expected reward and actual reward
 """
     
-def visual_attention_loss(output, labels, gamma = 1.):
+def visual_attention_loss(output, labels, gamma = 1., size_average = False):
     """
     Computes the combined loss of REINFORCE, Actor-Critic and CrossEntropy 
     
@@ -71,7 +71,7 @@ def visual_attention_loss(output, labels, gamma = 1.):
         labels = labels.view(labels.size(0))
     
     # Loss
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(size_average = size_average)
     classification_loss = criterion(class_scores, labels).cpu()
     
     # GOTO CPU
@@ -99,7 +99,7 @@ def visual_attention_loss(output, labels, gamma = 1.):
     return  classification_loss, _policy_loss , _value_loss , 
        
 
-def reinforce_loss(saved_ln_pis, saved_baselines, rewards):
+def reinforce_loss(saved_ln_pis, saved_baselines, rewards, size_average = False):
     """
     Computes the reinforce loss
     
@@ -135,7 +135,10 @@ def reinforce_loss(saved_ln_pis, saved_baselines, rewards):
         policy_losses.append(-ln_pi_t * (Variable(r_t.unsqueeze(1) - exp_b_t.data)))
                    
     # Sum losses up over timesteps and episodes and divide by episodes
-    return torch.cat(policy_losses, dim=1).sum() / (bs * t), torch.cat(value_losses, dim=1).sum() / (bs * t)
+    if size_average:
+        return torch.cat(policy_losses, dim=1).sum() / (bs * t), torch.cat(value_losses, dim=1).sum() / (bs * t)
+    else:
+        return torch.cat(policy_losses, dim=1).sum() / (t), torch.cat(value_losses, dim=1).sum() / (t)
 
 
 def compute_rewards(model_rewards, classification_reward, gamma):
