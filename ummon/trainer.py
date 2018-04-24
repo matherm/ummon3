@@ -57,7 +57,7 @@ class MetaTrainer:
                  model_keep_epochs = False,
                  precision = np.float32,
                  convergence_eps = np.finfo(np.float32).min,
-                 combined_training = False,
+                 combined_training_epochs = False,
                  use_cuda = False,
                  profile = False):
         
@@ -80,7 +80,7 @@ class MetaTrainer:
         self.epoch = 0
         self.precision = precision
         self.convergence_eps = convergence_eps
-        self.combined_training = combined_training
+        self.combined_training_epochs = combined_training_epochs
         self.use_cuda = use_cuda
         self.profile = profile
         
@@ -292,18 +292,19 @@ class MetaTrainer:
         # RESTORE STATE    
         if trainingstate is not None:
             if trainingstate.state is not None:
-                self.logger.info("[Status]" )
-                trs = trainingstate.get_summary()
-                self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
-                    trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
-                    trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
+                self._status_summary(trainingstate)
                 self.epoch = trainingstate.state["training_loss[]"][-1][0]
                 self.model = trainingstate.load_weights(self.model)
                 self.optimizer = trainingstate.load_optimizer(self.optimizer)
                 if isinstance(self.scheduler, StepLR_earlystop):
                     self.scheduler = trainingstate.load_scheduler(self.scheduler)
         else:
-            trainingstate = Trainingstate()
+            # Try to get a trainingstate from the scheduler if no state was supplied
+            if isinstance(self.scheduler, StepLR_earlystop):
+                trainingstate = self.scheduler.trs
+            # Fallback: create an empty state
+            else:
+                trainingstate = Trainingstate()
         return trainingstate
             
     
@@ -364,10 +365,19 @@ class MetaTrainer:
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         early_stopping = isinstance(scheduler, StepLR_earlystop)
         self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
-            dataloader_training, validation_set, epochs, early_stopping)
+            dataloader_training, validation_set, epochs, early_stopping, self.combined_training_epochs)
         
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
+        
+        
+    def _status_summary(self, trainingstate):
+        if trainingstate is not None and trainingstate.state is not None:
+            self.logger.info("[Status]" )
+            trs = trainingstate.get_summary()
+            self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
+                trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
+                trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
 
     def _evaluate_training(self, Analyzer, batch, batches, 
                   time_dict, 
@@ -431,7 +441,8 @@ class MetaTrainer:
                                         validation_loss = evaluation_dict["loss"], 
                                         validation_dataset = validation_set,
                                         samples_per_second = evaluation_dict["samples_per_second"],
-                                        scheduler = self.scheduler)
+                                        scheduler = self.scheduler,
+                                        combined_retraining = self.combined_training_epochs)
         
                 self.logger.log_regression_evaluation(trainingstate, self.profile)
                         

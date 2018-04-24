@@ -218,7 +218,25 @@ class UnsupervisedTrainer(MetaTrainer):
             # ANNEAL LEARNING RATE
             if self.scheduler: 
                 self.scheduler.step()
-                     
+                
+        # DO COMBINED RETRAINING
+        if self.combined_training_epochs > 0:
+            if validation_set is None:
+                self.logger.warn("Combined retraining needs validation data.")
+            else:                
+                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
+                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                combined_training_epochs = self.combined_training_epochs
+                self.combined_training_epochs = 0
+                self.fit(dataloader_combined, 
+                         epochs=combined_training_epochs, 
+                         validation_set=None, 
+                         eval_interval=eval_interval, 
+                         trainingstate=trainingstate, 
+                         after_backward_hook=after_backward_hook, 
+                         after_eval_hook=after_eval_hook, 
+                         eval_batch_size=eval_batch_size)
+        
         return trainingstate
     
     

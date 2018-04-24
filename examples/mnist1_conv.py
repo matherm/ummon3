@@ -133,6 +133,7 @@ def example(argv = DefaultValues()):
                                 scheduler = earlystop,
                                 model_filename="MNIST1", 
                                 precision=np.float32,
+                                combined_training_epochs = 0,
                                 use_cuda=argv.use_cuda)
             
             # START TRAINING

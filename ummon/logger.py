@@ -261,7 +261,7 @@ class Logger(logging.getLoggerClass()):
     
     # output description of learning task
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
-        dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
+        dataset_validation = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):
         
         if hasattr(loss_function, "size_average"):
             size_average = loss_function.size_average
@@ -317,6 +317,7 @@ class Logger(logging.getLoggerClass()):
                    optimizer.state_dict()["param_groups"][0]["lr"]))
         self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
         self.debug('{0:20}{1}'.format("epochs" , epochs))
+        self.debug('{0:20}{1}'.format("combined_retraining" , combined_retraining))
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
         self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
         self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))

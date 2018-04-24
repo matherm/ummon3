@@ -66,6 +66,7 @@ class Trainingstate():
                      validation_dataset = None,
                      samples_per_second = None,
                      scheduler = None,
+                     combined_retraining = False,
                      args = {}):
         """
         Updates the trainingstate with the given parameters.
@@ -112,6 +113,7 @@ class Trainingstate():
                          "validation_accuracy[]" : validation_accuracy_list ,
                          "detailed_loss[]" : [(epoch, detailed_loss)],
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
+                         "combined_retraining" : combined_retraining,
                          "args[]" : [args]
                           }
         else:
@@ -186,6 +188,7 @@ class Trainingstate():
                          "validation_accuracy[]" : validation_acc_list,
                          "detailed_loss[]" : detailed_loss_info,
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
+                         "combined_retraining" : self.state["combined_retraining"],
                          "args[]" : args
                           }
         
@@ -198,12 +201,14 @@ class Trainingstate():
         *summary (dict) : A summary containing 'epochs', 'Best Training Loss' and 'Best Validation Loss'
         
         """
-        summary = {
+        if self.state is None:
+            return {}
+
+        return {
                     "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
                     "Best Validation Loss" : self.state["best_validation_loss"],
                   }
-        return summary   
     
     def load_state(self, filename = None, force_weights_to_cpu = True):
         """

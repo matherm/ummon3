@@ -12,6 +12,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
+from torch.utils.data.dataset import ConcatDataset
+from torch.utils.data.dataloader import DataLoader
 from ummon.data import UnsupTensorDataset
 
 __all__ = ["Timer"]
@@ -326,12 +328,10 @@ def add_dataset_to_loader(dataloader, merge_dataset):
     dataloader (torch.utils.data.DataLoader) : A new instance of a dataloader that contains the merged dataset
     """
     dataset_origin = dataloader.dataset
-    dataset_merged = ConcatDataset(dataset_origin, merge_dataset)
+    dataset_merged = ConcatDataset([dataset_origin, merge_dataset])
     dataloader_merged = DataLoader(dataset_merged, 
                                    batch_size=dataloader.batch_size, 
-                                   shuffle=dataloader.shuffle, 
-                                   sampler=dataloader.sampler, 
-                                   batch_sampler=dataloader.batch_sampler, 
+                                   shuffle=True, 
                                    num_workers=dataloader.num_workers)
     return dataloader_merged
        
