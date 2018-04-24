@@ -1192,6 +1192,8 @@ class TestUmmon(unittest.TestCase):
                                         after_backward_hook=backward, 
                                         after_eval_hook=eval)
     def test_classification(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
         #
         # DEFINE a neural network
         class Net(nn.Module):
@@ -1212,10 +1214,11 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
-        y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
-        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        y = 2 * torch.from_numpy(np.random.binomial(1, 0.5, 10000).reshape(10000,1)) - 1
+        
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 100).reshape(100,1))
+        y_valid = 2 * torch.from_numpy(np.random.binomial(1, 0.5, 100).reshape(100,1)) - 1
         
         dataset = TensorDataset(x.double(), y.double())
         dataset_valid = TensorDataset(x_valid.double(), y_valid.double())
@@ -1225,16 +1228,18 @@ class TestUmmon(unittest.TestCase):
         loss = nn.BCEWithLogitsLoss()
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-        my_trainer = Trainer(Logger(), model, loss, 
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        my_trainer = ClassificationTrainer(Logger(), model, loss, 
             optimizer, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
-        my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=1,  validation_set=dataset_valid)
+        ts = my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, eval_interval = 1, validation_set=dataset_valid)
+        
+        assert ts["validation_accuracy[]"][0][1] == ts["validation_accuracy[]"][1][1] == 0.55
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(Trainingstate().extension):
+            if file.endswith(ts.extension):
                 os.remove(os.path.join(dir,file))
 
     
@@ -1373,6 +1378,73 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(trainingsstate.extension):
                 os.remove(os.path.join(dir,file))
+                
+                
+        def test_lr_scheduler(self):
+            np.random.seed(17)
+            torch.manual_seed(17)
+            #
+            # DEFINE a neural network
+            class Net(nn.Module):
+            
+                def __init__(self):
+                    super(Net, self).__init__()
+                    self.fc1 = nn.Linear(1, 10)
+                    self.fc2 = nn.Linear(10, 1)
+                    
+                    # Initialization
+                    def weights_init_normal(m):
+                        if type(m) == nn.Linear:
+                            nn.init.normal(m.weight, mean=0, std=0.1)
+                    self.apply(weights_init_normal)
+            
+                def forward(self, x):
+                    x = F.sigmoid(self.fc1(x))
+                    x = self.fc2(x)
+                    return x
+            
+            x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+            y = torch.from_numpy(np.sin(x.numpy())) 
+            x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+            y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+            
+            dataset = TensorDataset(x.float(), y.float())
+            dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+            dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+            
+            model = Net()
+            criterion = nn.MSELoss()
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+      
+            # EARLY STOPPING
+            earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 2, patience=2)
+      
+            
+            # CREATE A TRAINER
+            my_trainer = Trainer(Logger(logdir='', log_batch_interval=500), model, criterion,
+                optimizer, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
+            
+            # START TRAINING
+            ts = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                            epochs=4,
+                                            validation_set=dataset_valid, 
+                                            eval_interval=1)
+            # Validation Error
+            #[(1, 0.5116240382194519, 10000),
+            # (2, 0.5512791275978088, 10000),
+            # (3, 0.49715909361839294, 10000), BEST
+            # (4, 0.49719667434692383, 10000)][
+            # Learning rate
+            #(1, 0.1), (2, 0.1), (3, 0.010000000000000002), (4, 0.010000000000000002)]
+          
+            # Scheduler implicitly loaded best validation model from epoch 3
+            assert Analyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49715909361839294
+            
+            files = os.listdir(".")
+            dir = "."
+            for file in files:
+                if file.endswith(trainingsstate.extension):
+                    os.remove(os.path.join(dir,file))
 
 if __name__ == '__main__':
     import argparse

@@ -34,6 +34,11 @@ class MetaTrainer:
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
     precision         : np.dtype
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
+    convergence_eps   : float
+                        OPTIONAL Specifies when the training has converged (default np.float32.min).
+    combined_training : bool
+                        OPTIONAL Specifies if combined retraining (training and validation data) shall take place 
+                            after usal training cycle (default False).                        
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
@@ -51,6 +56,8 @@ class MetaTrainer:
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
                  precision = np.float32,
+                 convergence_eps = np.finfo(np.float32).min,
+                 combined_training = False,
                  use_cuda = False,
                  profile = False):
         
@@ -72,6 +79,8 @@ class MetaTrainer:
         self.scheduler = scheduler
         self.epoch = 0
         self.precision = precision
+        self.convergence_eps = convergence_eps
+        self.combined_training = combined_training
         self.use_cuda = use_cuda
         self.profile = profile
         
@@ -319,6 +328,28 @@ class MetaTrainer:
         eval_interval = int(eval_interval)
         
         return epochs, eval_interval     
+    
+    
+    def _has_converged(self, trainingstate):
+        """
+        Checks if the training has converged. 
+        Criterium is specified by self.convergence_eps
+        
+        Arguments
+        ---------
+        *trainingstate (ummon.Trainingstate) : A class representing persisted ummon training states
+      
+        Return
+        ------
+        *break_training (bool) : 
+        """
+        pass
+    
+    
+    
+    def _do_combined_retraining(self):
+        pass
+    
     
     def _problem_summary(self, epochs, dataloader_training, validation_set, scheduler = None):
         """

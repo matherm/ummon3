@@ -33,10 +33,6 @@ import ummon.preprocessing
 import ummon.functionals
 import ummon.tests
 
-__all__ = ["schedulers", "data", "logger", "trainingstate", 
-           "supervised" , "unsupervised", "trainer" , "utils" , "visualizer",
-           "preprocessing", "functionals", "modules", "tests"]
-
 version = ummon.__version__.version
 
 def system_info():
@@ -62,3 +58,7 @@ from .logger import *
 from .trainingstate import *
 from .analyzer import *
 from .visualizer import *
+from .modules.container import *
+from .modules.linear import *
+from .modules.loss import *
+

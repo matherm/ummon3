@@ -644,7 +644,7 @@ class ClassificationAnalyzer(MetaAnalyzer):
 
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
-            classes = output.sign()    
+            classes = (output + 1e-12).sign().long()    
         
         # One-Hot-Encoding
         if (output.dim() > 1 and output.size(1) > 1):
@@ -654,15 +654,20 @@ class ClassificationAnalyzer(MetaAnalyzer):
     
     @staticmethod
     def compute_accuracy(classes, targets):
-        assert isinstance(classes, torch.LongTensor)
         assert targets.shape[0] == classes.shape[0]
+
+        # Case single output neurons (e.g. one-class-svm sign(output))
+        if (targets.dim() > 1 and targets.size(1) == 1) or targets.dim() == 1:
+            # Transform 0,1 encoding to -1 +1
+            targets = (targets.float() - 1e-12).sign().long()    
         
         # Classification one-hot coded targets are first converted in class labels
-        if targets.dim() > 1:
+        if targets.dim() > 1 and targets.size(1) > 1:
             targets = targets.max(1, keepdim=True)[1]
+       
         if not isinstance(targets, torch.LongTensor):
             targets = targets.long()
-                
+
         # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
         

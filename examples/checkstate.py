@@ -25,7 +25,7 @@ import pprint
 class DefaultValues(dict):
     def __init__(self):
         dict.__init__(self, {
-                        "view" : "",
+                        "model" : "",
                         "verbose" : False
                         })
     __getattr__ = dict.get
@@ -35,8 +35,8 @@ class DefaultValues(dict):
 
 def example(argv = DefaultValues()):
    
-    if argv.view is not "":
-        ts = Trainingstate(argv.view)
+    if argv.model is not "":
+        ts = Trainingstate(argv.model)
         if argv.verbose == True:
             # DELETE MODEL PARAMETERS
             ts.state.pop("model_state" , None)
@@ -51,7 +51,7 @@ def example(argv = DefaultValues()):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='ummon3 - example - trainingstate checker')
-    parser.add_argument('--view', default="", metavar="",
+    parser.add_argument('--model', default="", metavar="",
                         help="Print summary about a trained model")
     parser.add_argument('-v', action='store_true', dest='verbose', 
                         help="Verbose (default: False)")

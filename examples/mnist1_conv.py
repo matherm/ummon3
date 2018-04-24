@@ -108,10 +108,10 @@ def example(argv = DefaultValues()):
         model = Net()  
         
         # CHOOSE LOSS-Function
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(size_average = False)
           
         # INSTANTIATE OPTIMIZER
-        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
+        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate / argv.batch_size)
         
         # LOAD TRAINING STATE
         try:
@@ -126,7 +126,7 @@ def example(argv = DefaultValues()):
         with Logger(logdir='.', log_batch_interval=500) as lg:
             
             # CREATE A TRAINER
-            my_trainer = ClassificationTrainer(   lg, 
+            my_trainer = ClassificationTrainer(lg, 
                                 model, 
                                 criterion, 
                                 optimizer, 

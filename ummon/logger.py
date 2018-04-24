@@ -263,6 +263,11 @@ class Logger(logging.getLoggerClass()):
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
         dataset_validation = None, epochs = 0, early_stopping = False, dataset_test = None):
         
+        if hasattr(loss_function, "size_average"):
+            size_average = loss_function.size_average
+        else:
+            size_average = None
+        
         self.debug(' ')
         self.debug('[Model]')
         for lin in model.__repr__().splitlines():
@@ -306,18 +311,20 @@ class Logger(logging.getLoggerClass()):
         self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
         self.debug('{0:25}{1}'.format("Memory cuda total (MB)", uu.get_cuda_memory_info()))
       
-        
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1:.2e}'.format("lrate" , 
-            optimizer.state_dict()["param_groups"][0]["lr"]))
+                   optimizer.state_dict()["param_groups"][0]["lr"]))
         self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
         self.debug('{0:20}{1}'.format("epochs" , epochs))
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
         self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
         self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
-        if hasattr(loss_function, "size_average"):
+     
+        if size_average is not None:
             self.debug('{0:20}{1}'.format("size_average" , loss_function.size_average))
+            if loss_function.size_average:
+                self.warn("Numerical issue detected. Consider setting size_average=False (loss(size_average = False) and adjusting learning rate so that lrate=lrate/batch_size")
         self.debug('')
         
         

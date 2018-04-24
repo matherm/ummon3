@@ -22,6 +22,7 @@ import torch.nn as nn
 
 import load_mnist
 from ummon import *
+import torch
 
 
 # read MNIST data set and scale it
