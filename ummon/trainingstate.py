@@ -43,6 +43,7 @@ class Trainingstate():
         self.extension = ".pth.tar"
         self.train_pattern = "_best_training_loss"
         self.valid_pattern = "_best_valid_loss"
+        self.combined_retraining_pattern = "_comb_retrn"
         self.force_weights_to_cpu = force_weights_to_cpu
 
         if filename is not None:

@@ -85,7 +85,7 @@ class MetaTrainer:
         self.profile = profile
         
         #  Persistency parameters
-        self.model_filename = model_filename
+        self.model_filename = model_filename.split(Trainingstate().extension)[0]
         self.model_keep_epochs = model_keep_epochs
         
         # INITIALIZE LOGGER

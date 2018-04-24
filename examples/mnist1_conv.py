@@ -102,7 +102,6 @@ def example(argv = DefaultValues()):
         mnist_data = MNIST("./", train=True, transform=transforms.ToTensor(), target_transform=None, download=True)
         mnist_data_test = MNIST("./", train=False, transform=transforms.ToTensor(), target_transform=None, download=True)
         dataloader_trainingdata = DataLoader(mnist_data, batch_size=argv.batch_size, shuffle=True, sampler=None, batch_sampler=None, num_workers=2)
-       
         
         # CHOOSE MODEL
         model = Net()  
@@ -133,7 +132,7 @@ def example(argv = DefaultValues()):
                                 scheduler = earlystop,
                                 model_filename="MNIST1", 
                                 precision=np.float32,
-                                combined_training_epochs = 0,
+                                combined_training_epochs = 1,
                                 use_cuda=argv.use_cuda)
             
             # START TRAINING
@@ -148,7 +147,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ummon3 - example - MNIST 1')
     #
     # TRAINING PARAMS
-    parser.add_argument('--epochs', type=int, default=3, metavar='',
+    parser.add_argument('--epochs', type=int, default=2, metavar='',
                         help='Amount of epochs for training (default: 2)')
     parser.add_argument('--batch_size', type=int, default=40, metavar='',
                         help='Batch size for SGD (default: 40)')

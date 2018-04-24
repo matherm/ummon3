@@ -1536,7 +1536,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = UnsupervisedTrainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
-            optimizer, model_filename="testcase", combined_training_epochs = 2, model_keep_epochs=True)
+            optimizer, model_filename="testcase", combined_training_epochs = 2)
         
         # START TRAINING
         ts = my_trainer.fit(dataloader_training=dataloader_training,
@@ -1546,8 +1546,11 @@ class TestUmmon(unittest.TestCase):
         
         assert len(ts["training_loss[]"]) > len(ts["validation_loss[]"])
         assert len(ts["training_loss[]"]) == 3
-        assert ts["training_loss[]"][-1][1] < ts["training_loss[]"][-2][1]            
         
+        # TEST PERSISTED MODEL
+        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern))
+        assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-2][1]    
+
         files = os.listdir(".")
         dir = "."
         for file in files:

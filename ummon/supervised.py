@@ -219,15 +219,23 @@ class Trainer(MetaTrainer):
             if self.scheduler: 
                 self.scheduler.step()
                 
-        # DO COMBINED RETRAINING
+        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         if self.combined_training_epochs > 0:
             if validation_set is None:
                 self.logger.warn("Combined retraining needs validation data.")
-            else:                
+            else:
+                # load best validation model
+                self.model = trainingstate.load_weights_best_validation(self.model)
+                # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))
+                # give some information about what we are going to do
+                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                # get the planned epochs
                 combined_training_epochs = self.combined_training_epochs
+                # modify state so that recursion is not infinite
                 self.combined_training_epochs = 0
+                # save retrained models with unique filenames
+                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
                          validation_set=None, 
@@ -500,15 +508,23 @@ class ClassificationTrainer(Trainer):
             if self.scheduler: 
                 self.scheduler.step()
                      
-        # DO COMBINED RETRAINING
+        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         if self.combined_training_epochs > 0:
             if validation_set is None:
                 self.logger.warn("Combined retraining needs validation data.")
-            else:                
+            else:
+                # load best validation model
+                self.model = trainingstate.load_weights_best_validation(self.model)
+                # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))
+                # give some information about what we are going to do
+                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                # get the planned epochs
                 combined_training_epochs = self.combined_training_epochs
+                # modify state so that recursion is not infinite
                 self.combined_training_epochs = 0
+                # save retrained models with unique filenames
+                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
                          validation_set=None, 
@@ -928,15 +944,23 @@ class SiameseTrainer(Trainer):
             if self.scheduler: 
                 self.scheduler.step()
                 
-        # DO COMBINED RETRAINING
+        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         if self.combined_training_epochs > 0:
             if validation_set is None:
                 self.logger.warn("Combined retraining needs validation data.")
-            else:                
+            else:
+                # load best validation model
+                self.model = trainingstate.load_weights_best_validation(self.model)
+                # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
+                # give some information about what we are going to do
                 self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                # get the planned epochs
                 combined_training_epochs = self.combined_training_epochs
+                # modify state so that recursion is not infinite
                 self.combined_training_epochs = 0
+                # save retrained models with unique filenames
+                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
                          validation_set=None, 
