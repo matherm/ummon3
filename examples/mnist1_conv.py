@@ -120,8 +120,9 @@ def example(argv = DefaultValues()):
             ts = Trainingstate()
         
         # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 100, patience=1)
+        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 100, patience=3)
                 
+        
         with Logger(logdir='.', log_batch_interval=500) as lg:
             
             # CREATE A TRAINER

@@ -102,7 +102,7 @@ class StepLR_earlystop(object):
             old_lr = float(param_group['lr'])
             new_lr = old_lr * self.gamma
             param_group['lr'] = new_lr
-    
+
     
     def step(self):
         '''
@@ -145,7 +145,6 @@ class StepLR_earlystop(object):
         # deepcopy, to be consistent with module API
         state_dict = copy.deepcopy(state_dict)
         
-        self.optimizer = state_dict['optimizer']
         self.step_size = state_dict['step_size']
         self.mode = state_dict['mode']
         self.gamma = state_dict['gamma']
@@ -165,7 +164,6 @@ class StepLR_earlystop(object):
                 from a call to :meth:`state_dict`.
         '''
         return {
-            'optimizer': self.optimizer,
             'step_size': self.step_size,
             'mode': self.mode,
             'gamma': self.gamma,

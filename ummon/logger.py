@@ -309,7 +309,7 @@ class Logger(logging.getLoggerClass()):
         
         self.debug(' ')
         self.debug('[Parameters]')
-        self.debug('{0:20}{1}'.format("lrate" , 
+        self.debug('{0:20}{1:.2e}'.format("lrate" , 
             optimizer.state_dict()["param_groups"][0]["lr"]))
         self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
         self.debug('{0:20}{1}'.format("epochs" , epochs))
