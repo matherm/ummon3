@@ -103,7 +103,7 @@ class Trainer(MetaTrainer):
                 self.logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
                 TypeError)
             dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
-                sampler=None, batch_sampler=None)
+                sampler=None, batch_sampler=None, num_workers=0)
         assert isinstance(dataloader_training, torch.utils.data.DataLoader)
         assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
         if validation_set is not None:
