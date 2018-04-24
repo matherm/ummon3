@@ -318,4 +318,21 @@ def tensor_tuple_to_cuda(the_tuple):
     assert type(the_tuple) == tuple or type(the_tuple) == list
     return tuple([t.cuda() for t in the_tuple])       
     
+
+def add_dataset_to_loader(dataloader, merge_dataset):
+    """
+    Adds a dataset to an existing dataloader
+    
+    dataloader (torch.utils.data.DataLoader) : A new instance of a dataloader that contains the merged dataset
+    """
+    dataset_origin = dataloader.dataset
+    dataset_merged = ConcatDataset(dataset_origin, merge_dataset)
+    dataloader_merged = DataLoader(dataset_merged, 
+                                   batch_size=dataloader.batch_size, 
+                                   shuffle=dataloader.shuffle, 
+                                   sampler=dataloader.sampler, 
+                                   batch_sampler=dataloader.batch_sampler, 
+                                   num_workers=dataloader.num_workers)
+    return dataloader_merged
+       
       

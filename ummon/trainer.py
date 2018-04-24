@@ -36,9 +36,9 @@ class MetaTrainer:
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
     convergence_eps   : float
                         OPTIONAL Specifies when the training has converged (default np.float32.min).
-    combined_training : bool
-                        OPTIONAL Specifies if combined retraining (training and validation data) shall take place 
-                            after usal training cycle (default False).                        
+    combined_training_epochs : int
+                        OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
+                            after the usal training cycle (default 0).                        
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
@@ -343,12 +343,12 @@ class MetaTrainer:
         ------
         *break_training (bool) : 
         """
-        pass
-    
-    
-    
-    def _do_combined_retraining(self):
-        pass
+        if len(trainingstate["training_loss[]"]) > 2:
+            if np.abs(trainingstate["training_loss[]"][-1][1] - trainingstate["training_loss[]"][-2][1]) < self.convergence_eps:
+                self.logger.info("Training has converged. Epsilon was {:.2e}".format(self.convergence_eps))
+                return True
+
+        return False
     
     
     def _problem_summary(self, epochs, dataloader_training, validation_set, scheduler = None):

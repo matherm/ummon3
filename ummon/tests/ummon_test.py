@@ -1445,6 +1445,59 @@ class TestUmmon(unittest.TestCase):
             for file in files:
                 if file.endswith(trainingsstate.extension):
                     os.remove(os.path.join(dir,file))
+                    
+                    
+        def test_convergence_criterion(self):
+            np.random.seed(17)
+            torch.manual_seed(17)
+            #
+            # DEFINE a neural network
+            class Net(nn.Module):
+            
+                def __init__(self):
+                    super(Net, self).__init__()
+                    self.fc1 = nn.Linear(1, 10)
+                    self.fc2 = nn.Linear(10, 1)
+                    
+                    # Initialization
+                    def weights_init_normal(m):
+                        if type(m) == nn.Linear:
+                            nn.init.normal(m.weight, mean=0, std=0.1)
+                    self.apply(weights_init_normal)
+            
+                def forward(self, x):
+                    x = self.fc1(x)
+                    x = self.fc2(x)
+                    return x
+        
+            
+            x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+            dataset_valid = UnsupTensorDataset(x_valid.float())
+            x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+            dataset = UnsupTensorDataset(x.float())
+            dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+            
+            model = Net()
+            criterion = nn.MSELoss()
+    
+            # CREATE A TRAINER
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+            my_trainer = UnsupervisedTrainer(Logger(logdir='', log_batch_interval=500), model, criterion, 
+                optimizer, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
+            
+            # START TRAINING
+            trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+                                            epochs=50,
+                                            validation_set=dataset_valid, 
+                                            eval_interval=1)
+            
+            assert trainingsstate["training_loss[]"][-1][0] == 3
+            
+            files = os.listdir(".")
+            dir = "."
+            for file in files:
+                if file.endswith(trainingsstate.extension):
+                    os.remove(os.path.join(dir,file))
 
 if __name__ == '__main__':
     import argparse

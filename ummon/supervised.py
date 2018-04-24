@@ -42,6 +42,11 @@ class Trainer(MetaTrainer):
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
     precision         : np.dtype
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
+    convergence_eps   : float
+                        OPTIONAL Specifies when the training has converged (default np.float32.min).
+    combined_training_epochs : int
+                        OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
+                            after the usal training cycle (default 0).                        
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
@@ -59,6 +64,8 @@ class Trainer(MetaTrainer):
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
                  precision = np.float32,
+                 convergence_eps = np.finfo(np.float32).min,
+                 combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
            super(Trainer, self).__init__(logger, model, loss_function, optimizer, 
@@ -66,6 +73,8 @@ class Trainer(MetaTrainer):
                  model_filename, 
                  model_keep_epochs,
                  precision,
+                 convergence_eps,
+                 combined_training_epochs,
                  use_cuda,
                  profile)
     
@@ -202,7 +211,10 @@ class Trainer(MetaTrainer):
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
                      
-
+            # CHECK TRAINING CONVERGENCE
+            if super(Trainer, self)._has_converged(trainingstate):
+                break
+            
             # ANNEAL LEARNING RATE
             if self.scheduler: 
                 self.scheduler.step()
@@ -321,6 +333,11 @@ class ClassificationTrainer(Trainer):
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
     precision         : np.dtype
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
+    convergence_eps   : float
+                        OPTIONAL Specifies when the training has converged (default np.float32.min).
+    combined_training_epochs : int
+                        OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
+                            after the usal training cycle (default 0).                        
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
@@ -338,6 +355,8 @@ class ClassificationTrainer(Trainer):
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
                  precision = np.float32,
+                 convergence_eps = np.finfo(np.float32).min,
+                 combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
            super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, 
@@ -345,6 +364,8 @@ class ClassificationTrainer(Trainer):
                  model_filename, 
                  model_keep_epochs,
                  precision,
+                 convergence_eps,
+                 combined_training_epochs,
                  use_cuda,
                  profile)
     
@@ -452,6 +473,10 @@ class ClassificationTrainer(Trainer):
                
              # CLEAN UP
             del output_buffer[:]
+            
+            # CHECK TRAINING CONVERGENCE
+            if super(Trainer, self)._has_converged(trainingstate):
+                break
             
             # ANNEAL LEARNING RATE
             if self.scheduler: 
@@ -699,6 +724,11 @@ class SiameseTrainer(Trainer):
                         OPTIONAL Specifies intermediate (for every epoch) model persistency (default False).
     precision         : np.dtype
                         OPTIONAL Specifiec FP32 or FP64 Training (default np.float32).
+    convergence_eps   : float
+                        OPTIONAL Specifies when the training has converged (default np.float32.min).
+    combined_training_epochs : int
+                        OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
+                            after the usal training cycle (default 0).                        
     use_cuda          : bool
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
@@ -716,6 +746,8 @@ class SiameseTrainer(Trainer):
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
                  precision = np.float32,
+                 convergence_eps = np.finfo(np.float32).min,
+                 combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
            super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, 
@@ -723,6 +755,8 @@ class SiameseTrainer(Trainer):
                  model_filename, 
                  model_keep_epochs,
                  precision,
+                 convergence_eps,
+                 combined_training_epochs,
                  use_cuda,
                  profile)
     
@@ -848,6 +882,9 @@ class SiameseTrainer(Trainer):
             # SAVE MODEL
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
             
+            # CHECK TRAINING CONVERGENCE
+            if super(Trainer, self)._has_converged(trainingstate):
+                break
           
             # ANNEAL LEARNING RATE
             if self.scheduler: 
