@@ -719,8 +719,10 @@ class ClassificationAnalyzer(MetaAnalyzer):
 
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (targets.dim() > 1 and targets.size(1) == 1) or targets.dim() == 1:
-            # Transform 0,1 encoding to -1 +1
-            targets = (targets.float() - 1e-12).sign().long()    
+            # Sanity check binary case
+            if not targets.max() > 1:
+                # Transform 0,1 encoding to -1 +1
+                targets = (targets.float() - 1e-12).sign().long()
         
         # Classification one-hot coded targets are first converted in class labels
         if targets.dim() > 1 and targets.size(1) > 1:
