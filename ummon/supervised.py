@@ -220,30 +220,8 @@ class Trainer(MetaTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        if self.combined_training_epochs > 0:
-            if validation_set is None:
-                self.logger.warn("Combined retraining needs validation data.")
-            else:
-                # load best validation model
-                self.model = trainingstate.load_weights_best_validation(self.model)
-                # combine the two datasets
-                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
-                # give some information about what we are going to do
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
-                # get the planned epochs
-                combined_training_epochs = self.combined_training_epochs
-                # modify state so that recursion is not infinite
-                self.combined_training_epochs = 0
-                # save retrained models with unique filenames
-                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
-                self.fit(dataloader_combined, 
-                         epochs=combined_training_epochs, 
-                         validation_set=None, 
-                         eval_interval=eval_interval, 
-                         trainingstate=trainingstate, 
-                         after_backward_hook=after_backward_hook, 
-                         after_eval_hook=after_eval_hook, 
-                         eval_batch_size=eval_batch_size)
+        super(Trainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
     
         return trainingstate
     
@@ -501,7 +479,7 @@ class ClassificationTrainer(Trainer):
             del output_buffer[:]
             
             # CHECK TRAINING CONVERGENCE
-            if super(Trainer, self)._has_converged(trainingstate):
+            if super(ClassificationTrainer, self)._has_converged(trainingstate):
                 break
             
             # ANNEAL LEARNING RATE
@@ -509,30 +487,8 @@ class ClassificationTrainer(Trainer):
                 self.scheduler.step()
                      
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        if self.combined_training_epochs > 0:
-            if validation_set is None:
-                self.logger.warn("Combined retraining needs validation data.")
-            else:
-                # load best validation model
-                self.model = trainingstate.load_weights_best_validation(self.model)
-                # combine the two datasets
-                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
-                # give some information about what we are going to do
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
-                # get the planned epochs
-                combined_training_epochs = self.combined_training_epochs
-                # modify state so that recursion is not infinite
-                self.combined_training_epochs = 0
-                # save retrained models with unique filenames
-                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
-                self.fit(dataloader_combined, 
-                         epochs=combined_training_epochs, 
-                         validation_set=None, 
-                         eval_interval=eval_interval, 
-                         trainingstate=trainingstate, 
-                         after_backward_hook=after_backward_hook, 
-                         after_eval_hook=after_eval_hook, 
-                         eval_batch_size=eval_batch_size)
+        super(ClassificationTrainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
         
         return trainingstate
     
@@ -937,7 +893,7 @@ class SiameseTrainer(Trainer):
             trainingstate.save_state(self.model_filename, self.model_keep_epochs)
             
             # CHECK TRAINING CONVERGENCE
-            if super(Trainer, self)._has_converged(trainingstate):
+            if super(SiameseTrainer, self)._has_converged(trainingstate):
                 break
           
             # ANNEAL LEARNING RATE
@@ -945,30 +901,8 @@ class SiameseTrainer(Trainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        if self.combined_training_epochs > 0:
-            if validation_set is None:
-                self.logger.warn("Combined retraining needs validation data.")
-            else:
-                # load best validation model
-                self.model = trainingstate.load_weights_best_validation(self.model)
-                # combine the two datasets
-                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
-                # give some information about what we are going to do
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
-                # get the planned epochs
-                combined_training_epochs = self.combined_training_epochs
-                # modify state so that recursion is not infinite
-                self.combined_training_epochs = 0
-                # save retrained models with unique filenames
-                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
-                self.fit(dataloader_combined, 
-                         epochs=combined_training_epochs, 
-                         validation_set=None, 
-                         eval_interval=eval_interval, 
-                         trainingstate=trainingstate, 
-                         after_backward_hook=after_backward_hook, 
-                         after_eval_hook=after_eval_hook, 
-                         eval_batch_size=eval_batch_size)
+        super(SiameseTrainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
         
         return trainingstate
     

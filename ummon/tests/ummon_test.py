@@ -1548,7 +1548,8 @@ class TestUmmon(unittest.TestCase):
         assert len(ts["training_loss[]"]) == 3
         
         # TEST PERSISTED MODEL
-        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern))
+        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern + "_epoch_2"))
+        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern + "_epoch_3"))
         assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-2][1]    
 
         files = os.listdir(".")
@@ -1556,6 +1557,7 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(ts.extension):
                 os.remove(os.path.join(dir,file))
+                
 
 if __name__ == '__main__':
     import argparse

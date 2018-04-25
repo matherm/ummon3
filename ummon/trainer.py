@@ -98,6 +98,9 @@ class MetaTrainer:
         self.model = uu.transform_model(model, precision, use_cuda)
     
     
+    def fit(self):
+        raise NotImplementedError("This class is superclass.")
+    
     def _prepare_epoch(self):
         """
         Some epoch initialization stuff like adjusting the learning rate scheduler and initializing the clock.
@@ -456,3 +459,64 @@ class MetaTrainer:
                 detailed_loss = repr(self.criterion))
         
         return trainingstate
+    
+    def _combined_retraining(self, trainingstate, dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size):
+        """
+        Does combined retraining with validation AND training data. Can be used after the normal training to refine the model.
+        
+        Arguments
+        ---------
+        trainingstate       :   ummon.Trainingstate
+                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
+        dataloader_training :   torch.utils.data.DataLoader OR tuple (X, batch)
+                                The dataloader that provides the training data
+        validation_set      :   torch.utils.data.Dataset OR tuple (X)
+                                The validation dataset
+        eval_interval       :   int
+                                Evaluation interval for validation dataset in epochs
+        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
+                                A hook that gets called after backward pass during training
+        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
+                                A hook that gets called after forward pass during evaluation
+        eval_batch_size     :   OPTIONAL int
+                                batch size used for evaluation (default: -1 == ALL)
+        
+        """
+        if self.combined_training_epochs > 0:
+            if validation_set is None:
+                self.logger.warn("Combined retraining needs validation data.")
+            else:
+                # load best validation model
+                self.model = trainingstate.load_weights_best_validation(self.model)
+                
+                # combine the two datasets
+                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
+                
+                # give some information about what we are going to do
+                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                
+                # get current state
+                combined_training_epochs = self.combined_training_epochs
+                model_filename = self.model_filename
+                model_keep_epochs = self.model_keep_epochs
+                
+                # modify state so that recursion is not infinite, and filenames are correct
+                self.combined_training_epochs = 0
+                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
+                self.model_keep_epochs = True
+                
+                # do actual retraining
+                self.fit(dataloader_combined, 
+                         epochs=combined_training_epochs, 
+                         validation_set=None, 
+                         eval_interval=eval_interval, 
+                         trainingstate=trainingstate, 
+                         after_backward_hook=after_backward_hook, 
+                         after_eval_hook=after_eval_hook, 
+                         eval_batch_size=eval_batch_size)
+                
+                # restore previous state
+                self.combined_training_epochs = combined_training_epochs
+                self.model_filename = model_filename
+                self.model_keep_epochs = model_keep_epochs
