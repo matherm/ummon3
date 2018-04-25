@@ -29,7 +29,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 import math
 import matplotlib.pyplot as plt
-from ummon.trainer import Trainer
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.supervised import *
