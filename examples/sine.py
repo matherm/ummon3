@@ -25,7 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ummon.trainingstate import Trainingstate
 from ummon.logger import Logger
-from ummon.supervised import Trainer
+from ummon.supervised import SupervisedTrainer
 
 #
 # SET inital seed for reproducibility 
@@ -93,25 +93,25 @@ def example(argv = DefaultValues()):
         try:
             ts = Trainingstate("SINE.pth.tar")
         except FileNotFoundError:
-            ts = None
+            ts = Trainingstate()
         
         with Logger(logdir='.', log_batch_interval=100) as lg:
             
             # CREATE A TRAINER
-            my_trainer = Trainer(lg, 
+            my_trainer = SupervisedTrainer(lg, 
                                 model, 
                                 criterion, 
                                 optimizer, 
+                                ts,
                                 model_filename="SINE", 
                                 precision=np.float32,
                                 use_cuda=argv.use_cuda)
             
             # START TRAINING
-            trainingsstate = my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
+            my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
                                         epochs=argv.epochs,
                                         validation_set=(Xts, yts), 
-                                        eval_interval=argv.eval_interval,
-                                        trainingstate=ts)
+                                        eval_interval=argv.eval_interval)
 
 if __name__ == "__main__":
     import argparse

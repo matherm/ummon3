@@ -16,7 +16,6 @@ import ummon.utils as uu
 from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
 from .logger import Logger
-from .supervised import Analyzer
 
 __all__ = ["UnsupervisedTrainer", "UnsupervisedAnalyzer"]
 
@@ -34,6 +33,9 @@ class UnsupervisedTrainer(MetaTrainer):
                       : The loss function for the optimization
     optimizer         : torch.optim.optimizer
                         The optimizer for the training
+    trainingstate     : ummon.Trainingstate
+                        A previously instantiated training state variable. Can be used 
+                        to initialize model and optimizer with a previous saved state.
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
     model_filename    : String
@@ -59,7 +61,7 @@ class UnsupervisedTrainer(MetaTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
+    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -68,7 +70,7 @@ class UnsupervisedTrainer(MetaTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(UnsupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, 
+           super(UnsupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -119,8 +121,7 @@ class UnsupervisedTrainer(MetaTrainer):
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
-        eval_batch_size=-1):
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
         
@@ -134,8 +135,6 @@ class UnsupervisedTrainer(MetaTrainer):
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        trainingstate       :   ummon.Trainingstate
-                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
@@ -143,13 +142,7 @@ class UnsupervisedTrainer(MetaTrainer):
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         
-        Return
-        ------
-        ummon.Trainingstate
-        A dictionary containing the trainingstate
         """
-        # RESTORE TRAINING STATE
-        trainingstate = super(UnsupervisedTrainer, self)._restore_training_state(trainingstate)
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_unsupervised(dataloader_training, validation_set)
@@ -205,14 +198,13 @@ class UnsupervisedTrainer(MetaTrainer):
                                                               avg_training_loss,
                                                               dataloader_training, 
                                                               after_eval_hook, 
-                                                              eval_batch_size, 
-                                                              trainingstate)
+                                                              eval_batch_size)
     
             # SAVE MODEL
-            trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
             
             # CHECK TRAINING CONVERGENCE
-            if super(UnsupervisedTrainer, self)._has_converged(trainingstate):
+            if super(UnsupervisedTrainer, self)._has_converged():
                 break
            
             # ANNEAL LEARNING RATE
@@ -220,11 +212,8 @@ class UnsupervisedTrainer(MetaTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(UnsupervisedTrainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
-        
-        return trainingstate
-    
+        super(UnsupervisedTrainer, self)._combined_retraining(dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)    
     
     
 class UnsupervisedAnalyzer(MetaAnalyzer):
@@ -241,7 +230,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
              
     """
     def __init__(self):
-        self.name = "ummon.Analyzer"
+        self.name = "ummon.UnsupervisedAnalyzer"
             
             
     @staticmethod    
@@ -301,7 +290,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 # Compute Loss
                 loss = loss_function(output, inputs).cpu()
                
-                loss_average = Analyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:

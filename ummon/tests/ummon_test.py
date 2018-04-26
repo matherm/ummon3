@@ -378,8 +378,9 @@ class TestUmmon(unittest.TestCase):
         print(b.T[0])
 
         # fit
+        trs = Trainingstate()
         with Logger(logdir='', loglevel=logging.ERROR) as lg:
-            trn = Trainer(lg, cnet, loss, opt)
+            trn = ClassificationTrainer(lg, cnet, loss, opt, trs)
             trn.fit((x0, y0, batch), 1, (x0, y0))
         
         # check results
@@ -430,11 +431,12 @@ class TestUmmon(unittest.TestCase):
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
+        trs = Trainingstate()
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=4,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
@@ -445,32 +447,31 @@ class TestUmmon(unittest.TestCase):
         # (4, 0.4970156252384186, 10000), Max
         # (5, 0.5055180191993713, 10000)]
         assert np.allclose(0.4970156252384186,
-            trainingsstate.state["best_validation_loss"][1], 1e-5)
+            trs.state["best_validation_loss"][1], 1e-5)
         
         # RESTORE STATE
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase", 
-             precision=np.float32)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
+            optimizer, trs, model_filename="testcase", precision=np.float32)
         
         # RESTART TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
                                         epochs=1,
-                                        eval_interval=1,
-                                        trainingstate=trainingsstate)
+                                        eval_interval=1)
         # ASSERT EPOCH
-        assert trainingsstate.state["training_loss[]"][-1][0] == 5
+        assert trs.state["training_loss[]"][-1][0] == 5
         
         # ASSERT LOSS
         assert np.allclose(0.4970156252384186,
-            trainingsstate.state["best_validation_loss"][1], 1e-5)
+            trs.state["best_validation_loss"][1], 1e-5)
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
-        
+    
+    
     def test_trainer_cuda(self):
         np.random.seed(17)
         torch.manual_seed(17)
@@ -512,20 +513,21 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        trs = Trainingstate()
 
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR),  model, criterion, optimizer, model_filename="testcase",  
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR),  model, criterion, optimizer, trs, model_filename="testcase",  
                              model_keep_epochs=True, use_cuda=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=2,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        assert len(trainingsstate.state["validation_loss[]"]) == 2
-        best_validation_loss = trainingsstate.state["best_validation_loss"][1]
-        best_training_loss = trainingsstate.state["best_training_loss"][1]
+        assert len(trs.state["validation_loss[]"]) == 2
+        best_validation_loss = trs.state["best_validation_loss"][1]
+        best_training_loss = trs.state["best_training_loss"][1]
         
         # Validation Error
         # (1, 0.4969218373298645, 10000), Max
@@ -537,23 +539,22 @@ class TestUmmon(unittest.TestCase):
 
         # RESTORE STATE
         my_trainer = Trainer(Logger(loglevel=logging.ERROR), 
-                             model, criterion, optimizer, model_filename="testcase", 
+                             model, criterion, optimizer, trs, model_filename="testcase", 
                               precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2,
-                                        trainingstate=trainingsstate)
+                                        eval_interval=2)
         # Should improve
-        assert len(trainingsstate.state["training_loss[]"]) == 3
-        assert np.allclose(trainingsstate.state["best_training_loss"][1], best_training_loss, 1e-2)
+        assert len(trs.state["training_loss[]"]) == 3
+        assert np.allclose(trs.state["best_training_loss"][1], best_training_loss, 1e-2)
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
     
@@ -698,34 +699,34 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        trs = Trainingstate()
         
         # CREATE A CPU TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=3,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        loss_epoch_3_cpu = trainingsstate["validation_loss[]"][-1][1]
+        loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
         
         # CREATE A CUDA TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = True)
         
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
+        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = True)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2,
-                                        trainingstate=state_cpu)       
+                                        eval_interval=2)       
 
-        loss_epoch_3_cuda = trainingsstate["validation_loss[]"][-1][1]
+        loss_epoch_3_cuda = state_cpu["validation_loss[]"][-1][1]
         
         # ASSERT             
         assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5019993185997009, loss_epoch_3_cpu, 1e-5)
@@ -733,7 +734,7 @@ class TestUmmon(unittest.TestCase):
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
 
@@ -777,36 +778,35 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        trs = Trainingstate()
         
          # CREATE A CUDA TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_cuda",  model_keep_epochs=True, use_cuda = True)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase_cuda",  model_keep_epochs=True, use_cuda = True)
         
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=3,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        loss_epoch_3_cuda = trainingsstate["validation_loss[]"][-1][1]
-        
-        # CREATE A CUDA TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+        loss_epoch_3_cuda = trs["validation_loss[]"][-1][1]
         
         state_cpu = Trainingstate("testcase_cuda_epoch_2")
         state_cpu = Trainingstate(str("testcase_cuda_epoch_2" + Trainingstate().extension))
-       
+        
+        # CREATE A CUDA TRAINER
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2,
-                                        trainingstate=state_cpu)       
+                                        eval_interval=2)       
 
-        loss_epoch_3_cpu = trainingsstate["validation_loss[]"][-1][1]
+        loss_epoch_3_cpu = state_cpu["validation_loss[]"][-1][1]
         
         # ASSERT             
         assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5019993185997009, loss_epoch_3_cpu, 1e-5)
@@ -814,7 +814,7 @@ class TestUmmon(unittest.TestCase):
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
                 
@@ -849,23 +849,24 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        trs = Trainingstate()
         
         # CREATE A FLOAT TRAINER
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_float", model_keep_epochs=True, use_cuda = False, precision = np.float32)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase_float", model_keep_epochs=True, use_cuda = False, precision = np.float32)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
         assert np.allclose(0.4970156252384186,
-            trainingsstate.state["best_validation_loss"][1], 1e-5)
-        assert np.allclose(0.5055180191993713, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+            trs.state["best_validation_loss"][1], 1e-5)
+        assert np.allclose(0.5055180191993713, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         # CREATE A DOUBLE DATASET
         dataset = TensorDataset(x.double(), y.double())
@@ -876,12 +877,12 @@ class TestUmmon(unittest.TestCase):
         model = uu.transform_model(model, np.float64)
      
         # ASSERT INFERENCE             
-        assert np.allclose(0.5055211959813041, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
     def test_reset_best_validation_model(self):
@@ -918,14 +919,15 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
         
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase_valid",  model_keep_epochs=True)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase_valid",  model_keep_epochs=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
@@ -936,28 +938,28 @@ class TestUmmon(unittest.TestCase):
         # (4, 0.4970156252384186, 10000), MAX
         # (5, 0.5055180191993713, 10000)]
         assert np.allclose(0.4970156252384186,
-            trainingsstate.state["best_validation_loss"][1], 1e-5)
+            trs.state["best_validation_loss"][1], 1e-5)
         
         # ASSERT INFERENCE BEFORE             
-        assert np.allclose(0.5055211959813041, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         # RESET STATE
-        model = trainingsstate.load_weights_best_validation(model)
+        model = trs.load_weights_best_validation(model)
         
         # ASSERT INFERENCE   
-        assert np.allclose(0.4970156252384186, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         # RESET STATE 2
-        model = trainingsstate.load_weights_best_validation(model)
+        model = trs.load_weights_best_validation(model)
         
         # ASSERT INFERENCE   
-        assert np.allclose(0.4970156252384186, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
 
@@ -995,14 +997,15 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
         
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
@@ -1014,10 +1017,10 @@ class TestUmmon(unittest.TestCase):
         # (4, 0.60142931938171518, 10), 
         # (5, 0.63713452816009752, 10)]
         assert np.allclose(0.46499215960502555,
-            trainingsstate.state["best_training_loss"][1], 1e-5)
+            trs.state["best_training_loss"][1], 1e-5)
 
         # RESET STATE
-        model = trainingsstate.load_weights_best_training(model)
+        model = trs.load_weights_best_training(model)
         
         # Validation Error
         # [(1, 0.5116240382194519, 10000), 
@@ -1026,12 +1029,12 @@ class TestUmmon(unittest.TestCase):
         # (4, 0.4970156252384186, 10000), 
         # (5, 0.5055180191993713, 10000)]        
         # ASSERT INFERENCE             
-        assert np.allclose(0.5512791275978088, Analyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(0.5512791275978088, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
 
@@ -1131,10 +1134,10 @@ class TestUmmon(unittest.TestCase):
         model = Net()
         criterion = nn.MSELoss()
         model = uu.transform_model(model, precision=np.float32)
-        self.assertTrue(Analyzer.evaluate(model, criterion, dataset_valid,  batch_size=1)["loss"] < 1.)
-        self.assertTrue(np.allclose(Analyzer.evaluate(model, criterion, dataset_valid,  batch_size= 1)["loss"],
-                                    Analyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"]))
-        self.assertTrue(type(Analyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
+        self.assertTrue(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=1)["loss"] < 1.)
+        self.assertTrue(np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size= 1)["loss"],
+                                    SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"]))
+        self.assertTrue(type(SupervisedAnalyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
      
         
     def test_hooks(self):
@@ -1169,11 +1172,12 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
         
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-        my_trainer = Trainer(Logger(), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
+        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
         
         def backward(model, output, targets, loss):
             assert not isinstance(output, torch.autograd.Variable)
@@ -1227,30 +1231,29 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         loss = nn.BCEWithLogitsLoss()
+        trs = Trainingstate()
         
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = ClassificationTrainer(Logger(), model, loss, 
-            optimizer, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
-        ts = my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, eval_interval = 1, validation_set=dataset_valid)
+        my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, eval_interval = 1, validation_set=dataset_valid)
         
-        assert ts["validation_accuracy[]"][0][1] == ts["validation_accuracy[]"][1][1] == 0.55
+        assert trs["validation_accuracy[]"][0][1] == trs["validation_accuracy[]"][1][1] == 0.55
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(ts.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
     
     def test_examples(self):
         import examples.checkstate
-        import examples.mnist1_conv
         import examples.validation
         import examples.sine
         examples.sine.example()
-        examples.mnist1_conv.example()
         examples.validation.example()
         examples.checkstate.example()
         
@@ -1260,7 +1263,7 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(Trainingstate().extension) or file.endswith(".log"):
                 os.remove(os.path.join(dir,file))
-                
+                 
     
     def test_unsupervised(self):
         np.random.seed(17)
@@ -1294,34 +1297,35 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
 
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+        my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=5,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         xn_valid = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
         xn = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
         # TEST SIMPLIFIED INTERFACE 
-        trainingsstate = my_trainer.fit(dataloader_training=(xn, 10),
+        my_trainer.fit(dataloader_training=(xn, 10),
                                         epochs=5,
                                         validation_set=xn_valid,
                                         eval_interval=1)
         
-        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
 
     def test_siamese(self):
@@ -1360,24 +1364,25 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
 
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = SiameseTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=False)
+            optimizer, trs, model_filename="testcase",  model_keep_epochs=False)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+        my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=4,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
-        assert np.allclose(trainingsstate["training_loss[]"][-1][1], 0.034056082367897172, 1e-5)
-        assert trainingsstate["training_loss[]"][-1][1] < trainingsstate["training_loss[]"][0][1]
+        assert np.allclose(trs["training_loss[]"][-1][1], 0.034056082367897172, 1e-5)
+        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
                 
@@ -1423,11 +1428,11 @@ class TestUmmon(unittest.TestCase):
   
         
         # CREATE A TRAINER
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion,
-            optimizer, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
+            optimizer, ts, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
-        ts = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=4,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
@@ -1440,7 +1445,7 @@ class TestUmmon(unittest.TestCase):
         #(1, 0.1), (2, 0.1), (3, 0.010000000000000002), (4, 0.010000000000000002)]
       
         # Scheduler implicitly loaded best validation model from epoch 3
-        assert Analyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49715909361839294
+        assert SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49715909361839294
         
         files = os.listdir(".")
         dir = "."
@@ -1481,24 +1486,25 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
 
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
+            optimizer, trs, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
         
         # START TRAINING
-        trainingsstate = my_trainer.fit(dataloader_training=dataloader_training,
+        my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=50,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        assert trainingsstate["training_loss[]"][-1][0] == 3
+        assert trs["training_loss[]"][-1][0] == 3
         
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(trainingsstate.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
     def test_combined_retraining(self):
@@ -1533,30 +1539,31 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
+        trs = Trainingstate()
 
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, model_filename="testcase", combined_training_epochs = 2)
+            optimizer, trs, model_filename="testcase", combined_training_epochs = 2)
         
         # START TRAINING
-        ts = my_trainer.fit(dataloader_training=dataloader_training,
+        my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=1,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        assert len(ts["training_loss[]"]) > len(ts["validation_loss[]"])
-        assert len(ts["training_loss[]"]) == 3
+        assert len(trs["training_loss[]"]) > len(trs["validation_loss[]"])
+        assert len(trs["training_loss[]"]) == 3
         
         # TEST PERSISTED MODEL
-        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern + "_epoch_2"))
-        retrained_state = Trainingstate(str("testcase" + ts.combined_retraining_pattern + "_epoch_3"))
+        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_1"))
+        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_2"))
         assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-2][1]    
 
         files = os.listdir(".")
         dir = "."
         for file in files:
-            if file.endswith(ts.extension):
+            if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
 

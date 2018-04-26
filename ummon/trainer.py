@@ -26,6 +26,9 @@ class MetaTrainer:
                       : The loss function for the optimization
     optimizer         : torch.optim.optimizer
                         The optimizer for the training
+    trainingstate     : ummon.Trainingstate
+                        A previously instantiated training state variable. Can be used 
+                        to initialize model and optimizer with a previous saved state.
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
     model_filename    : String
@@ -51,7 +54,7 @@ class MetaTrainer:
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
+    def __init__(self, logger, model, loss_function, optimizer, trainingstate, 
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -65,6 +68,8 @@ class MetaTrainer:
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
+        if not isinstance(trainingstate, Trainingstate):
+            raise TypeError('{} is not a training state'.format(type(trainingstate).__name__))
         if scheduler is not None:
             if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not \
                 isinstance(scheduler, StepLR_earlystop):
@@ -72,10 +77,13 @@ class MetaTrainer:
         assert precision == np.float32 or precision == np.float64
         
         # MEMBER VARIABLES
+        
         # Training parameters
+        self.logger = logger
         self.model = model
         self.criterion = loss_function
         self.optimizer = optimizer
+        self.trainingstate = trainingstate
         self.scheduler = scheduler
         self.epoch = 0
         self.precision = precision
@@ -84,12 +92,18 @@ class MetaTrainer:
         self.use_cuda = use_cuda
         self.profile = profile
         
+        # training state was filled by previous training or by persisted training state
+        if self.trainingstate.state is not None:
+            self._status_summary()
+            self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
+            self.model = self.trainingstate.load_weights(self.model)
+            self.optimizer = self.trainingstate.load_optimizer(self.optimizer)
+            if isinstance(self.scheduler, StepLR_earlystop):
+                self.scheduler = self.trainingstate.load_scheduler(self.scheduler)
+        
         #  Persistency parameters
         self.model_filename = model_filename.split(Trainingstate().extension)[0]
         self.model_keep_epochs = model_keep_epochs
-        
-        # INITIALIZE LOGGER
-        self.logger = logger
         
         # Computational configuration
         if self.use_cuda:
@@ -273,44 +287,6 @@ class MetaTrainer:
         return moving_average
     
     
-    def _restore_training_state(self, trainingstate):
-        """
-        Restores the state from a given trainingstate:
-            - loads weights
-            - loads optimizer
-            - loads scheduler
-            - resets epoch
-        
-        Arguments
-        ---------
-        *trainingstate (ummon.Trainingstate) : A class representing persisted ummon training states
-        
-        Return
-        ------
-        *trainingstate (ummon.Trainingstate) : Same as input or NEW when trainingstate was None.
-        
-        """
-        assert type(trainingstate) == Trainingstate if not trainingstate is None else True
-               
-        # RESTORE STATE    
-        if trainingstate is not None:
-            if trainingstate.state is not None:
-                self._status_summary(trainingstate)
-                self.epoch = trainingstate.state["training_loss[]"][-1][0]
-                self.model = trainingstate.load_weights(self.model)
-                self.optimizer = trainingstate.load_optimizer(self.optimizer)
-                if isinstance(self.scheduler, StepLR_earlystop):
-                    self.scheduler = trainingstate.load_scheduler(self.scheduler)
-        else:
-            # Try to get a trainingstate from the scheduler if no state was supplied
-            if isinstance(self.scheduler, StepLR_earlystop):
-                trainingstate = self.scheduler.trs
-            # Fallback: create an empty state
-            else:
-                trainingstate = Trainingstate()
-        return trainingstate
-            
-    
     def _input_params_validation(self, epochs, eval_interval):
         """
         Validates the given parameters
@@ -334,24 +310,20 @@ class MetaTrainer:
         return epochs, eval_interval     
     
     
-    def _has_converged(self, trainingstate):
+    def _has_converged(self):
         """
         Checks if the training has converged. 
         Criterium is specified by self.convergence_eps
         
-        Arguments
-        ---------
-        *trainingstate (ummon.Trainingstate) : A class representing persisted ummon training states
-      
         Return
         ------
         *break_training (bool) : 
         """
-        if len(trainingstate["training_loss[]"]) > 2:
-            if np.abs(trainingstate["training_loss[]"][-1][1] - trainingstate["training_loss[]"][-2][1]) < self.convergence_eps:
+        if len(self.trainingstate["training_loss[]"]) > 2:
+            if np.abs(self.trainingstate["training_loss[]"][-1][1] - self.trainingstate["training_loss[]"][-2][1]) < self.convergence_eps:
                 self.logger.info("Training has converged. Epsilon was {:.2e}".format(self.convergence_eps))
                 return True
-
+        
         return False
     
     
@@ -374,14 +346,15 @@ class MetaTrainer:
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
         
         
-    def _status_summary(self, trainingstate):
-        if trainingstate is not None and trainingstate.state is not None:
+    def _status_summary(self):
+        if self.trainingstate.state is not None:
             self.logger.info("[Status]" )
-            trs = trainingstate.get_summary()
+            trs = self.trainingstate.get_summary()
             self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
                 trs['Best Validation Loss'][0], trs['Best Validation Loss'][1]))
-
+    
+    
     def _evaluate_training(self, Analyzer, batch, batches, 
                   time_dict, 
                   epoch, eval_interval, 
@@ -389,8 +362,7 @@ class MetaTrainer:
                   avg_training_loss,
                   dataloader_training, 
                   after_eval_hook, 
-                  eval_batch_size, 
-                  trainingstate):
+                  eval_batch_size):
         """
         Evaluates the current training state against agiven analyzer
         
@@ -407,14 +379,9 @@ class MetaTrainer:
         *dataloader_training : The training data
         *after_eval_hook : A hook that gets executed after evaluation
         *eval_batch_size (int) : A custom batch size to be used during evaluation
-        *trainingstate (ummon.Trainingstate) : The trainingstate object to be updated
-        
-        Return
-        ------
-        *trainingstate (ummon.Trainingstate) : The updated trainingstate object
         
         """
-
+        
         # Log epoch
         self.logger.log_epoch(epoch + 1, batch + 1, 
                               batches, 
@@ -434,7 +401,7 @@ class MetaTrainer:
                                                     batch_size=eval_batch_size)
                 
                 # UPDATE TRAININGSTATE
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+                self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                                         training_loss = avg_training_loss, 
                                         training_batchsize = dataloader_training.batch_size,
                                         training_dataset = dataloader_training.dataset,
@@ -447,28 +414,25 @@ class MetaTrainer:
                                         scheduler = self.scheduler,
                                         combined_retraining = self.combined_training_epochs)
         
-                self.logger.log_regression_evaluation(trainingstate, self.profile)
+                self.logger.log_regression_evaluation(self.trainingstate, self.profile)
                         
         else: # no validation set
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+            self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                 training_loss = avg_training_loss, 
                 training_batchsize = dataloader_training.batch_size,
                 training_dataset = dataloader_training.dataset,
                 trainer_instance = type(self),
                 precision = self.precision,
                 detailed_loss = repr(self.criterion))
-        
-        return trainingstate
     
-    def _combined_retraining(self, trainingstate, dataloader_training, validation_set, 
+    
+    def _combined_retraining(self, dataloader_training, validation_set, 
                              eval_interval, after_backward_hook, after_eval_hook, eval_batch_size):
         """
         Does combined retraining with validation AND training data. Can be used after the normal training to refine the model.
         
         Arguments
         ---------
-        trainingstate       :   ummon.Trainingstate
-                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         dataloader_training :   torch.utils.data.DataLoader OR tuple (X, batch)
                                 The dataloader that provides the training data
         validation_set      :   torch.utils.data.Dataset OR tuple (X)
@@ -488,7 +452,7 @@ class MetaTrainer:
                 self.logger.warn("Combined retraining needs validation data.")
             else:
                 # load best validation model
-                self.model = trainingstate.load_weights_best_validation(self.model)
+                self.model = self.trainingstate.load_weights_best_validation(self.model)
                 
                 # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
@@ -503,7 +467,7 @@ class MetaTrainer:
                 
                 # modify state so that recursion is not infinite, and filenames are correct
                 self.combined_training_epochs = 0
-                self.model_filename = str(self.model_filename + trainingstate.combined_retraining_pattern)
+                self.model_filename = str(self.model_filename + self.trainingstate.combined_retraining_pattern)
                 self.model_keep_epochs = True
                 
                 # do actual retraining
@@ -511,7 +475,6 @@ class MetaTrainer:
                          epochs=combined_training_epochs, 
                          validation_set=None, 
                          eval_interval=eval_interval, 
-                         trainingstate=trainingstate, 
                          after_backward_hook=after_backward_hook, 
                          after_eval_hook=after_eval_hook, 
                          eval_batch_size=eval_batch_size)

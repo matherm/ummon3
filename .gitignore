@@ -9,3 +9,4 @@ local*
 *.pth.tar
 *.log
 examples/MNIST
+.DS_Store

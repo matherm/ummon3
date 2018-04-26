@@ -47,10 +47,13 @@ loss = nn.BCEWithLogitsLoss(size_average = False)
 # optimizer
 opt = torch.optim.SGD(cnet.parameters(), lr=0.1 / 16)
 
+# training state
+trs = Trainingstate()
+
 with Logger(logdir='.', log_batch_interval=5000) as lg:
     
     # trainer
-    trn = ClassificationTrainer(lg, cnet, loss, opt)
+    trn = ClassificationTrainer(lg, cnet, loss, opt, trs)
     
     # train
     trn.fit((x0,y0,16), epochs=35, validation_set=(x2,y2), eval_interval=5)

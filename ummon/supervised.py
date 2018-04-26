@@ -17,12 +17,12 @@ from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
 from .logger import Logger
 
-__all__ = ["Trainer" , "Analyzer", "ClassificationTrainer", "ClassificationAnalyzer", 
+__all__ = ["SupervisedTrainer" , "SupervisedAnalyzer", "ClassificationTrainer", "ClassificationAnalyzer", 
            "SiameseTrainer", "SiameseAnalyzer" ]
 
-class Trainer(MetaTrainer):
+class SupervisedTrainer(MetaTrainer):
     """
-    This class provides a specialized trainer for training Regression PyTorch-models.
+    This class provides a specialized trainer for training supervised PyTorch-models.
     
     Constructor
     -----------
@@ -34,6 +34,9 @@ class Trainer(MetaTrainer):
                       : The loss function for the optimization
     optimizer         : torch.optim.optimizer
                         The optimizer for the training
+    trainingstate     : ummon.Trainingstate
+                        A previously instantiated training state variable. Can be used 
+                        to initialize model and optimizer with a previous saved state.
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
     model_filename    : String
@@ -59,7 +62,7 @@ class Trainer(MetaTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
+    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -68,7 +71,7 @@ class Trainer(MetaTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(Trainer, self).__init__(logger, model, loss_function, optimizer, 
+           super(SupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate, 
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -119,8 +122,7 @@ class Trainer(MetaTrainer):
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
-        eval_batch_size=-1):
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
         
@@ -134,34 +136,25 @@ class Trainer(MetaTrainer):
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        trainingstate       :   ummon.Trainingstate
-                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
-        
-        Return
-        ------
-        ummon.Trainingstate
-        A dictionary containing the trainingstate
         """
-        # RESTORE TRAINING STATE
-        trainingstate = super(Trainer, self)._restore_training_state(trainingstate)
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_supervised(dataloader_training, validation_set)
-        epochs, eval_interval = super(Trainer, self)._input_params_validation(epochs, eval_interval)
+        epochs, eval_interval = super(SupervisedTrainer, self)._input_params_validation(epochs, eval_interval)
         
         # PROBLEM SUMMARY
-        super(Trainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
+        super(SupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
             # EPOCH PREPARATION
-            time_dict = super(Trainer, self)._prepare_epoch()
+            time_dict = super(SupervisedTrainer, self)._prepare_epoch()
             
             # Moving average
             n, avg_training_loss = 5, None
@@ -180,39 +173,38 @@ class Trainer(MetaTrainer):
                 if self.use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
                 
-                output, time_dict = super(Trainer, self)._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = super(Trainer, self)._loss_one_batch(output, targets, time_dict)
+                output, time_dict = super(SupervisedTrainer, self)._forward_one_batch(inputs, time_dict)
+                loss,   time_dict = super(SupervisedTrainer, self)._loss_one_batch(output, targets, time_dict)
                 
                 # Backpropagation
-                time_dict = super(Trainer, self)._backward_one_batch(loss, time_dict,
+                time_dict = super(SupervisedTrainer, self)._backward_one_batch(loss, time_dict,
                                                       after_backward_hook, output, targets)
                 
                 # Loss averaging
                 avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
                 
                 # Reporting
-                time_dict = super(Trainer, self)._finish_one_batch(batch, batches, 
+                time_dict = super(SupervisedTrainer, self)._finish_one_batch(batch, batches, 
                                                     epoch, 
                                                     avg_training_loss,
                                                     dataloader_training.batch_size, 
                                                     time_dict)
         
             # Evaluate
-            super(Trainer, self)._evaluate_training(Analyzer, batch, batches, 
+            super(SupervisedTrainer, self)._evaluate_training(SupervisedAnalyzer, batch, batches, 
                           time_dict, 
                           epoch, eval_interval, 
                           validation_set, 
                           avg_training_loss,
                           dataloader_training, 
                           after_eval_hook, 
-                          eval_batch_size, 
-                          trainingstate)
+                          eval_batch_size)
             
             # SAVE MODEL
-            trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
                      
             # CHECK TRAINING CONVERGENCE
-            if super(Trainer, self)._has_converged(trainingstate):
+            if super(SupervisedTrainer, self)._has_converged():
                 break
             
             # ANNEAL LEARNING RATE
@@ -220,15 +212,13 @@ class Trainer(MetaTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(Trainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
+        super(SupervisedTrainer, self)._combined_retraining(dataloader_training, validation_set, 
                              eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
     
-        return trainingstate
     
-    
-class Analyzer(MetaAnalyzer):
+class SupervisedAnalyzer(MetaAnalyzer):
     """
-    This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
+    This class provides a generic analyzer for supervised PyTorch-models. For a given PyTorch-model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
     
@@ -240,7 +230,7 @@ class Analyzer(MetaAnalyzer):
              
     """
     def __init__(self):
-        self.name = "ummon.Analyzer"
+        self.name = "ummon.SupervisedAnalyzer"
             
             
     @staticmethod    
@@ -302,7 +292,7 @@ class Analyzer(MetaAnalyzer):
                 targets = Variable(targets)
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = Analyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
@@ -315,7 +305,7 @@ class Analyzer(MetaAnalyzer):
 
         return evaluation_dict
 
-class ClassificationTrainer(Trainer):
+class ClassificationTrainer(SupervisedTrainer):
     """
     This class provides a specialized trainer for training Regression PyTorch-models.
     
@@ -329,6 +319,9 @@ class ClassificationTrainer(Trainer):
                       : The loss function for the optimization
     optimizer         : torch.optim.optimizer
                         The optimizer for the training
+    trainingstate     : ummon.Trainingstate
+                        A previously instantiated training state variable. Can be used 
+                        to initialize model and optimizer with a previous saved state.
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
     model_filename    : String
@@ -354,7 +347,7 @@ class ClassificationTrainer(Trainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
+    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -363,7 +356,7 @@ class ClassificationTrainer(Trainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, 
+           super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -375,8 +368,7 @@ class ClassificationTrainer(Trainer):
     
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
-        eval_batch_size=-1):
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
         
@@ -390,8 +382,6 @@ class ClassificationTrainer(Trainer):
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        trainingstate       :   ummon.Trainingstate
-                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
@@ -399,14 +389,7 @@ class ClassificationTrainer(Trainer):
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         
-        Return
-        ------
-        ummon.Trainingstate
-        A dictionary containing the trainingstate
         """
-        # RESTORE TRAINING STATE
-        trainingstate = super(ClassificationTrainer, self)._restore_training_state(trainingstate)
-        
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = super(ClassificationTrainer, self)._input_data_validation_supervised(dataloader_training, validation_set)
         epochs, eval_interval = super(ClassificationTrainer, self)._input_params_validation(epochs, eval_interval)
@@ -469,17 +452,16 @@ class ClassificationTrainer(Trainer):
                           dataloader_training, 
                           after_eval_hook, 
                           eval_batch_size, 
-                          trainingstate, 
                           output_buffer)
             
             # SAVE MODEL
-            trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
                
              # CLEAN UP
             del output_buffer[:]
             
             # CHECK TRAINING CONVERGENCE
-            if super(ClassificationTrainer, self)._has_converged(trainingstate):
+            if super(ClassificationTrainer, self)._has_converged():
                 break
             
             # ANNEAL LEARNING RATE
@@ -487,10 +469,8 @@ class ClassificationTrainer(Trainer):
                 self.scheduler.step()
                      
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(ClassificationTrainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
+        super(ClassificationTrainer, self)._combined_retraining(dataloader_training, validation_set, 
                              eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
-        
-        return trainingstate
     
     
     def _evaluate_training(self, batch, batches, 
@@ -501,7 +481,6 @@ class ClassificationTrainer(Trainer):
                   dataloader_training, 
                   after_eval_hook, 
                   eval_batch_size, 
-                  trainingstate, 
                   output_buffer):
 
         # Log epoch
@@ -531,7 +510,7 @@ class ClassificationTrainer(Trainer):
                                                     batch_size=eval_batch_size)
                 
                 # UPDATE TRAININGSTATE
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+                self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                                         training_loss = avg_training_loss, 
                                         training_accuracy = avg_training_acc,
                                         training_batchsize = dataloader_training.batch_size,
@@ -545,7 +524,7 @@ class ClassificationTrainer(Trainer):
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler)
         
-                self.logger.log_classification_evaluation(trainingstate, self.profile)
+                self.logger.log_classification_evaluation(self.trainingstate, self.profile)
                         
         else: # no validation set
                 
@@ -557,7 +536,7 @@ class ClassificationTrainer(Trainer):
                     acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
                     avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc_buffer)
                 
-                trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
+                self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                     training_loss = avg_training_loss, 
                     training_accuracy = avg_training_acc,
                     training_batchsize = dataloader_training.batch_size,
@@ -565,12 +544,11 @@ class ClassificationTrainer(Trainer):
                     trainer_instance = type(self),
                     precision = self.precision,
                     detailed_loss = repr(self.criterion))
-        
-        return trainingstate
 
-class ClassificationAnalyzer(MetaAnalyzer):
+
+class ClassificationAnalyzer(SupervisedAnalyzer):
     """
-    This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
+    This class provides a generic analyzer for PyTorch classification models. For a given PyTorch-model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
     
@@ -642,7 +620,7 @@ class ClassificationAnalyzer(MetaAnalyzer):
 
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = Analyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
@@ -712,7 +690,7 @@ class ClassificationAnalyzer(MetaAnalyzer):
     
 
 
-class SiameseTrainer(Trainer):
+class SiameseTrainer(SupervisedTrainer):
     """
     This class provides a specialized trainer for training Regression PyTorch-models.
     
@@ -726,6 +704,9 @@ class SiameseTrainer(Trainer):
                       : The loss function for the optimization
     optimizer         : torch.optim.optimizer
                         The optimizer for the training
+    trainingstate     : ummon.Trainingstate
+                        A previously instantiated training state variable. Can be used 
+                        to initialize model and optimizer with a previous saved state.
     scheduler         : torch.optim.lr_scheduler._LRScheduler
                         OPTIONAL A learning rate scheduler
     model_filename    : String
@@ -751,7 +732,7 @@ class SiameseTrainer(Trainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
+    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -760,7 +741,7 @@ class SiameseTrainer(Trainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, 
+           super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -797,8 +778,7 @@ class SiameseTrainer(Trainer):
         return dataloader_training, validation_set, batches
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
-        trainingstate=None, after_backward_hook=None, after_eval_hook=None, 
-        eval_batch_size=-1):
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
         
@@ -812,22 +792,13 @@ class SiameseTrainer(Trainer):
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        trainingstate       :   ummon.Trainingstate
-                                OPTIONAL An optional trainingstate to initialize model and optimizer with an previous state
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
-        
-        Return
-        ------
-        ummon.Trainingstate
-        A dictionary containing the trainingstate
         """
-        # RESTORE TRAINING STATE
-        trainingstate = super(SiameseTrainer, self)._restore_training_state(trainingstate)
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_siamese(dataloader_training, validation_set)
@@ -886,14 +857,13 @@ class SiameseTrainer(Trainer):
                                                           avg_training_loss,
                                                           dataloader_training, 
                                                           after_eval_hook, 
-                                                          eval_batch_size, 
-                                                          trainingstate)
+                                                          eval_batch_size)
     
             # SAVE MODEL
-            trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
             
             # CHECK TRAINING CONVERGENCE
-            if super(SiameseTrainer, self)._has_converged(trainingstate):
+            if super(SiameseTrainer, self)._has_converged():
                 break
           
             # ANNEAL LEARNING RATE
@@ -901,16 +871,13 @@ class SiameseTrainer(Trainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(SiameseTrainer, self)._combined_retraining(trainingstate, dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
-        
-        return trainingstate
-    
+        super(SiameseTrainer, self)._combined_retraining(dataloader_training, validation_set, 
+                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)    
        
     
-class SiameseAnalyzer(Analyzer):
+class SiameseAnalyzer(SupervisedAnalyzer):
     """
-    This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
+    This class provides a generic analyzer for PyTorch siamese models. For a given model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
     
@@ -981,7 +948,7 @@ class SiameseAnalyzer(Analyzer):
                 # Compute Loss
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = Analyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
