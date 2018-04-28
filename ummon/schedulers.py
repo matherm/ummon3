@@ -128,14 +128,14 @@ class StepLR_earlystop(object):
             self._reduce_lr()
             self.num_bad_epochs = 0
             self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self.model)
+            self.trs.load_weights_best_validation(self.model, self.optimizer)
         
         # end of current learning rate reached => go to next learning rate
         if self.num_epochs_in_step == self.step_size:
             self._reduce_lr()
             self.num_bad_epochs = 0
             self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self.model)
+            self.trs.load_weights_best_validation(self.model, self.optimizer)
             
     
     def load_state_dict(self, state_dict):

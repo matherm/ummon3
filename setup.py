@@ -14,7 +14,7 @@ import torchvision
 import shutil
 
 # VERSION DEPENDENCIES
-if "0.3" or "0.3.1" not in torch.__version__: 
+if "0.3"  not in torch.__version__: 
     exit("Sorry, PyTorch version " + torch.__version__ + " is not supported yet! Please use version 0.3.x")
 
 

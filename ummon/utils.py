@@ -290,27 +290,6 @@ def get_cuda_memory_info():
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-
-def transform_model(model, precision, use_cuda = False):
-    assert isinstance(model, nn.Module)
-    assert precision == np.float32 or precision == np.float64
-    
-    # Computational configuration
-    if precision == np.float32:
-        model = model.float()
-    if precision == np.float64:
-        model = model.double()
-    if precision == np.int32:
-        # TODO: Custom model conversion FPGA-Teamproject
-        pass
-    if use_cuda:
-        assert torch.cuda.is_available() == True
-        model = model.cuda()
-    else:
-        model = model.cpu()
-    return model
-        
-
 def tensor_tuple_to_variables(the_tuple):
     assert type(the_tuple) == tuple or type(the_tuple) == list
     assert isinstance(the_tuple[0], torch.Tensor)
@@ -335,4 +314,24 @@ def add_dataset_to_loader(dataloader, merge_dataset):
                                    num_workers=dataloader.num_workers)
     return dataloader_merged
        
-      
+
+def update_optimizer_weights(model, optimizer):
+    """
+    Repoints the weights of an optimizer to a new model.
+    """
+
+    #for name, param in model.named_parameters():
+    #    print(name) 
+
+    # Delete the current weights
+    del optimizer.param_groups[:]
+
+    param_groups = list(model.parameters())
+    if len(param_groups) == 0:
+        raise ValueError("optimizer got an empty parameter list")
+    if not isinstance(param_groups[0], dict):
+        param_groups = [{'params': param_groups}]
+
+    for param_group in param_groups:
+            optimizer.add_param_group(param_group)
+

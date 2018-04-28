@@ -538,7 +538,7 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(np.allclose(0.4969218373298645, best_validation_loss, 1e-5))
 
         # RESTORE STATE
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), 
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), 
                              model, criterion, optimizer, trs, model_filename="testcase", 
                               precision=np.float32, use_cuda=True)
 
@@ -694,7 +694,7 @@ class TestUmmon(unittest.TestCase):
         
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss()
@@ -713,23 +713,23 @@ class TestUmmon(unittest.TestCase):
                                         eval_interval=1)
         
         loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
+        print(trs["validation_loss[]"])
         
         # CREATE A CUDA TRAINER
-        
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
-        my_trainer = Trainer(Logger(loglevel=logging.ERROR), model, criterion, 
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = True)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2)       
+                                        eval_interval=1)       
 
         loss_epoch_3_cuda = state_cpu["validation_loss[]"][-1][1]
         
         # ASSERT             
-        assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5019993185997009, loss_epoch_3_cpu, 1e-5)
+        assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5029625296592712, loss_epoch_3_cpu, 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -773,7 +773,7 @@ class TestUmmon(unittest.TestCase):
         
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss()
@@ -793,23 +793,22 @@ class TestUmmon(unittest.TestCase):
         
         loss_epoch_3_cuda = trs["validation_loss[]"][-1][1]
         
-        state_cpu = Trainingstate("testcase_cuda_epoch_2")
-        state_cpu = Trainingstate(str("testcase_cuda_epoch_2" + Trainingstate().extension))
+        state_cuda = Trainingstate("testcase_cuda_epoch_2")
         
         # CREATE A CUDA TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+            optimizer, state_cuda, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid, 
-                                        eval_interval=2)       
+                                        eval_interval=1)       
 
-        loss_epoch_3_cpu = state_cpu["validation_loss[]"][-1][1]
+        loss_epoch_3_cpu = state_cuda["validation_loss[]"][-1][1]
         
         # ASSERT             
-        assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5019993185997009, loss_epoch_3_cpu, 1e-5)
+        assert np.allclose(loss_epoch_3_cuda, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5029625296592712, loss_epoch_3_cpu, 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -874,7 +873,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
       
         state = Trainingstate("testcase_float_epoch_5")
-        model = uu.transform_model(model, np.float64)
+        model = Trainingstate.transform_model(model, optimizer, np.float64)
      
         # ASSERT INFERENCE             
         assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
@@ -944,13 +943,13 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         # RESET STATE
-        model = trs.load_weights_best_validation(model)
+        model = trs.load_weights_best_validation(model, optimizer)
         
         # ASSERT INFERENCE   
         assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
         
         # RESET STATE 2
-        model = trs.load_weights_best_validation(model)
+        model = trs.load_weights_best_validation(model, optimizer)
         
         # ASSERT INFERENCE   
         assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
@@ -1020,7 +1019,7 @@ class TestUmmon(unittest.TestCase):
             trs.state["best_training_loss"][1], 1e-5)
 
         # RESET STATE
-        model = trs.load_weights_best_training(model)
+        model = trs.load_weights_best_training(model, optimizer)
         
         # Validation Error
         # [(1, 0.5116240382194519, 10000), 
@@ -1133,7 +1132,7 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss()
-        model = uu.transform_model(model, precision=np.float32)
+        model = Trainingstate.transform_model(model, None, precision=np.float32)
         self.assertTrue(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=1)["loss"] < 1.)
         self.assertTrue(np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size= 1)["loss"],
                                     SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"]))
@@ -1416,36 +1415,31 @@ class TestUmmon(unittest.TestCase):
         
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         ts = Trainingstate()
     
         # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 2, patience=2)
+        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 2, patience=1)
   
-        
         # CREATE A TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
             optimizer, ts, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=4,
+                                        epochs=13,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         # Validation Error
-        #[(1, 0.5116240382194519, 10000),
-        # (2, 0.5512791275978088, 10000),
-        # (3, 0.49715909361839294, 10000), BEST
-        # (4, 0.49719667434692383, 10000)][
-        # Learning rate
-        #(1, 0.1), (2, 0.1), (3, 0.010000000000000002), (4, 0.010000000000000002)]
-      
+        #print(ts["validation_loss[]"])
+        #print(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"])
+        
         # Scheduler implicitly loaded best validation model from epoch 3
-        assert SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49715909361839294
+        assert SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49826908111572266
         
         files = os.listdir(".")
         dir = "."
@@ -1566,6 +1560,82 @@ class TestUmmon(unittest.TestCase):
             if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
                 
+
+    def test_resume_persisted_training(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.sigmoid(self.fc1(x))
+                x = self.fc2(x)
+                return x
+        
+        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y = torch.from_numpy(np.sin(x.numpy())) 
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
+        
+        dataset = TensorDataset(x.float(), y.float())
+        dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        trs = Trainingstate()
+        
+        # CREATE A CPU TRAINER
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+        
+        
+        # START TRAINING
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        epochs=3,
+                                        validation_set=dataset_valid, 
+                                        eval_interval=1)
+        
+        loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
+        print(trs["validation_loss[]"])
+        
+        # CREATE A CUDA TRAINER
+        state_cpu = Trainingstate("testcase_cpu_epoch_2")
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+        
+        # RESTART TRAINING
+        my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        epochs=1,
+                                        validation_set=dataset_valid, 
+                                        eval_interval=1)       
+
+        loss_epoch_3_cpu2 = state_cpu["validation_loss[]"][-1][1]
+        
+        # ASSERT             
+        assert np.allclose(loss_epoch_3_cpu2, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5029625296592712, loss_epoch_3_cpu, 1e-5)
+        
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(trs.extension):
+                os.remove(os.path.join(dir,file))
+                
+
+
 
 if __name__ == '__main__':
     import argparse

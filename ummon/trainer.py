@@ -96,8 +96,8 @@ class MetaTrainer:
         if self.trainingstate.state is not None:
             self._status_summary()
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
-            self.model = self.trainingstate.load_weights(self.model)
             self.optimizer = self.trainingstate.load_optimizer(self.optimizer)
+            self.model = self.trainingstate.load_weights(self.model, optimizer)
             if isinstance(self.scheduler, StepLR_earlystop):
                 self.scheduler = self.trainingstate.load_scheduler(self.scheduler)
         
@@ -109,7 +109,7 @@ class MetaTrainer:
         if self.use_cuda:
             if not torch.cuda.is_available():
                 logger.error('CUDA is not available on your system.')
-        self.model = uu.transform_model(model, precision, use_cuda)
+        self.model = Trainingstate.transform_model(self.model, self.optimizer, precision, use_cuda)
     
     
     def fit(self):
@@ -452,7 +452,7 @@ class MetaTrainer:
                 self.logger.warn("Combined retraining needs validation data.")
             else:
                 # load best validation model
-                self.model = self.trainingstate.load_weights_best_validation(self.model)
+                self.model = self.trainingstate.load_weights_best_validation(self.model, self.optimizer)
                 
                 # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
@@ -483,3 +483,19 @@ class MetaTrainer:
                 self.combined_training_epochs = combined_training_epochs
                 self.model_filename = model_filename
                 self.model_keep_epochs = model_keep_epochs
+
+    def _repair_references(self, model, optimizer, scheduler):
+        """
+        Helper method to repair references after the model's parameters have changed.
+        This happens when the model is converted to CUDA or older weights are loaded.
+        When this happens, the optimizer optimizes old weights as he does not have the current weights.
+        Therefore we need to repoint the optimizers weights to the new model.
+        
+        Arguments
+        --------
+        model (nn.module) : the new model with weights
+        optimizer (torch.utils.data.optimizer) : the optimizer
+        scheduler (torch.utils.data.scheduler) : OPTIONAL a scheduler pointing to an optimizer
+
+        """
+        pass

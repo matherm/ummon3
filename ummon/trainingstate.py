@@ -301,7 +301,7 @@ class Trainingstate():
          return self.state[item]
     
     
-    def load_weights_best_training(self, model):
+    def load_weights_best_training(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -312,6 +312,7 @@ class Trainingstate():
         Arguments
         ---------
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
         
         Return
         ------
@@ -326,9 +327,9 @@ class Trainingstate():
         else:
             self.load_state(str(self.short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
            
-        return self.load_weights(model)           
+        return self.load_weights(model, optimizer)           
     
-    def load_weights_best_validation(self, model):
+    def load_weights_best_validation(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -339,6 +340,7 @@ class Trainingstate():
         Arguments
         ---------
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
         
         Return
         ------
@@ -352,10 +354,10 @@ class Trainingstate():
             self.load_state(str(self.short_filename + self.extension), self.force_weights_to_cpu)
         else:
             self.load_state(str(self.short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
-        return self.load_weights(model)           
+        return self.load_weights(model, optimizer)           
     
     
-    def load_weights(self, model):
+    def load_weights(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -366,6 +368,7 @@ class Trainingstate():
         Arguments
         ---------
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
+        *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
         
         Return
         ------
@@ -376,9 +379,11 @@ class Trainingstate():
         assert isinstance(model, nn.Module)
             
         model.load_state_dict(self.state["model_state"])            
+        
+        if optimizer is not None:
+            uu.update_optimizer_weights(model, optimizer)
        
         return model
-    
     
     def load_optimizer(self, optimizer):
         """
@@ -400,7 +405,6 @@ class Trainingstate():
         
         return optimizer
     
-    
     def load_scheduler(self, scheduler):
         assert self.state is not None
         
@@ -408,5 +412,45 @@ class Trainingstate():
             scheduler.load_state_dict(self.state['scheduler_state'])
         
         return scheduler
+
+    @staticmethod
+    def transform_model(model, optimizer, precision, use_cuda = False):
+        """
+        Transforms the model weights to an artbitray precision or device like cuda.
+
+        Arguments
+        ---------
+        *model (nn.module) : The model to be transformed.
+        *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights.
+        *precision (np.dtype) : The target dtype
+        *use_cuda (bool) : Shall model be transformed to cuda.
+
+        Return
+        ------
+        *model (nn.module) : The transformed model.
+
+        """
+        assert isinstance(model, nn.Module)
+        assert precision == np.float32 or precision == np.float64
+     
+        # Computational configuration
+        if precision == np.float32:
+            model = model.float()
+        if precision == np.float64:
+            model = model.double()
+        if precision == np.int32:
+            # TODO: Custom model conversion FPGA-Teamproject
+            pass
+        if use_cuda:
+            assert torch.cuda.is_available() == True
+            model = model.cuda()
+        else:
+            model = model.cpu()
+
+        if optimizer is not None:
+            uu.update_optimizer_weights(model, optimizer)
+
+        return model
+ 
 
 from .schedulers import StepLR_earlystop
