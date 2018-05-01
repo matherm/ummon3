@@ -75,7 +75,13 @@ class Trainingstate():
         occurs in the resulting dictionary.
         
         """
-        
+        # COMPATIBILITY FOR TORCH < v.0.4
+        if type(validation_loss) == torch.Tensor:
+            validation_loss = validation_loss.item()
+        if type(training_loss) == torch.Tensor:
+            training_loss = training_loss.item()
+
+
         # INITIALIZE NEW STATE
         if self.state is None:
             if validation_accuracy is not None and validation_loss is not None and validation_dataset is not None:

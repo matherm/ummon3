@@ -182,7 +182,7 @@ class UnsupervisedTrainer(MetaTrainer):
                                                       after_backward_hook, output, inputs)
                 
                 # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
                 
                 # Reporting
                 time_dict = super(UnsupervisedTrainer, self)._finish_one_batch(batch, batches, 
@@ -291,7 +291,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 # Compute Loss
                 loss = loss_function(output, inputs).cpu()
                
-                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
