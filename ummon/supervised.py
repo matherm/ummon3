@@ -62,7 +62,8 @@ class SupervisedTrainer(MetaTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
+    def __init__(self, logger, model, loss_function, optimizer, 
+                 trainingstate = None,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -347,7 +348,8 @@ class ClassificationTrainer(SupervisedTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
+    def __init__(self, logger, model, loss_function, optimizer,
+                 trainingstate = None,
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,

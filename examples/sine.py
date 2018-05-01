@@ -84,10 +84,10 @@ def example(argv = DefaultValues()):
         model = Net()  
         
         # CHOOSE LOSS-Function
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average = False)
         
-          # INSTANTIATE OPTIMIZER
-        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
+        # INSTANTIATE OPTIMIZER
+        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate/argv.batch_size)
         
         # LOAD TRAINING STATE
         try:

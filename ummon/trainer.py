@@ -54,7 +54,8 @@ class MetaTrainer:
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, trainingstate, 
+    def __init__(self, logger, model, loss_function, optimizer, 
+                 trainingstate = None, 
                  scheduler = None, 
                  model_filename = "model.pth.tar", 
                  model_keep_epochs = False,
@@ -68,12 +69,18 @@ class MetaTrainer:
         assert isinstance(model, nn.Module)
         assert isinstance(optimizer, torch.optim.Optimizer)
         assert isinstance(loss_function, nn.Module)
-        if not isinstance(trainingstate, Trainingstate):
+        if trainingstate == None:
+            self.trainingstate = Trainingstate()
+        elif not isinstance(trainingstate, Trainingstate):
             raise TypeError('{} is not a training state'.format(type(trainingstate).__name__))
+        else:
+            self.trainingstate = trainingstate
         if scheduler is not None:
             if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not \
                 isinstance(scheduler, StepLR_earlystop):
                 raise TypeError('{} is not a scheduler'.format(type(scheduler).__name__))
+            if isinstance(scheduler, StepLR_earlystop) and trainingstate == None:
+                raise ValueError('StepLR_earlystop needs an external Trainingstate (you provided None).')
         assert precision == np.float32 or precision == np.float64
         
         # MEMBER VARIABLES
@@ -83,7 +90,6 @@ class MetaTrainer:
         self.model = model
         self.criterion = loss_function
         self.optimizer = optimizer
-        self.trainingstate = trainingstate
         self.scheduler = scheduler
         self.epoch = 0
         self.precision = precision

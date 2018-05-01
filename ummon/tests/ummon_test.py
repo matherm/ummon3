@@ -101,46 +101,46 @@ class TestUmmon(unittest.TestCase):
         y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
         
         # test MSE loss
-        loss = nn.MSELoss()
+        loss = nn.MSELoss(size_average=False)
         mse = loss(x1, y1).data.numpy()
         print('MSE:     ', mse[0])
-        mse_true = ((x0 - y0)**2).mean() # pyTorch divides by n_dim instead of 2
+        mse_true = ((x0 - y0)**2).sum() # pyTorch divides by n_dim instead of 2
         print('True MSE:', mse_true)
         assert np.allclose(mse, mse_true, 0, 1e-3)
         
         # test log likelihood loss function
         y1 = Variable(torch.LongTensor(2*y0[:,2]), requires_grad=False) # pytorch takes class index, not one-hot coding
-        loss = nn.NLLLoss()
+        loss = nn.NLLLoss(size_average=False)
         LL = loss(x1, y1).data.numpy()
         print('LL:     ', LL[0])
         # should be LL_true = (-y0*np.nan_to_num(np.log(x0))).sum(axis=1).mean(), but pytorch expects x1 to be already log'd by Log Softmax 
-        LL_true = (-y0*x0).sum(axis=1).mean()
+        LL_true = (-y0*x0).sum()
         print('True LL:', LL_true)
         assert np.allclose(LL, LL_true, 0, 1e-3)
         
         # test pytorch cross entropy loss function (=logsoftmax + NLL)
-        loss = nn.CrossEntropyLoss()
+        loss = nn.CrossEntropyLoss(size_average=False)
         ce = loss(x1, y1).data.numpy()
         print('CE:      ', ce[0])
         # pytorch CE is combination of log softmax and log likelihood
-        ce_true = (-x0[:,2] + np.log(np.exp(x0).sum(axis=1))).mean()
+        ce_true = (-x0[:,2] + np.log(np.exp(x0).sum(axis=1))).sum()
         print('True CE: ', ce_true)
         assert np.allclose(ce, ce_true, 0, 1e-3)
         
         # test binary cross entropy
-        loss = nn.BCELoss()
+        loss = nn.BCELoss(size_average=False)
         y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
         bce = loss(x1, y1).data.numpy()
         print('BCE:     ', bce[0])
-        bce_true = ((np.nan_to_num(-y0*np.log(x0)-(1-y0)*np.log(1-x0))).mean(axis=1)).mean()
+        bce_true = (np.nan_to_num(-y0*np.log(x0)-(1-y0)*np.log(1-x0))).sum()
         print('True BCE:', bce_true) # pytorch takes mean across dimensions instead of sum
         assert np.allclose(bce, bce_true, 0, 1e-3)
         
         # test pytorch combined sigmoid and bce
-        loss = nn.BCEWithLogitsLoss()
+        loss = nn.BCEWithLogitsLoss(size_average=False)
         bce = loss(x1, y1).data.numpy()
         print('BCEL:    ', bce[0])
-        bce_true = ((np.nan_to_num(-y0*np.log(sigmoid(x0))-(1-y0)*np.log(1-sigmoid(x0)))).mean(axis=1)).mean()
+        bce_true = (np.nan_to_num(-y0*np.log(sigmoid(x0))-(1-y0)*np.log(1-sigmoid(x0)))).sum()
         print('TrueBCEL:', bce_true)
         assert np.allclose(bce, bce_true, 0, 1e-3)
         
@@ -158,12 +158,12 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(hinge, hinge_true, 0, 1e-3)
         
         # test true standard hinge loss
-        loss = nn.MarginRankingLoss(margin=1.0)
+        loss = nn.MarginRankingLoss(size_average=False, margin=1.0)
         dummy = torch.FloatTensor(6,1).zero_()
         # dummy variable must have same size as x1, but must be 0
         hinge = loss(x1, dummy, y1).data.numpy()
         print('Hinge:   ', hinge[0])
-        hinge_true = ((np.maximum(0, 1 - x0*y0)).sum(axis=1)).mean()
+        hinge_true = (np.maximum(0, 1 - x0*y0)).sum()
         print('True Hin:', hinge_true)
         assert np.allclose(hinge, hinge_true, 0, 1e-3)
         
@@ -225,11 +225,11 @@ class TestUmmon(unittest.TestCase):
             
             # loss
             if lossfunc == 'mse':
-                lo =  ((y - y2)**2).mean()
+                lo =  ((y - y2)**2).sum()
             elif lossfunc == 'cross_entropy': # binary cross entropy
-                lo = ((np.nan_to_num(-y*np.log(y2)-(1-y)*np.log(1-y2))).mean(axis=1)).mean()
+                lo = (np.nan_to_num(-y*np.log(y2)-(1-y)*np.log(1-y2))).sum()
             elif lossfunc == 'log_likelihood': # log likelihood
-                lo = (-y*y2).sum(axis=1).mean()
+                lo = (-y*y2).sum()
             
             return lo
         
@@ -237,14 +237,14 @@ class TestUmmon(unittest.TestCase):
             
             print('\n')
             print("Loss function: {}, Activation: {}".format(lossfunc, act))
-            eta = 0.5
             batch = 4
+            eta = 0.5
             
             # activation
             if act == 'sigmoid':
                 nonl = nn.Sigmoid()
             elif act == 'logsoftmax':
-                nonl = nn.LogSoftmax()
+                nonl = nn.LogSoftmax(dim=1)
             
             # net
             cnet = Sequential(
@@ -255,11 +255,11 @@ class TestUmmon(unittest.TestCase):
             
             # loss
             if lossfunc == 'mse':
-                loss = nn.MSELoss()
+                loss = nn.MSELoss(size_average=False)
             elif lossfunc == 'cross_entropy':
-                loss = nn.BCELoss()
+                loss = nn.BCELoss(size_average=False)
             elif lossfunc == 'log_likelihood': 
-                loss = nn.NLLLoss()
+                loss = nn.NLLLoss(size_average=False)
             
             # get weights
             w0 = cnet.line0.w
@@ -339,12 +339,12 @@ class TestUmmon(unittest.TestCase):
         print('\n')
         
         # create net
-        eta = 0.1
         batch = 4
+        eta = 0.1/batch
         cnet = Sequential(
             ('line0', Linear([3], 2, 'xavier_normal'))
         )
-        loss = nn.BCEWithLogitsLoss()
+        loss = nn.BCEWithLogitsLoss(size_average=False)
         opt = torch.optim.SGD(cnet.parameters(), lr=eta)
         w = cnet.line0.w
         b = cnet.line0.b.copy()
@@ -367,9 +367,9 @@ class TestUmmon(unittest.TestCase):
             
             # reference backward path
             dL = 0.5*(y2 - y0[i*batch:(i+1)*batch,:])
-            db = (1/batch)*dL.sum(axis=0).reshape(2,1)
+            db = dL.sum(axis=0).reshape(2,1)
             b = b - eta*db
-            dW = (1/batch)*np.dot(dL.transpose(), x0[i*batch:(i+1)*batch,:])
+            dW = np.dot(dL.transpose(), x0[i*batch:(i+1)*batch,:])
             w = w - eta*dW
         
         print('Ref. weight matrix:')
@@ -378,9 +378,8 @@ class TestUmmon(unittest.TestCase):
         print(b.T[0])
 
         # fit
-        trs = Trainingstate()
         with Logger(logdir='', loglevel=logging.ERROR) as lg:
-            trn = ClassificationTrainer(lg, cnet, loss, opt, trs)
+            trn = ClassificationTrainer(lg, cnet, loss, opt)
             trn.fit((x0, y0, batch), 1, (x0, y0))
         
         # check results
@@ -427,8 +426,8 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         
         # CREATE A TRAINER
         trs = Trainingstate()
@@ -446,7 +445,7 @@ class TestUmmon(unittest.TestCase):
         # (3, 0.5019993185997009, 10000), 
         # (4, 0.4970156252384186, 10000), Max
         # (5, 0.5055180191993713, 10000)]
-        assert np.allclose(0.4970156252384186,
+        assert np.allclose(4970.15625,
             trs.state["best_validation_loss"][1], 1e-5)
         
         # RESTORE STATE
@@ -462,7 +461,7 @@ class TestUmmon(unittest.TestCase):
         assert trs.state["training_loss[]"][-1][0] == 5
         
         # ASSERT LOSS
-        assert np.allclose(0.4970156252384186,
+        assert np.allclose(4970.15625,
             trs.state["best_validation_loss"][1], 1e-5)
         
         files = os.listdir(".")
@@ -846,8 +845,8 @@ class TestUmmon(unittest.TestCase):
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         model = Net()
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         trs = Trainingstate()
         
         # CREATE A FLOAT TRAINER
@@ -863,9 +862,9 @@ class TestUmmon(unittest.TestCase):
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
         
-        assert np.allclose(0.4970156252384186,
-            trs.state["best_validation_loss"][1], 1e-5)
-        assert np.allclose(0.5055180191993713, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
+        assert np.allclose(5055.18017578125, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid)["loss"], 1e-5)
         
         # CREATE A DOUBLE DATASET
         dataset = TensorDataset(x.double(), y.double())
@@ -875,8 +874,9 @@ class TestUmmon(unittest.TestCase):
         state = Trainingstate("testcase_float_epoch_5")
         model = Trainingstate.transform_model(model, optimizer, np.float64)
      
-        # ASSERT INFERENCE             
-        assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        # ASSERT INFERENCE
+        assert np.allclose(5055.211968942567, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -917,11 +917,11 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trs, model_filename="testcase_valid",  model_keep_epochs=True)
         
@@ -936,23 +936,25 @@ class TestUmmon(unittest.TestCase):
         # (3, 0.5019993185997009, 10000), 
         # (4, 0.4970156252384186, 10000), MAX
         # (5, 0.5055180191993713, 10000)]
-        assert np.allclose(0.4970156252384186,
-            trs.state["best_validation_loss"][1], 1e-5)
+        assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
         
-        # ASSERT INFERENCE BEFORE             
-        assert np.allclose(0.5055211959813041, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        # ASSERT INFERENCE BEFORE
+        assert np.allclose(5055.18017578125, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid)["loss"], 1e-5)
         
         # RESET STATE
         model = trs.load_weights_best_validation(model, optimizer)
         
-        # ASSERT INFERENCE   
-        assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        # ASSERT INFERENCE
+        assert np.allclose(4970.15625, SupervisedAnalyzer.evaluate(model, criterion, 
+                dataset_valid)["loss"], 1e-5)
         
         # RESET STATE 2
         model = trs.load_weights_best_validation(model, optimizer)
         
-        # ASSERT INFERENCE   
-        assert np.allclose(0.4970156252384186, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        # ASSERT INFERENCE
+        assert np.allclose(4970.15625, SupervisedAnalyzer.evaluate(model, criterion, 
+            dataset_valid)["loss"], 1e-5)
         
         
         files = os.listdir(".")
@@ -995,7 +997,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
         
         # CREATE A TRAINER
@@ -1015,7 +1017,7 @@ class TestUmmon(unittest.TestCase):
         # (3, 0.56548817157745335, 10), 
         # (4, 0.60142931938171518, 10), 
         # (5, 0.63713452816009752, 10)]
-        assert np.allclose(0.46499215960502555,
+        assert np.allclose(16335.201757812483,
             trs.state["best_training_loss"][1], 1e-5)
 
         # RESET STATE
@@ -1027,8 +1029,9 @@ class TestUmmon(unittest.TestCase):
         # (3, 0.5019993185997009, 10000), 
         # (4, 0.4970156252384186, 10000), 
         # (5, 0.5055180191993713, 10000)]        
-        # ASSERT INFERENCE             
-        assert np.allclose(0.5512791275978088, SupervisedAnalyzer.evaluate(model, criterion, dataset_valid)["loss"], 1e-5)
+        # ASSERT INFERENCE 
+        assert np.allclose(15470231.0, SupervisedAnalyzer.evaluate(model, criterion, 
+            dataset_valid)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -1061,8 +1064,8 @@ class TestUmmon(unittest.TestCase):
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(Net().parameters(), lr=0.01)
+        criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(Net().parameters(), lr=0.001)
         
         ts = Trainingstate()
         ts.update_state(0, Net(), criterion, optimizer, 0, 
@@ -1167,16 +1170,16 @@ class TestUmmon(unittest.TestCase):
         
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, 
+            sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
-        trs = Trainingstate()
+        criterion = nn.MSELoss(size_average=False)
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = SupervisedTrainer(Logger(), model, criterion, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, model_filename="testcase",  model_keep_epochs=True)
         
         def backward(model, output, targets, loss):
             assert not isinstance(output, torch.autograd.Variable)
@@ -1229,11 +1232,11 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        loss = nn.BCEWithLogitsLoss()
+        loss = nn.BCEWithLogitsLoss(size_average=False)
         trs = Trainingstate()
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = ClassificationTrainer(Logger(), model, loss, 
             optimizer, trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
@@ -1295,7 +1298,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
@@ -1362,11 +1365,11 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = SiameseTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trs, model_filename="testcase",  model_keep_epochs=False)
         
@@ -1375,7 +1378,7 @@ class TestUmmon(unittest.TestCase):
                                         epochs=4,
                                         validation_set=dataset_valid, 
                                         eval_interval=1)
-        assert np.allclose(trs["training_loss[]"][-1][1], 0.034056082367897172, 1e-5)
+        assert np.allclose(trs["training_loss[]"][-1][1], 0.34056084752082944, 1e-5)
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         files = os.listdir(".")
@@ -1418,8 +1421,8 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         ts = Trainingstate()
     
         # EARLY STOPPING
@@ -1439,7 +1442,7 @@ class TestUmmon(unittest.TestCase):
         #print(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"])
         
         # Scheduler implicitly loaded best validation model from epoch 3
-        assert SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 0.49826908111572266
+        assert SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"]  == 4982.69091796875
         
         files = os.listdir(".")
         dir = "."
@@ -1479,11 +1482,11 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trs, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
         
@@ -1532,11 +1535,11 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trs, model_filename="testcase", combined_training_epochs = 2)
         
@@ -1594,8 +1597,8 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         trs = Trainingstate()
         
         # CREATE A CPU TRAINER
@@ -1625,8 +1628,8 @@ class TestUmmon(unittest.TestCase):
 
         loss_epoch_3_cpu2 = state_cpu["validation_loss[]"][-1][1]
         
-        # ASSERT             
-        assert np.allclose(loss_epoch_3_cpu2, loss_epoch_3_cpu, 1e-5) and np.allclose(0.5029625296592712, loss_epoch_3_cpu, 1e-5)
+        # ASSERT       
+        assert np.allclose(loss_epoch_3_cpu2, loss_epoch_3_cpu, 1e-5) and np.allclose(5029.5966796875, loss_epoch_3_cpu, 1e-5)
         
         files = os.listdir(".")
         dir = "."
