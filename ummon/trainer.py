@@ -173,18 +173,16 @@ class MetaTrainer:
         
         Arguments
         ---------
-        *output    (torch.autograd.Variable): A packed torch.Tensor representing a single output of a mini-batch.
-        *targets   (torch.autograd.Variable): The targets for a mini-batch
+        *output    (torch.Tensor): A packed torch.Tensor representing a single output of a mini-batch.
+        *targets   (torch.Tensor): The targets for a mini-batch
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
         
         Return
         ------
-        *loss      (torch.autograd.Variable): The computed loss as scalar
+        *loss      (torch.Tensor): The computed loss as scalar
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
         
         """
-        assert type(output) == torch.autograd.Variable
-
         if targets.is_cuda or output.is_cuda:
             output, targets = output.cuda(), targets.cuda()
         
@@ -283,6 +281,13 @@ class MetaTrainer:
         * moving_average (float) : The new computed moving average.
         
         """
+        # BACKWARD COMPATIBILITY FOR TORCH < 0.4
+        if type(value) is not float:
+            if type(value) == torch.Tensor:
+                value = value.item()
+            else:
+                value = value.data[0]
+        
         n = buffer.shape[0]
         if ma is None:
             moving_average = value

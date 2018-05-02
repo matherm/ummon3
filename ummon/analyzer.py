@@ -33,6 +33,12 @@ class MetaAnalyzer:
     
     @staticmethod
     def _online_average(data, count, avg):
+        # BACKWARD COMPATIBILITY FOR TORCH < 0.4
+        if type(data) is not float:
+            if type(data) == torch.Tensor:
+                data = data.item()
+            else:
+                data = data.data[0]
         navg = avg + (data - avg) / count
         return navg
     

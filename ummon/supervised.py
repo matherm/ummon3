@@ -184,7 +184,7 @@ class SupervisedTrainer(MetaTrainer):
                                                       after_backward_hook, output, targets)
                 
                 # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
                 
                 # Reporting
                 time_dict = super(SupervisedTrainer, self)._finish_one_batch(batch, batches, 
@@ -295,7 +295,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 targets = Variable(targets)
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
@@ -436,7 +436,7 @@ class ClassificationTrainer(SupervisedTrainer):
                                                       time_dict, after_backward_hook, output, targets)
                 
                 # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
         
                 
                 # Reporting
@@ -627,7 +627,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
 
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
@@ -690,9 +690,15 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
 
         # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
-        
+
+        # BACKWARD COMPATBILITY FOR TORCH < 0.4
+        sum_correct = correct.sum()
+
+        if type(sum_correct) == torch.Tensor:
+            sum_correct = sum_correct.item()
+
         # accuracy
-        accuracy = correct.sum() / len(targets)
+        accuracy = sum_correct / len(targets)
         return accuracy
     
 
@@ -847,7 +853,7 @@ class SiameseTrainer(SupervisedTrainer):
                                                       after_backward_hook, output, targets)
                 
                 # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu().data[0], training_loss_buffer)
+                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
                 
                 # Reporting
                 time_dict = super(SiameseTrainer, self)._finish_one_batch(batch, batches, 
@@ -955,7 +961,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 # Compute Loss
                 loss = loss_function(output, targets).cpu()
                
-                loss_average = MetaAnalyzer._online_average(loss.data[0], i + 1, loss_average)
+                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
                 # Run hook
                 if after_eval_hook is not None:
