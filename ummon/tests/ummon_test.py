@@ -1232,7 +1232,15 @@ class TestUmmon(unittest.TestCase):
         import examples.checkstate
         import examples.validation
         import examples.sine
-        examples.sine.example()
+        import examples.mnist1_conv
+        
+        ts = examples.mnist1_conv.example()
+        assert ts["best_validation_accuracy"][1] > 0.11
+        
+
+        ts = examples.sine.example()
+        assert ts["best_validation_loss"][1] < 1.2
+        
         examples.validation.example()
         examples.checkstate.example()
         

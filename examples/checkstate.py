@@ -25,7 +25,7 @@ import pprint
 class DefaultValues(dict):
     def __init__(self):
         dict.__init__(self, {
-                        "model" : "",
+                        "model" : "MNIST1",
                         "verbose" : False
                         })
     __getattr__ = dict.get
@@ -46,7 +46,7 @@ def example(argv = DefaultValues()):
         else:
             print(ts.get_summary())
     else:
-        print("No model was given..") 
+        raise Exception("No model was given..") 
 
 if __name__ == "__main__":
     import argparse

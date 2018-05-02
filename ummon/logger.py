@@ -230,7 +230,7 @@ class Logger(logging.getLoggerClass()):
         else:
             is_best = learningstate.state["validation_loss[]"][-1][1] == \
                 learningstate.state["best_validation_loss"][1]
-            self.debug('       Throughput is {:.0f} samples/s'.format(
+            self.debug('       Throughput is {} samples/s'.format(
                 learningstate.state["samples_per_second[]"][-1][1]))
             return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
                 learningstate.state["training_loss[]"][-1][1], 

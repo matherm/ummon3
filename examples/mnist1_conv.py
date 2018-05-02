@@ -84,7 +84,7 @@ class DefaultValues(dict):
                         "epochs" : 1,
                         "lrate": 0.01,
                         "use_cuda" : False,
-                        "batch_size" : 40,
+                        "batch_size" : 500,
                         "view" : "",
                         "eval_interval" : 1
                         })
@@ -119,7 +119,7 @@ def example(argv = DefaultValues()):
             ts = Trainingstate()
         
         # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 100, patience=3)
+        earlystop = StepLR_earlystop(optimizer,ts, model, step_size = 100, patience=3)
                 
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
@@ -133,14 +133,15 @@ def example(argv = DefaultValues()):
                                 model_filename="MNIST1", 
                                 precision=np.float32,
                                 combined_training_epochs = 1,
-                                use_cuda=argv.use_cuda)
+                                use_cuda=argv.use_cuda,
+                                trainingstate = ts)
             
             # START TRAINING
             trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=argv.epochs,
-                                        validation_set=mnist_data_test, 
-                                        eval_interval=argv.eval_interval,
-                                        trainingstate=ts)
+                                        validation_set=mnist_data_test)
+
+        return ts
 
 if __name__ == "__main__":
     import argparse

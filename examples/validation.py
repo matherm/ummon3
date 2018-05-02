@@ -82,7 +82,7 @@ class DefaultValues(dict):
     def __init__(self):
         dict.__init__(self, {
                         "use_cuda" : False,
-                        "model" : ""
+                        "model" : "MNIST1.pth.tar"
                         })
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
@@ -104,11 +104,11 @@ def example(argv = DefaultValues()):
         # LOAD TRAINING STATE
         if argv.model is not "":
             ts = Trainingstate(argv.model)
-            model = ts.load_weights(model)
+            model = ts.load_weights(model, None)
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
             lg.info(ClassificationAnalyzer.evaluate(model, criterion, (Xtr, ytr)))
-    
+            
 
 if __name__ == "__main__":
     import argparse

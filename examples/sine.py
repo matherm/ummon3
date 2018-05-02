@@ -110,6 +110,8 @@ def example(argv = DefaultValues()):
             my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
                                         epochs=argv.epochs,
                                         validation_set=(Xts, yts))
+            
+        return ts
 
 if __name__ == "__main__":
     import argparse
