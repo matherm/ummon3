@@ -237,7 +237,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, batch_size, logger=Logger(), after_eval_hook=None):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -249,12 +249,12 @@ class SupervisedAnalyzer(MetaAnalyzer):
                           The loss function to evaluate
         dataset         : torch.utils.data.Dataset OR tuple (X,y)
                           Dataset to evaluate
-        batch_size      : int
-                          batch size used for evaluation (default: -1 == ALL)
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
         after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
         
         Return
         ------
@@ -273,7 +273,8 @@ class SupervisedAnalyzer(MetaAnalyzer):
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
         loss_average = 0.
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, sampler=None, 
+        bs = len(dataset) if batch_size == -1 else batch_size
+        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, 
                 batch_sampler=None)
         for i, data in enumerate(dataloader, 0):
                 

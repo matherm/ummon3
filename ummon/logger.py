@@ -247,7 +247,7 @@ class Logger(logging.getLoggerClass()):
         detailed_loss = detailed_loss.replace('\n', ' ').replace('\r', ' ')
         samples_per_seconds = learningstate.state["samples_per_second[]"][-1][1]
         self.debug('       Detailed loss information: {}'.format(detailed_loss))
-        self.debug('       Throughput is {:.0f} samples/s'.format(samples_per_seconds))
+        self.debug('       Throughput is {} samples/s'.format(samples_per_seconds))
 
         # without validation data
         if learningstate.state["validation_loss[]"] == []:

@@ -416,9 +416,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -438,9 +438,12 @@ class TestUmmon(unittest.TestCase):
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=4,
                                         validation_set=dataset_valid)
-        # Validation Error
-        assert np.allclose(4970.15625,
-            trs.state["best_validation_loss"][1], 1e-5)
+        # ASSERT EPOCH
+        assert trs.state["best_validation_loss"][0] == 4
+        # ASSERT LOSS
+        assert np.allclose(1.3245278948545447,
+            trs.state["best_validation_loss"][1], 1e-4)
+        loss_epoch_4 = trs.state["best_validation_loss"][1]
         
         # RESTORE STATE
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
@@ -449,14 +452,11 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         validation_set=dataset_valid, 
-                                        epochs=1,
-                                        eval_interval=1)
+                                        epochs=1)
         # ASSERT EPOCH
         assert trs.state["training_loss[]"][-1][0] == 5
-        
         # ASSERT LOSS
-        assert np.allclose(4970.15625,
-            trs.state["best_validation_loss"][1], 1e-5)
+        assert loss_epoch_4 > trs.state["best_validation_loss"][1]
         
         files = os.listdir(".")
         dir = "."
@@ -515,8 +515,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=2,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         assert len(trs.state["validation_loss[]"]) == 2
         best_validation_loss = trs.state["best_validation_loss"][1]
@@ -538,8 +537,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=2)
+                                        validation_set=dataset_valid)
         # Should improve
         assert len(trs.state["training_loss[]"]) == 3
         assert np.allclose(trs.state["best_training_loss"][1], best_training_loss, 1e-2)
@@ -702,8 +700,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=3,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
         print(trs["validation_loss[]"])
@@ -716,8 +713,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)       
+                                        validation_set=dataset_valid)       
 
         loss_epoch_3_cuda = state_cpu["validation_loss[]"][-1][1]
         
@@ -781,8 +777,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=3,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         loss_epoch_3_cuda = trs["validation_loss[]"][-1][1]
         
@@ -795,8 +790,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)       
+                                        validation_set=dataset_valid)       
 
         loss_epoch_3_cpu = state_cuda["validation_loss[]"][-1][1]
         
@@ -833,9 +827,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         model = Net()
@@ -855,9 +849,9 @@ class TestUmmon(unittest.TestCase):
                                         epochs=5,
                                         validation_set=dataset_valid)
         
-        assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
-        assert np.allclose(5055.18017578125, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(1.2176150370091205, trs.state["best_validation_loss"][1], 1e-5)
+        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size = 10)["loss"], 1e-5)
         
         # CREATE A DOUBLE DATASET
         dataset = TensorDataset(x.double(), y.double())
@@ -868,8 +862,8 @@ class TestUmmon(unittest.TestCase):
         model = Trainingstate.transform_model(model, optimizer, np.float64)
      
         # ASSERT INFERENCE
-        assert np.allclose(5055.211968942567, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size = 10)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -900,9 +894,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -923,26 +917,26 @@ class TestUmmon(unittest.TestCase):
                                         epochs=5,
                                         validation_set=dataset_valid)
         # Validation Error
-        assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
+        assert 5 ==  trs.state["best_validation_loss"][0]
+        assert np.allclose(1.2176150370091205, trs.state["best_validation_loss"][1], 1e-4)
         
         # ASSERT INFERENCE BEFORE
-        assert np.allclose(5055.18017578125, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid)["loss"], 1e-5)
+        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE
         model = trs.load_weights_best_validation(model, optimizer)
         
         # ASSERT INFERENCE
-        assert np.allclose(4970.15625, SupervisedAnalyzer.evaluate(model, criterion, 
-                dataset_valid)["loss"], 1e-5)
+        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE 2
-        model = trs.load_weights_best_validation(model, optimizer)
+        model = trs.load_weights_best_training(model, optimizer)
         
         # ASSERT INFERENCE
-        assert np.allclose(4970.15625, SupervisedAnalyzer.evaluate(model, criterion, 
-            dataset_valid)["loss"], 1e-5)
-        
+        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -1300,10 +1294,9 @@ class TestUmmon(unittest.TestCase):
         # TEST SIMPLIFIED INTERFACE 
         my_trainer.fit(dataloader_training=(xn, 10),
                                         epochs=5,
-                                        validation_set=xn_valid,
-                                        eval_interval=1)
+                                        validation_set=xn_valid)
         
-        assert np.abs(trs["training_loss[]"][-1][1]) < np.abs(trs["training_loss[]"][0][1])
+        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         files = os.listdir(".")
         dir = "."
@@ -1391,9 +1384,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -1402,7 +1395,7 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         ts = Trainingstate()
     
         # EARLY STOPPING
@@ -1414,15 +1407,14 @@ class TestUmmon(unittest.TestCase):
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=13,
+                                        epochs=20,
                                         validation_set=dataset_valid)
         # Validation Error
-        #print(ts["validation_loss[]"])
-        #print(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"])
-        
-        # Scheduler implicitly loaded best validation model from epoch 3
-        print(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid, batch_size=10000))
-        assert np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"], 4982.690, 1e-3)
+        # (18, 0.7694963872712105, 10000), (19, 0.7768834088072186, 10000)
+
+        # Scheduler implicitly loaded best validation model from epoch 18
+        assert ts["best_validation_loss"][0] == 18
+        assert np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"], 0.7694963872712105, 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -1475,6 +1467,7 @@ class TestUmmon(unittest.TestCase):
                                         epochs=50,
                                         validation_set=dataset_valid)
         
+        # CRITERION SHOULD BE REACHED AFTER 3 EPOCHS
         assert trs["training_loss[]"][-1][0] == 3
         
         files = os.listdir(".")
@@ -1590,9 +1583,8 @@ class TestUmmon(unittest.TestCase):
                                         validation_set=dataset_valid)
         
         loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
-        print(trs["validation_loss[]"])
         
-        # CREATE A CUDA TRAINER
+        # CREATE A NEW CPU TRAINER
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
@@ -1604,8 +1596,8 @@ class TestUmmon(unittest.TestCase):
 
         loss_epoch_3_cpu2 = state_cpu["validation_loss[]"][-1][1]
         
-        # ASSERT       
-        assert np.allclose(loss_epoch_3_cpu2, loss_epoch_3_cpu, 1e-5) and np.allclose(5029.5966796875, loss_epoch_3_cpu, 1e-5)
+        # ASSERT
+        assert np.allclose(loss_epoch_3_cpu2, loss_epoch_3_cpu, 1e-5) and np.allclose(5.029627222061157, loss_epoch_3_cpu, 1e-5)
         
         files = os.listdir(".")
         dir = "."

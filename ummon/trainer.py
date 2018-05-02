@@ -398,9 +398,9 @@ class MetaTrainer:
                 evaluation_dict = Analyzer.evaluate(self.model, 
                                                     self.criterion, 
                                                     validation_set, 
-                                                    eval_batch_size,
                                                     self.logger, 
-                                                    after_eval_hook)
+                                                    after_eval_hook,
+                                                    eval_batch_size)
                 
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 

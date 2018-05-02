@@ -45,13 +45,11 @@ class Trainingstate():
         self.valid_pattern = "_best_valid_loss"
         self.combined_retraining_pattern = "_comb_retrn"
         self.force_weights_to_cpu = force_weights_to_cpu
+        self.filename = filename
 
         if filename is not None:
             if self.extension not in filename:
                 self.filename = str(filename + self.extension)
-            else:
-                self.filename = filename
-            self.short_filename = filename.split(self.extension)[0]
             self.load_state(self.filename, force_weights_to_cpu)
         
     def update_state(self, 
@@ -216,6 +214,28 @@ class Trainingstate():
                     "Best Training Loss"   : self.state["best_training_loss"],
                     "Best Validation Loss" : self.state["best_validation_loss"],
                   }
+        
+        
+    def get_loss(self):
+        """
+        Returns a summary of the trainingstate's losses
+        
+        Return
+        ------
+        *summary (dict) : A summary containing 'epochs', 'Best Training Loss' and 'Best Validation Loss', 'validation_loss[]', 'training_loss[]'
+        
+        """
+        if self.state is None:
+            return {}
+
+        return {
+                    "Epochs"               : self.state["training_loss[]"][-1][0],
+                    "Best Training Loss"   : self.state["best_training_loss"],
+                    "Best Validation Loss" : self.state["best_validation_loss"],
+                    "validation_loss[]"    : self.state["validation_loss[]"],
+                    "training_loss[]"      : self.state["training_loss[]"],
+                  }
+    
     
     def load_state(self, filename = None, force_weights_to_cpu = True):
         """
@@ -228,22 +248,19 @@ class Trainingstate():
                                                 that converts CUDA floats to CPU floats (default True)
         
         """
-        if filename is None:
+        assert filename is not None or self.filename is not None
+        if filename == None:
             filename = self.filename
-            short_filename = self.short_filename
-        else:
-            if self.extension not in filename:
-                filename = str(filename + self.extension)
-            short_filename = filename.split(self.extension)[0]
-            self.short_filename = short_filename
-            self.filename = filename
-        assert filename is not None
+        if self.extension not in filename:
+            filename = str(filename + self.extension)
         
         if force_weights_to_cpu:
             self.state = torch.load(filename, map_location=lambda storage, loc: storage)
         else:
             self.state = torch.load(filename)        
-            
+
+        # UPDATE NAME            
+        self.filename = filename.replace(self.train_pattern, '').replace(self.valid_pattern, '')
         
     def save_state(self, filename = None, keep_epochs = False):
         """
@@ -255,24 +272,22 @@ class Trainingstate():
         *OPTIONAL keep_epochs (bool) : When TRUE the state of every epoch is stored 
                                        with pattern "MODEL_epoch_{NUMBER}.pth.tar" (default False).
         """
-        if filename is None:
+        assert filename is not None or self.filename is not None
+        if filename == None:
             filename = self.filename
-            short_filename = self.short_filename
-        else:
-            if self.extension not in filename:
-                filename = str(filename + self.extension)
-            short_filename = filename.split(self.extension)[0]
-            self.short_filename = short_filename
-            self.filename = filename
-        assert filename is not None
+        if self.extension not in filename:
+            filename = str(filename + self.extension)
+
+        # UPDATE NAME            
+        self.filename = filename.replace(self.train_pattern, '').replace(self.valid_pattern, '')
         
-        file_extension = self.extension
+        short_filename = filename.split(self.extension)[0]
         if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
-            filename = short_filename + "_epoch_" + str(epoch) + file_extension
+            filename = short_filename + "_epoch_" + str(epoch) + self.extension
             torch.save(self.state, filename)
         else:
-            filename = short_filename + file_extension
+            filename = short_filename + self.extension
             torch.save(self.state, filename)  
         
         def is_best_train(state):
@@ -289,10 +304,10 @@ class Trainingstate():
             return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
         if is_best_train(self.state):
-            shutil.copyfile(filename, str(short_filename + self.train_pattern + file_extension))
+            shutil.copyfile(filename, str(short_filename + self.train_pattern + self.extension))
 
         if is_best_valid(self.state):
-            shutil.copyfile(filename, str(short_filename + self.valid_pattern + file_extension))
+            shutil.copyfile(filename, str(short_filename + self.valid_pattern + self.extension))
             
      
     def __repr__(self):
@@ -326,12 +341,13 @@ class Trainingstate():
         
         """
         assert isinstance(model, nn.Module)
-        assert self.short_filename is not None
+        assert self.filename is not None
+        short_filename = self.filename.split(self.extension)[0]
 
-        if self.train_pattern in self.short_filename:
-            self.load_state(str(self.short_filename + self.extension), self.force_weights_to_cpu)
+        if self.train_pattern in short_filename:
+            self.load_state(str(short_filename + self.extension), self.force_weights_to_cpu)
         else:
-            self.load_state(str(self.short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
+            self.load_state(str(short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
            
         return self.load_weights(model, optimizer)           
     
@@ -354,12 +370,13 @@ class Trainingstate():
         
         """
         assert isinstance(model, nn.Module)
-        assert self.short_filename is not None
+        assert self.filename is not None
+        short_filename = self.filename.split(self.extension)[0]
         
-        if self.valid_pattern in self.short_filename:
-            self.load_state(str(self.short_filename + self.extension), self.force_weights_to_cpu)
+        if self.valid_pattern in short_filename:
+            self.load_state(str(short_filename + self.extension), self.force_weights_to_cpu)
         else:
-            self.load_state(str(self.short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
+            self.load_state(str(short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
         return self.load_weights(model, optimizer)           
     
     
