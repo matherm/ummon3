@@ -436,7 +436,7 @@ class MetaTrainer:
     
     
     def _combined_retraining(self, dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size):
+                             after_backward_hook, after_eval_hook, eval_batch_size):
         """
         Does combined retraining with validation AND training data. Can be used after the normal training to refine the model.
         
@@ -446,8 +446,6 @@ class MetaTrainer:
                                 The dataloader that provides the training data
         validation_set      :   torch.utils.data.Dataset OR tuple (X)
                                 The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
@@ -483,7 +481,6 @@ class MetaTrainer:
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
                          validation_set=None, 
-                         eval_interval=eval_interval, 
                          after_backward_hook=after_backward_hook, 
                          after_eval_hook=after_eval_hook, 
                          eval_batch_size=eval_batch_size)

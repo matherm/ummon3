@@ -215,8 +215,8 @@ class SupervisedTrainer(MetaTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(SupervisedTrainer, self)._combined_retraining(dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
+        self._combined_retraining(dataloader_training, validation_set, 
+                             after_backward_hook, after_eval_hook, eval_batch_size)
     
     
 class SupervisedAnalyzer(MetaAnalyzer):
@@ -476,7 +476,7 @@ class ClassificationTrainer(SupervisedTrainer):
                      
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         super(ClassificationTrainer, self)._combined_retraining(dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)
+                             after_backward_hook, after_eval_hook, eval_batch_size)
     
     
     def _evaluate_training(self, batch, batches, 
@@ -790,7 +790,7 @@ class SiameseTrainer(SupervisedTrainer):
        
         return dataloader_training, validation_set, batches
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
+    def fit(self, dataloader_training, epochs=1, validation_set=None,  
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
@@ -803,8 +803,6 @@ class SiameseTrainer(SupervisedTrainer):
                                 Epochs to train
         validation_set      :   torch.utils.data.Dataset
                                 The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
@@ -815,7 +813,7 @@ class SiameseTrainer(SupervisedTrainer):
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_siamese(dataloader_training, validation_set)
-        epochs, eval_interval = super(SiameseTrainer, self)._input_params_validation(epochs, eval_interval)
+        epochs = self._input_params_validation(epochs)
         
         # PROBLEM SUMMARY
         super(SiameseTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
@@ -863,9 +861,9 @@ class SiameseTrainer(SupervisedTrainer):
                                                     time_dict)
         
             # Evaluate
-            super(SiameseTrainer, self)._evaluate_training(SiameseAnalyzer, batch, batches, 
+            self._evaluate_training(SiameseAnalyzer, batch, batches, 
                                                           time_dict, 
-                                                          epoch, eval_interval, 
+                                                          epoch, 
                                                           validation_set, 
                                                           avg_training_loss,
                                                           dataloader_training, 
@@ -884,8 +882,8 @@ class SiameseTrainer(SupervisedTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(SiameseTrainer, self)._combined_retraining(dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)    
+        self._combined_retraining(dataloader_training, validation_set, 
+            after_backward_hook, after_eval_hook, eval_batch_size)    
        
     
 class SiameseAnalyzer(SupervisedAnalyzer):

@@ -60,8 +60,7 @@ class DefaultValues(dict):
                         "lrate": 0.01,
                         "use_cuda" : False,
                         "batch_size" : 2,
-                        "view" : "",
-                        "eval_interval" : 1
+                        "view" : ""
                         })
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
@@ -110,8 +109,7 @@ def example(argv = DefaultValues()):
             # START TRAINING
             my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
                                         epochs=argv.epochs,
-                                        validation_set=(Xts, yts), 
-                                        eval_interval=argv.eval_interval)
+                                        validation_set=(Xts, yts))
 
 if __name__ == "__main__":
     import argparse
@@ -123,8 +121,6 @@ if __name__ == "__main__":
                         help='Amount of epochs for training (default: 2)')
     parser.add_argument('--batch_size', type=int, default=2, metavar='',
                         help='Batch size for SGD (default: 40)')
-    parser.add_argument('--eval_interval', type=int, default=1, metavar='',
-                        help='Evaluate model in given interval (epochs) (default: 1)')
     parser.add_argument('--lrate', type=float, default=0.01, metavar="",
                         help="Learning rate (default: 0.01")
     parser.add_argument('--use_cuda', action='store_true', dest='use_cuda',

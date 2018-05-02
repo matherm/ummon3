@@ -215,8 +215,8 @@ class UnsupervisedTrainer(MetaTrainer):
                 self.scheduler.step()
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(UnsupervisedTrainer, self)._combined_retraining(dataloader_training, validation_set, 
-                             eval_interval, after_backward_hook, after_eval_hook, eval_batch_size)    
+        self._combined_retraining(dataloader_training, validation_set, 
+                             after_backward_hook, after_eval_hook, eval_batch_size)    
     
     
 class UnsupervisedAnalyzer(MetaAnalyzer):

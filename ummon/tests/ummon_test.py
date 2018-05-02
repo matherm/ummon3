@@ -437,8 +437,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=4,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         # Validation Error
         assert np.allclose(4970.15625,
             trs.state["best_validation_loss"][1], 1e-5)
@@ -854,8 +853,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
         assert np.allclose(5055.18017578125, SupervisedAnalyzer.evaluate(model, 
@@ -923,8 +921,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         # Validation Error
         assert np.allclose(4970.15625, trs.state["best_validation_loss"][1], 1e-5)
         
@@ -998,8 +995,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
 
         # Training Error
         assert np.allclose(16334.0,
@@ -1010,7 +1006,7 @@ class TestUmmon(unittest.TestCase):
         
         # ASSERT INFERENCE 
         assert np.allclose(15469687.0, SupervisedAnalyzer.evaluate(model, criterion, 
-            dataset_valid)["loss"], 1e-2)
+            dataset_valid, 10)["loss"], 1e-2)
         
         files = os.listdir(".")
         dir = "."
@@ -1169,8 +1165,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1,
+                                        validation_set=dataset_valid,
                                         after_backward_hook=backward, 
                                         after_eval_hook=eval)
     def test_classification(self):
@@ -1221,7 +1216,7 @@ class TestUmmon(unittest.TestCase):
         my_trainer = ClassificationTrainer(Logger(), model, loss, 
             optimizer, trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
-        my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, eval_interval = 1, validation_set=dataset_valid)
+        my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, validation_set=dataset_valid)
         output = SupervisedAnalyzer.inference(model, dataset_valid)
         predicts = ClassificationAnalyzer.classify(output)
         accuracy = ClassificationAnalyzer.compute_accuracy(predicts, y_valid)
@@ -1297,8 +1292,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=4,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         xn_valid = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
@@ -1363,8 +1357,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=4,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         assert np.allclose(trs["training_loss[]"][-1][1], 0.34056084752082944, 1e-5)
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
@@ -1422,8 +1415,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=13,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         # Validation Error
         #print(ts["validation_loss[]"])
         #print(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10000)["loss"])
@@ -1481,8 +1473,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=50,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         assert trs["training_loss[]"][-1][0] == 3
         
@@ -1534,8 +1525,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=1,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         assert len(trs["training_loss[]"]) > len(trs["validation_loss[]"])
         assert len(trs["training_loss[]"]) == 3
@@ -1597,8 +1587,7 @@ class TestUmmon(unittest.TestCase):
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=3,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)
+                                        validation_set=dataset_valid)
         
         loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
         print(trs["validation_loss[]"])
@@ -1611,8 +1600,7 @@ class TestUmmon(unittest.TestCase):
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
-                                        validation_set=dataset_valid, 
-                                        eval_interval=1)       
+                                        validation_set=dataset_valid)       
 
         loss_epoch_3_cpu2 = state_cpu["validation_loss[]"][-1][1]
         
