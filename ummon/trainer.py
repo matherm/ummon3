@@ -293,14 +293,13 @@ class MetaTrainer:
         return moving_average
     
     
-    def _input_params_validation(self, epochs, eval_interval):
+    def _input_params_validation(self, epochs):
         """
         Validates the given parameters
         
         Arguments
         ---------
         *epochs (int) : The number of scheduled epochs.
-        *eval_interval (int) : The interval between model evaluation with validation dataset
         
         Return
         ------
@@ -311,9 +310,8 @@ class MetaTrainer:
         epochs = int(epochs)
         if epochs < 1:
             self.logger.error('Number of epochs must be > 0.', ValueError)
-        eval_interval = int(eval_interval)
         
-        return epochs, eval_interval     
+        return epochs    
     
     
     def _has_converged(self):
@@ -363,7 +361,7 @@ class MetaTrainer:
     
     def _evaluate_training(self, Analyzer, batch, batches, 
                   time_dict, 
-                  epoch, eval_interval, 
+                  epoch,  
                   validation_set, 
                   avg_training_loss,
                   dataloader_training, 
@@ -389,22 +387,15 @@ class MetaTrainer:
         """
         
         # Log epoch
-        self.logger.log_epoch(epoch + 1, batch + 1, 
-                              batches, 
-                              avg_training_loss, 
-                              dataloader_training.batch_size, 
-                              time_dict, 
-                              self.profile)
-        
-        if (epoch +1) % eval_interval == 0 and validation_set is not None:
+        if validation_set is not None:
             
                 # MODEL EVALUATION
                 evaluation_dict = Analyzer.evaluate(self.model, 
                                                     self.criterion, 
                                                     validation_set, 
+                                                    eval_batch_size,
                                                     self.logger, 
-                                                    after_eval_hook, 
-                                                    batch_size=eval_batch_size)
+                                                    after_eval_hook)
                 
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
@@ -419,9 +410,7 @@ class MetaTrainer:
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler,
                                         combined_retraining = self.combined_training_epochs)
-        
-                self.logger.log_regression_evaluation(self.trainingstate, self.profile)
-                        
+                                
         else: # no validation set
             self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                 training_loss = avg_training_loss, 
@@ -430,6 +419,15 @@ class MetaTrainer:
                 trainer_instance = type(self),
                 precision = self.precision,
                 detailed_loss = repr(self.criterion))
+        
+        self.logger.log_epoch(epoch + 1, batch + 1, 
+                              batches, 
+                              avg_training_loss, 
+                              dataloader_training.batch_size, 
+                              time_dict,
+                              self.logger.evalstr_regr(self.trainingstate), 
+                              self.profile)
+        
     
     
     def _combined_retraining(self, dataloader_training, validation_set, 

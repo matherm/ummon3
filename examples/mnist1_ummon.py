@@ -18,11 +18,11 @@ Run command:
 Author: M.O.Franz
 Copyright (C) 2018 by IOS Konstanz 
 '''
+import torch
 import torch.nn as nn
 
 import load_mnist
 from ummon import *
-import torch
 
 
 # read MNIST data set and scale it
@@ -35,7 +35,7 @@ y1 = y1.astype('float32')
 y2 = yv.astype('float32')
 
 # network
-cnet = Sequential(
+net = Sequential(
     ('line0', Linear( [784],       30, 'xavier_normal')),
     ('sigm0', nn.Sigmoid()),
     ('line1', Linear( [30],        10, 'xavier_normal'))
@@ -45,16 +45,19 @@ cnet = Sequential(
 loss = nn.BCEWithLogitsLoss(size_average = False)
 
 # optimizer
-opt = torch.optim.SGD(cnet.parameters(), lr=0.1 / 16)
+opt = torch.optim.SGD(net.parameters(), lr=0.1 / 16)
 
 # training state
 trs = Trainingstate()
 
-with Logger(logdir='.', log_batch_interval=5000) as lg:
+# scheduler
+scd = StepLR_earlystop(opt, trs, net, step_size = 35, gamma=0.1, patience=5)
+
+with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     
     # trainer
-    trn = ClassificationTrainer(lg, cnet, loss, opt, trs)
+    trn = ClassificationTrainer(lg, net, loss, opt, trs, scd)
     
     # train
-    trn.fit((x0,y0,16), epochs=35, validation_set=(x2,y2), eval_interval=5)
+    trn.fit((x0,y0,16), epochs=70, validation_set=(x2,y2))
 

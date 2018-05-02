@@ -122,7 +122,7 @@ class SupervisedTrainer(MetaTrainer):
         return dataloader_training, validation_set, batches
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
+    def fit(self, dataloader_training, epochs=1, validation_set=None, 
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
@@ -147,10 +147,12 @@ class SupervisedTrainer(MetaTrainer):
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_supervised(dataloader_training, validation_set)
-        epochs, eval_interval = super(SupervisedTrainer, self)._input_params_validation(epochs, eval_interval)
-        
+        epochs = self._input_params_validation(epochs)
+        if eval_batch_size == -1:
+            eval_batch_size = dataloader_training.batch_size
+
         # PROBLEM SUMMARY
-        super(SupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
+        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
@@ -192,9 +194,9 @@ class SupervisedTrainer(MetaTrainer):
                                                     time_dict)
         
             # Evaluate
-            super(SupervisedTrainer, self)._evaluate_training(SupervisedAnalyzer, batch, batches, 
+            self._evaluate_training(SupervisedAnalyzer, batch, batches, 
                           time_dict, 
-                          epoch, eval_interval, 
+                          epoch,  
                           validation_set, 
                           avg_training_loss,
                           dataloader_training, 
@@ -235,7 +237,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
+    def evaluate(model, loss_function, dataset, batch_size, logger=Logger(), after_eval_hook=None):
         """
         Evaluates a model with given validation dataset
         
@@ -247,12 +249,12 @@ class SupervisedAnalyzer(MetaAnalyzer):
                           The loss function to evaluate
         dataset         : torch.utils.data.Dataset OR tuple (X,y)
                           Dataset to evaluate
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
         after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
-        batch_size      : int
-                          batch size used for evaluation (default: -1 == ALL)
         
         Return
         ------
@@ -271,8 +273,8 @@ class SupervisedAnalyzer(MetaAnalyzer):
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
         loss_average = 0.
-        bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, sampler=None, 
+                batch_sampler=None)
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
@@ -369,7 +371,7 @@ class ClassificationTrainer(SupervisedTrainer):
                  profile)
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
+    def fit(self, dataloader_training, epochs=1, validation_set=None, 
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
@@ -382,22 +384,24 @@ class ClassificationTrainer(SupervisedTrainer):
                                 Epochs to train
         validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
                                 The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
         after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
         after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == ALL)
+                                batch size used for evaluation (default: -1 == same as
+                                training batch size)
         
         """
         # INPUT VALIDATION
-        dataloader_training, validation_set, batches = super(ClassificationTrainer, self)._input_data_validation_supervised(dataloader_training, validation_set)
-        epochs, eval_interval = super(ClassificationTrainer, self)._input_params_validation(epochs, eval_interval)
+        dataloader_training, validation_set, batches = self._input_data_validation_supervised(dataloader_training, 
+            validation_set)
+        epochs = self._input_params_validation(epochs)
+        if eval_batch_size == -1:
+            eval_batch_size = dataloader_training.batch_size
         
         # PROBLEM SUMMARY
-        super(ClassificationTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
+        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
         
@@ -448,7 +452,7 @@ class ClassificationTrainer(SupervisedTrainer):
             #Evaluate                
             self._evaluate_training(batch, batches, 
                           time_dict, 
-                          epoch, eval_interval, 
+                          epoch,  
                           validation_set, 
                           avg_training_loss,
                           dataloader_training, 
@@ -477,7 +481,7 @@ class ClassificationTrainer(SupervisedTrainer):
     
     def _evaluate_training(self, batch, batches, 
                   time_dict, 
-                  epoch, eval_interval, 
+                  epoch, 
                   validation_set, 
                   avg_training_loss, 
                   dataloader_training, 
@@ -486,14 +490,7 @@ class ClassificationTrainer(SupervisedTrainer):
                   output_buffer):
 
         # Log epoch
-        self.logger.log_epoch(epoch + 1, batch + 1, 
-                              batches, 
-                              avg_training_loss, 
-                              dataloader_training.batch_size, 
-                              time_dict, 
-                              self.profile)
-        
-        if (epoch +1) % eval_interval == 0 and validation_set is not None:
+        if validation_set is not None:
                 # Compute Running average accuracy
                 avg_training_acc = None
                 training_acc_buffer = np.zeros(5, dtype=np.float32)
@@ -526,7 +523,6 @@ class ClassificationTrainer(SupervisedTrainer):
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler)
         
-                self.logger.log_classification_evaluation(self.trainingstate, self.profile)
                         
         else: # no validation set
                 
@@ -546,6 +542,15 @@ class ClassificationTrainer(SupervisedTrainer):
                     trainer_instance = type(self),
                     precision = self.precision,
                     detailed_loss = repr(self.criterion))
+       
+        self.logger.log_epoch(epoch + 1, batch + 1, 
+                              batches, 
+                              avg_training_loss, 
+                              dataloader_training.batch_size, 
+                              time_dict, 
+                              self.logger.evalstr_class(self.trainingstate),
+                              self.profile)
+        
 
 
 class ClassificationAnalyzer(SupervisedAnalyzer):

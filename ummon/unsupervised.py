@@ -121,7 +121,7 @@ class UnsupervisedTrainer(MetaTrainer):
         return dataloader_training, validation_set, batches
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=500, 
+    def fit(self, dataloader_training, epochs=1, validation_set=None, 
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
@@ -147,7 +147,9 @@ class UnsupervisedTrainer(MetaTrainer):
         
         # INPUT VALIDATION
         dataloader_training, validation_set, batches = self._input_data_validation_unsupervised(dataloader_training, validation_set)
-        epochs, eval_interval = super(UnsupervisedTrainer, self)._input_params_validation(epochs, eval_interval)
+        epochs = self._input_params_validation(epochs)
+        if eval_batch_size == -1:
+            eval_batch_size = dataloader_training.batch_size
         
         # PROBLEM SUMMARY
         super(UnsupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
@@ -192,14 +194,14 @@ class UnsupervisedTrainer(MetaTrainer):
                                                     time_dict)
         
             # Evaluate
-            super(UnsupervisedTrainer, self)._evaluate_training(UnsupervisedAnalyzer, batch, batches, 
-                                                              time_dict, 
-                                                              epoch, eval_interval, 
-                                                              validation_set, 
-                                                              avg_training_loss,
-                                                              dataloader_training, 
-                                                              after_eval_hook, 
-                                                              eval_batch_size)
+            self._evaluate_training(UnsupervisedAnalyzer, batch, batches, 
+                                    time_dict, 
+                                    epoch, 
+                                    validation_set, 
+                                    avg_training_loss,
+                                    dataloader_training, 
+                                    after_eval_hook, 
+                                    eval_batch_size)
     
             # SAVE MODEL
             self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
