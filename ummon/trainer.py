@@ -457,20 +457,18 @@ class MetaTrainer:
         if self.combined_training_epochs > 0:
             if validation_set is None:
                 self.logger.warn("Combined retraining needs validation data.")
-            else:
-                # load best validation model
-                self.model = self.trainingstate.load_weights_best_validation(self.model, self.optimizer)
-                
+            else:                
                 # combine the two datasets
                 dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
                 
                 # give some information about what we are going to do
-                self.logger.info('Begin combined retraining: {} epochs.'.format(self.combined_training_epochs))  
+                self.logger.info('Combined retraining...')  
                 
                 # get current state
                 combined_training_epochs = self.combined_training_epochs
                 model_filename = self.model_filename
                 model_keep_epochs = self.model_keep_epochs
+                self.scheduler = None
                 
                 # modify state so that recursion is not infinite, and filenames are correct
                 self.combined_training_epochs = 0

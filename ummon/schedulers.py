@@ -140,6 +140,8 @@ class StepLR_earlystop(object):
         self.trs.load_weights_best_validation(self.model, self.optimizer)
         if self.cur_step >= self.nsteps:
             self.logger.info('Maximum number of learning rate steps reached.')
+            for i, param_group in enumerate(self.optimizer.param_groups):
+                param_group['lr'] = self.lr[i] * (self.gamma**(self.cur_step - 1))
             raise StepsFinished 
         self._reduce_lr()
     
