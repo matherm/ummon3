@@ -16,6 +16,7 @@ import ummon.utils as uu
 from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
 from .logger import Logger
+from .schedulers import *
 
 __all__ = ["SupervisedTrainer" , "SupervisedAnalyzer", "ClassificationTrainer", "ClassificationAnalyzer", 
            "SiameseTrainer", "SiameseAnalyzer" ]
@@ -212,7 +213,10 @@ class SupervisedTrainer(MetaTrainer):
             
             # ANNEAL LEARNING RATE
             if self.scheduler: 
-                self.scheduler.step()
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         self._combined_retraining(dataloader_training, validation_set, 
@@ -472,8 +476,11 @@ class ClassificationTrainer(SupervisedTrainer):
                 break
             
             # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                self.scheduler.step()
+            if self.scheduler:
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
                      
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         super(ClassificationTrainer, self)._combined_retraining(dataloader_training, validation_set, 
@@ -880,7 +887,10 @@ class SiameseTrainer(SupervisedTrainer):
           
             # ANNEAL LEARNING RATE
             if self.scheduler: 
-                self.scheduler.step()
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         self._combined_retraining(dataloader_training, validation_set, 

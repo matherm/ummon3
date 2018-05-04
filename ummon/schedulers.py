@@ -4,8 +4,13 @@ import torch.nn as nn
 import copy
 from torch.optim import Optimizer
 
+from .logger import Logger
 
-__all__ = [ 'StepLR_earlystop' ]
+
+__all__ = [ 'StepLR_earlystop', 'StepsFinished' ]
+
+class StepsFinished(Exception):
+    pass
 
 
 class StepLR_earlystop(object):
@@ -48,8 +53,8 @@ class StepLR_earlystop(object):
         >>>     # Note that step should be called after validate()
         >>>     scheduler.step()
     '''
-    def __init__(self, optimizer, trs, model, step_size, mode='min', gamma=0.1, 
-        patience=10):
+    def __init__(self, optimizer, trs, model, step_size, nsteps, logger, mode='min', 
+        gamma=0.1, patience=10):
         
         # check arguments
         if not isinstance(optimizer, Optimizer):
@@ -67,6 +72,13 @@ class StepLR_earlystop(object):
         self.step_size = int(step_size)
         if self.step_size < 1:
             raise ValueError('Step size must be > 0.')
+        self.nsteps = int(nsteps)
+        if self.nsteps < 1:
+            raise ValueError('Number of steps must be > 0.')
+        if not isinstance(logger, Logger):
+            raise TypeError('{} is not a Logger'.format(
+                type(logger).__name__))
+        self.logger = logger
         self.mode = str(mode)
         if self.mode not in ['max', 'min']:
             raise ValueError('Optimization mode must be "min" or "max".')
@@ -78,7 +90,12 @@ class StepLR_earlystop(object):
             raise ValueError('Early stopping patience must be > 0.')   
         
         # init scheduler state
-        self.last_epoch = 0 
+        self.last_epoch = 0
+        self.lr = []
+        for param_group in self.optimizer.param_groups:
+            self.lr.append(float(param_group['lr']))
+        self.logger.info('Scheduler: {} learning rates decreased by factor {} after {} epochs, early stopping after {}, {} mode.'.format(
+            self.nsteps, self.gamma, self.step_size, self.patience, self.mode))
         self.reset()
     
     
@@ -92,6 +109,7 @@ class StepLR_earlystop(object):
             self.best = np.finfo(np.float32).min
         self.num_bad_epochs = 0
         self.num_epochs_in_step = 0
+        self.cur_step = 0
     
     
     def _reduce_lr(self):
@@ -99,10 +117,25 @@ class StepLR_earlystop(object):
         Reduces learning rate of optimizer by factor gamma.
         '''
         for i, param_group in enumerate(self.optimizer.param_groups):
-            old_lr = float(param_group['lr'])
-            new_lr = old_lr * self.gamma
-            param_group['lr'] = new_lr
-
+            param_group['lr'] = self.lr[i] * (self.gamma**self.cur_step)
+    
+    
+    def _next_lrstep(self):
+        '''
+        Next learning rate step: decrease learning rate, reset parameters, reload best
+        model and stop training if last step reached.
+        '''
+        self.logger.info('Current best performance for learning rate {:1.5f}: {:4.5f}.'.format(
+            self.trs.state["lrate[]"][-1][1], self.best))
+        self.num_bad_epochs = 0
+        self.num_epochs_in_step = 0
+        self.cur_step += 1
+        self.trs.load_weights_best_validation(self.model, self.optimizer)
+        if self.cur_step >= self.nsteps:
+            self.logger.info('Maximum number of learning rate steps reached.')
+            raise StepsFinished 
+        self._reduce_lr()
+    
     
     def step(self):
         '''
@@ -125,18 +158,15 @@ class StepLR_earlystop(object):
         
         # early stopping
         if self.num_bad_epochs >= self.patience:
-            self._reduce_lr()
-            self.num_bad_epochs = 0
-            self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self.model, self.optimizer)
+            self.logger.info("No improvement since {} epochs. Stopping early and reloading current best model.".format(
+                        self.patience))
+            self._next_lrstep()
         
         # end of current learning rate reached => go to next learning rate
         if self.num_epochs_in_step == self.step_size:
-            self._reduce_lr()
-            self.num_bad_epochs = 0
-            self.num_epochs_in_step = 0
-            self.trs.load_weights_best_validation(self.model, self.optimizer)
-            
+            self.logger.info('Learning rate step finished. Reloading current best model.')
+            self._next_lrstep()
+    
     
     def load_state_dict(self, state_dict):
         '''
@@ -146,6 +176,7 @@ class StepLR_earlystop(object):
         state_dict = copy.deepcopy(state_dict)
         
         self.step_size = state_dict['step_size']
+        self.nsteps = state_dict['nsteps']
         self.mode = state_dict['mode']
         self.gamma = state_dict['gamma']
         self.patience = state_dict['patience']
@@ -153,6 +184,8 @@ class StepLR_earlystop(object):
         self.best = state_dict['best']
         self.num_bad_epochs = state_dict['num_bad_epochs']
         self.num_epochs_in_step = state_dict['num_epochs_in_step']
+        self.cur_step = state_dict['cur_step']
+        self.lr = state_dict['lr']
     
     
     def state_dict(self):
@@ -165,13 +198,16 @@ class StepLR_earlystop(object):
         '''
         return {
             'step_size': self.step_size,
+            'nsteps': self.nsteps,
             'mode': self.mode,
             'gamma': self.gamma,
             'patience': self.patience,
             'last_epoch': self.last_epoch,
             'best': self.best,
             'num_bad_epochs': self.num_bad_epochs,
-            'num_epochs_in_step': self.num_epochs_in_step
+            'num_epochs_in_step': self.num_epochs_in_step,
+            'cur_step': self.cur_step,
+            'lr': self.lr
         }
 
 from .trainingstate import Trainingstate

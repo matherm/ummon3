@@ -212,7 +212,10 @@ class UnsupervisedTrainer(MetaTrainer):
            
             # ANNEAL LEARNING RATE
             if self.scheduler: 
-                self.scheduler.step()
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         self._combined_retraining(dataloader_training, validation_set, 
