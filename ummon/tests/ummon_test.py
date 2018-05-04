@@ -1228,30 +1228,6 @@ class TestUmmon(unittest.TestCase):
                 os.remove(os.path.join(dir,file))
 
     
-    def test_examples(self):
-        import examples.checkstate
-        import examples.validation
-        import examples.sine
-        import examples.mnist1_conv
-        
-        ts = examples.mnist1_conv.example()
-        assert ts["best_validation_accuracy"][1] > 0.11
-        
-
-        ts = examples.sine.example()
-        assert ts["best_validation_loss"][1] < 1.2
-        
-        examples.validation.example()
-        examples.checkstate.example()
-        
-        # Clean up
-        files = os.listdir(".")
-        dir = "."
-        for file in files:
-            if file.endswith(Trainingstate().extension) or file.endswith(".log"):
-                os.remove(os.path.join(dir,file))
-                 
-    
     def test_unsupervised(self):
         np.random.seed(17)
         torch.manual_seed(17)
@@ -1276,9 +1252,9 @@ class TestUmmon(unittest.TestCase):
                 return x
     
         
-        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 1000).reshape(1000,1))
         dataset_valid = UnsupTensorDataset(x_valid.float())
-        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.normal(0, 1, 1000).reshape(1000,1))
         dataset = UnsupTensorDataset(x.float())
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
@@ -1293,15 +1269,15 @@ class TestUmmon(unittest.TestCase):
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
-                                        epochs=4,
+                                        epochs=3,
                                         validation_set=dataset_valid)
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
-        xn_valid = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
-        xn = np.random.normal(0, 1, 10000).reshape(10000,1).astype(np.float32)
+        xn_valid = np.random.normal(0, 1, 1000).reshape(1000,1).astype(np.float32)
+        xn = np.random.normal(0, 1, 1000).reshape(1000,1).astype(np.float32)
         # TEST SIMPLIFIED INTERFACE 
         my_trainer.fit(dataloader_training=(xn, 10),
-                                        epochs=5,
+                                        epochs=3,
                                         validation_set=xn_valid)
         
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
