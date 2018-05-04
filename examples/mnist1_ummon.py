@@ -58,7 +58,7 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     scd = StepLR_earlystop(opt, trs, net, step_size = 35, nsteps=2, logger=lg, gamma=0.1, patience=5)
     
     # trainer
-    trn = ClassificationTrainer(lg, net, loss, opt, trs, scd)
+    trn = ClassificationTrainer(lg, net, loss, opt, trs, scd, combined_training_epochs=5)
     
     # train
     trn.fit((x0,y0,batch_size), epochs=70, validation_set=(x2,y2))

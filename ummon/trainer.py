@@ -478,7 +478,7 @@ class MetaTrainer:
                 # do actual retraining
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
-                         validation_set=None, 
+                         validation_set=validation_set, 
                          after_backward_hook=after_backward_hook, 
                          after_eval_hook=after_eval_hook, 
                          eval_batch_size=eval_batch_size)
