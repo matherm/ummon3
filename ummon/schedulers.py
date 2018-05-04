@@ -22,7 +22,9 @@ class StepLR_earlystop(object):
         optimizer (Optimizer): Wrapped optimizer.
         trs (Trainingstate): state of the Trainer class that uses the scheduler
         model (Module): neural network or layer
-        step_size (int): Period of learning rate decay.
+        step_size (int): Number of epochs until learning rate is decreased.
+        nsteps (int): number of learning rates
+        logger (Logger): Logger
         mode (str): One of `min`, `max`. In `min` mode, lr will
             be reduced when the quantity monitored has stopped
             decreasing; in `max` mode it will be reduced when the
@@ -32,12 +34,14 @@ class StepLR_earlystop(object):
             which learning rate will be reduced. Default: 10.
     
     The step function of this scheduler reads a peformance metric from the state dict
-    of the trainer.If no improvement is seen for a 'patience' number
+    of the trainer. If no improvement is seen for a 'patience' number
     of epochs, the learning rate is reduced (early stopping). At the same time, the
     weights of the currently best model are reloaded into the provided network or layer
     so that training is continued from this point in the next step. The scheduler can
     be reset, e.g. when you do a combined training with training and validation data
-    after you finish the stepwise schedule.
+    after you finish the stepwise schedule. After the final number of 'nsteps' lerning 
+    rates has been reached, the scheduler raises an exception of type 'StepsFinished'
+    which should be caught by the calling routine.
     
     Example:
         >>> # Assuming optimizer uses lr = 0.05 for all groups
@@ -46,12 +50,15 @@ class StepLR_earlystop(object):
         >>> # lr = 0.0005   if 60 <= epoch < 90 or if previous step was aborted by early stopping
         >>> # ...
         >>> scheduler = StepLR_earlystop(optimizer, training_state, model, step_size=30, 
-        >>>     mode='min', gamma=0.1, patience=5)
+        >>>     nsteps=2, logger=lg, mode='min', gamma=0.1, patience=5)
         >>> for epoch in range(100):
         >>>     train(...)
         >>>     validate(...)
         >>>     # Note that step should be called after validate()
-        >>>     scheduler.step()
+        >>>     try:
+        >>>         scheduler.step()
+        >>>     except StepsFinished:
+        >>>          break
     '''
     def __init__(self, optimizer, trs, model, step_size, nsteps, logger, mode='min', 
         gamma=0.1, patience=10):

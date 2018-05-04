@@ -1381,12 +1381,14 @@ class TestUmmon(unittest.TestCase):
         criterion = nn.MSELoss(size_average=False)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         ts = Trainingstate()
+        lg = Logger(loglevel=logging.ERROR)
     
         # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer, ts, model, step_size = 2, patience=1)
+        earlystop = StepLR_earlystop(optimizer, ts, model, step_size=20, nsteps=1, logger=lg, 
+            patience=1)
   
         # CREATE A TRAINER
-        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
+        my_trainer = SupervisedTrainer(lg, model, criterion,
             optimizer, ts, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
