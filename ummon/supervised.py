@@ -579,105 +579,22 @@ class SiameseTrainer(SupervisedTrainer):
         return dataloader_training, validation_set, batches
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None,  
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
-        """
-        Fits a model with given training and validation dataset
+    # prepares one batch for processing
+    def _get_batch(self, data):
         
-        Arguments
-        ---------
-        dataloader_training :   torch.utils.data.DataLoader
-                                The dataloader that provides the training data
-        epochs              :   int
-                                Epochs to train
-        validation_set      :   torch.utils.data.Dataset
-                                The validation dataset
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
-        eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == ALL)
-        """
+        # Get the inputs
+        inputs, targets = data[0], data[1]
         
-        # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._data_validation(dataloader_training, validation_set)
-        epochs = self._input_params_validation(epochs)
+        # Unfold siamese data
+        input_l, input_r, targets = Variable(inputs[0]), Variable(inputs[1]), Variable(targets)
         
-        # PROBLEM SUMMARY
-        super(SiameseTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
+        # Handle cuda
+        if self.use_cuda:
+            input_l, input_r, targets = input_l.cuda(), input_r.cuda(), targets.cuda()
         
-        for epoch in range(self.epoch, self.epoch + epochs):
-        
-            # EPOCH PREPARATION
-            time_dict = super(SiameseTrainer, self)._prepare_epoch()
-            
-            # Moving average
-            n, avg_training_loss = 5, None
-            training_loss_buffer= np.zeros(n, dtype=np.float32)
-            
-            # COMPUTE ONE EPOCH                
-            for batch, data in enumerate(dataloader_training, 0):
-                
-                # time dataloader
-                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
-                
-                # Get the inputs
-                inputs, targets = data[0], data[1]
-                
-                # Unfold siamese data
-                input_l, input_r, targets = Variable(inputs[0]), Variable(inputs[1]), Variable(targets)
-        
-                # Handle cuda
-                if self.use_cuda:
-                    input_l, input_r, targets = input_l.cuda(), input_r.cuda(), targets.cuda()
-                
-                output, time_dict = super(SiameseTrainer, self)._forward_one_batch((input_l, input_r), time_dict)
-                loss,   time_dict = super(SiameseTrainer, self)._loss_one_batch(output, targets, time_dict)
-                
-                # Backpropagation
-                time_dict = super(SiameseTrainer, self)._backward_one_batch(loss, time_dict,
-                                                      after_backward_hook, output, targets)
-                
-                # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
-                
-                # Reporting
-                time_dict = super(SiameseTrainer, self)._finish_one_batch(batch, batches, 
-                                                    epoch, 
-                                                    avg_training_loss,
-                                                    dataloader_training.batch_size, 
-                                                    time_dict)
-        
-            # Evaluate
-            self._evaluate_training(SiameseAnalyzer, batch, batches, 
-                                                          time_dict, 
-                                                          epoch, 
-                                                          validation_set, 
-                                                          avg_training_loss,
-                                                          dataloader_training, 
-                                                          after_eval_hook, 
-                                                          eval_batch_size, None)
-    
-            # SAVE MODEL
-            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-            
-            # CHECK TRAINING CONVERGENCE
-            if super(SiameseTrainer, self)._has_converged():
-                break
-          
-            # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                try:
-                    self.scheduler.step()
-                except StepsFinished:
-                    break
-                
-        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        self._combined_retraining(dataloader_training, validation_set, 
-            after_backward_hook, after_eval_hook, eval_batch_size)    
-       
-    
+        return (input_l, input_r), targets
+
+
 class SiameseAnalyzer(SupervisedAnalyzer):
     """
     This class provides a generic analyzer for PyTorch siamese models. For a given model it 

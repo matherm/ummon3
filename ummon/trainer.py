@@ -512,6 +512,19 @@ class MetaTrainer:
         pass
     
     
+    # prepares one batch for processing (can be overwritten by sibling)
+    def _get_batch(self, data):
+        
+        # Get the inputs
+        inputs, targets = Variable(data[0]), Variable(data[1])
+        
+        # Handle cuda
+        if self.use_cuda:
+            inputs, targets = inputs.cuda(), targets.cuda()
+        
+        return inputs, targets
+    
+    
     def fit(self, dataloader_training, epochs=1, validation_set=None, 
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
@@ -564,11 +577,7 @@ class MetaTrainer:
                 time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
                 
                 # Get the inputs
-                inputs, targets = Variable(data[0]), Variable(data[1])
-                
-                # Handle cuda
-                if self.use_cuda:
-                    inputs, targets = inputs.cuda(), targets.cuda()
+                inputs, targets = self._get_batch(data)
                 
                 output, time_dict = self._forward_one_batch(inputs, time_dict)
                 loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
