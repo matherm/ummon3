@@ -31,6 +31,12 @@ class MetaAnalyzer:
         raise NotImplementedError("This class is superclass")
     
     
+    # generate an evaluation string used by logging module
+    @staticmethod
+    def evalstr(learningstate):
+        raise NotImplementedError("This class is superclass")
+    
+    
     @staticmethod
     def _online_average(data, count, avg):
         # BACKWARD COMPATIBILITY FOR TORCH < 0.4

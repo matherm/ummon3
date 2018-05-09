@@ -211,60 +211,7 @@ class Logger(logging.getLoggerClass()):
                     epoch, evalstr, 
                     int(time_dict["total"]),
                     int((batches * batchsize/(time_dict["total"])))))
-                            
     
-    # output evaluation string for classifier
-    def evalstr_class(self, learningstate):
-
-        detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
-        detailed_loss = detailed_loss.replace('\n', ' ').replace('\r', ' ')
-        self.debug('       Detailed loss information: {}'.format(detailed_loss))
-        
-        # without validation data
-        if learningstate.state["validation_loss[]"] == []:
-            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
-                learningstate.state["training_loss[]"][-1][1], 
-                learningstate.state["lrate[]"][-1][1])
-  
-        # with validation data
-        else:
-            is_best = learningstate.state["validation_loss[]"][-1][1] == \
-                learningstate.state["best_validation_loss"][1]
-            self.debug('       Throughput is {} samples/s'.format(
-                learningstate.state["samples_per_second[]"][-1][1]))
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
-                learningstate.state["training_loss[]"][-1][1], 
-                learningstate.state["validation_loss[]"][-1][1],
-                learningstate.state["validation_accuracy[]"][-1][1]*100,
-                learningstate.state["lrate[]"][-1][1],
-                ' [BEST]' if is_best else '')
-
-    
-    # output evaluation string for regression
-    def evalstr_regr(self, learningstate):
-
-        detailed_loss = learningstate.state["detailed_loss[]"][-1][1]
-        detailed_loss = detailed_loss.replace('\n', ' ').replace('\r', ' ')
-        samples_per_seconds = learningstate.state["samples_per_second[]"][-1][1]
-        self.debug('       Detailed loss information: {}'.format(detailed_loss))
-        self.debug('       Throughput is {} samples/s'.format(samples_per_seconds))
-
-        # without validation data
-        if learningstate.state["validation_loss[]"] == []:
-            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
-                learningstate.state["training_loss[]"][-1][1], 
-                learningstate.state["lrate[]"][-1][1])
-
-        # with validation data
-        else:
-            is_best = learningstate.state["validation_loss[]"][-1][1] == \
-                learningstate.state["best_validation_loss"][1]
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}'.format(
-                learningstate.state["training_loss[]"][-1][1], 
-                learningstate.state["validation_loss[]"][-1][1],
-                learningstate.state["lrate[]"][-1][1],
-                ' [BEST]' if is_best else '')
-        
     
     # output description of learning task
     def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 

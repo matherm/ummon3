@@ -71,7 +71,7 @@ class UnsupervisedTrainer(MetaTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(UnsupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
+        super(UnsupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -80,9 +80,10 @@ class UnsupervisedTrainer(MetaTrainer):
                  combined_training_epochs,
                  use_cuda,
                  profile)
+        self.analyzer = UnsupervisedAnalyzer
     
      
-    def _input_data_validation_unsupervised(self, dataloader_training, validation_set):
+    def _data_validation(self, dataloader_training, validation_set):
         """
         Does input data validation for training and validation data.
         
@@ -121,107 +122,6 @@ class UnsupervisedTrainer(MetaTrainer):
         return dataloader_training, validation_set, batches
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, 
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
-        """
-        Fits a model with given training and validation dataset
-        
-        Arguments
-        ---------
-        dataloader_training :   torch.utils.data.DataLoader OR tuple (X, batch)
-                                The dataloader that provides the training data
-        epochs              :   int
-                                Epochs to train
-        validation_set      :   torch.utils.data.Dataset OR tuple (X)
-                                The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
-        eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == ALL)
-        
-        """
-        
-        # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._input_data_validation_unsupervised(dataloader_training, validation_set)
-        epochs = self._input_params_validation(epochs)
-        if eval_batch_size == -1:
-            eval_batch_size = dataloader_training.batch_size
-        
-        # PROBLEM SUMMARY
-        super(UnsupervisedTrainer, self)._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
-        
-        for epoch in range(self.epoch, self.epoch + epochs):
-        
-            # EPOCH PREPARATION
-            time_dict = super(UnsupervisedTrainer, self)._prepare_epoch()
-            
-            # Moving average
-            n, avg_training_loss = 5, None
-            training_loss_buffer= np.zeros(n, dtype=np.float32)
-            
-            # COMPUTE ONE EPOCH                
-            for batch, data in enumerate(dataloader_training, 0):
-                
-                # time dataloader
-                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
-                
-                # Get the inputs
-                inputs = Variable(data)
-        
-                # Handle cuda
-                if self.use_cuda:
-                    inputs = inputs.cuda()
-                
-                output, time_dict = super(UnsupervisedTrainer, self)._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = super(UnsupervisedTrainer, self)._loss_one_batch(output, inputs, time_dict)
-                
-                # Backpropagation
-                time_dict = super(UnsupervisedTrainer, self)._backward_one_batch(loss, time_dict,
-                                                      after_backward_hook, output, inputs)
-                
-                # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
-                
-                # Reporting
-                time_dict = super(UnsupervisedTrainer, self)._finish_one_batch(batch, batches, 
-                                                    epoch, 
-                                                    avg_training_loss,
-                                                    dataloader_training.batch_size, 
-                                                    time_dict)
-        
-            # Evaluate
-            self._evaluate_training(UnsupervisedAnalyzer, batch, batches, 
-                                    time_dict, 
-                                    epoch, 
-                                    validation_set, 
-                                    avg_training_loss,
-                                    dataloader_training, 
-                                    after_eval_hook, 
-                                    eval_batch_size)
-    
-            # SAVE MODEL
-            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-            
-            # CHECK TRAINING CONVERGENCE
-            if super(UnsupervisedTrainer, self)._has_converged():
-                break
-           
-            # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                try:
-                    self.scheduler.step()
-                except StepsFinished:
-                    break
-                
-        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        self._combined_retraining(dataloader_training, validation_set, 
-                             after_backward_hook, after_eval_hook, eval_batch_size)    
-    
-    
 class UnsupervisedAnalyzer(MetaAnalyzer):
     """
     This class provides a generic analyzer for PyTorch-models. For a given PyTorch-model it 
@@ -240,7 +140,8 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, 
+        batch_size=-1, output_buffer=None):
         """
         Evaluates a model with given validation dataset
         
@@ -303,12 +204,35 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                     after_eval_hook(model, output.data, None, loss.data)
                 
                 
+        evaluation_dict["training_accuracy"] = 0.0        
+        evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = repr(loss_function)
-
-        return evaluation_dict
         
+        return evaluation_dict
+    
+    
+    # output evaluation string for unsupervised learning
+    @staticmethod
+    def evalstr(learningstate):
+        
+        # without validation data
+        if learningstate.state["validation_loss[]"] == []:
+            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["lrate[]"][-1][1])
+        
+        # with validation data
+        else:
+            is_best = learningstate.state["validation_loss[]"][-1][1] == \
+                learningstate.state["best_validation_loss"][1]
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["validation_loss[]"][-1][1],
+                learningstate.state["lrate[]"][-1][1],
+                ' [BEST]' if is_best else '')
+    
 if __name__ == "__main__":
     pass           
         

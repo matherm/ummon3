@@ -73,7 +73,7 @@ class SupervisedTrainer(MetaTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(SupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate, 
+        super(SupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate, 
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -82,8 +82,10 @@ class SupervisedTrainer(MetaTrainer):
                  combined_training_epochs,
                  use_cuda,
                  profile)
+        self.analyzer = SupervisedAnalyzer
     
-    def _input_data_validation_supervised(self, dataloader_training, validation_set):
+    
+    def _data_validation(self, dataloader_training, validation_set):
         """
         Does input data validation for training and validation data.
         
@@ -121,108 +123,8 @@ class SupervisedTrainer(MetaTrainer):
         batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
        
         return dataloader_training, validation_set, batches
-    
-    
-    def fit(self, dataloader_training, epochs=1, validation_set=None, 
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
-        """
-        Fits a model with given training and validation dataset
-        
-        Arguments
-        ---------
-        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
-                                The dataloader that provides the training data
-        epochs              :   int
-                                Epochs to train
-        validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
-                                The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
-        eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == ALL)
-        """
-        
-        # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._input_data_validation_supervised(dataloader_training, validation_set)
-        epochs = self._input_params_validation(epochs)
-        if eval_batch_size == -1:
-            eval_batch_size = dataloader_training.batch_size
 
-        # PROBLEM SUMMARY
-        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
-        
-        for epoch in range(self.epoch, self.epoch + epochs):
-        
-            # EPOCH PREPARATION
-            time_dict = super(SupervisedTrainer, self)._prepare_epoch()
-            
-            # Moving average
-            n, avg_training_loss = 5, None
-            training_loss_buffer= np.zeros(n, dtype=np.float32)
-            
-            # COMPUTE ONE EPOCH                
-            for batch, data in enumerate(dataloader_training, 0):
-                
-                # time dataloader
-                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
-                
-                # Get the inputs
-                inputs, targets = Variable(data[0]), Variable(data[1])
-        
-                # Handle cuda
-                if self.use_cuda:
-                    inputs, targets = inputs.cuda(), targets.cuda()
-                
-                output, time_dict = super(SupervisedTrainer, self)._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = super(SupervisedTrainer, self)._loss_one_batch(output, targets, time_dict)
-                
-                # Backpropagation
-                time_dict = super(SupervisedTrainer, self)._backward_one_batch(loss, time_dict,
-                                                      after_backward_hook, output, targets)
-                
-                # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
-                
-                # Reporting
-                time_dict = super(SupervisedTrainer, self)._finish_one_batch(batch, batches, 
-                                                    epoch, 
-                                                    avg_training_loss,
-                                                    dataloader_training.batch_size, 
-                                                    time_dict)
-        
-            # Evaluate
-            self._evaluate_training(SupervisedAnalyzer, batch, batches, 
-                          time_dict, 
-                          epoch,  
-                          validation_set, 
-                          avg_training_loss,
-                          dataloader_training, 
-                          after_eval_hook, 
-                          eval_batch_size)
-            
-            # SAVE MODEL
-            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-                     
-            # CHECK TRAINING CONVERGENCE
-            if super(SupervisedTrainer, self)._has_converged():
-                break
-            
-            # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                try:
-                    self.scheduler.step()
-                except StepsFinished:
-                    break
-                
-        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        self._combined_retraining(dataloader_training, validation_set, 
-                             after_backward_hook, after_eval_hook, eval_batch_size)
-    
-    
+
 class SupervisedAnalyzer(MetaAnalyzer):
     """
     This class provides a generic analyzer for supervised PyTorch-models. For a given PyTorch-model it 
@@ -241,7 +143,8 @@ class SupervisedAnalyzer(MetaAnalyzer):
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
+        output_buffer=None):
         """
         Evaluates a model with given validation dataset
         
@@ -307,11 +210,35 @@ class SupervisedAnalyzer(MetaAnalyzer):
                     after_eval_hook(model, output.data, targets.data, loss.data)
                 
                 
+        evaluation_dict["training_accuracy"] = 0.0        
+        evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = repr(loss_function)
-
+        
         return evaluation_dict
+    
+    
+    # output evaluation string for regression
+    @staticmethod
+    def evalstr(learningstate):
+        
+        # without validation data
+        if learningstate.state["validation_loss[]"] == []:
+            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["lrate[]"][-1][1])
+        
+        # with validation data
+        else:
+            is_best = learningstate.state["validation_loss[]"][-1][1] == \
+                learningstate.state["best_validation_loss"][1]
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["validation_loss[]"][-1][1],
+                learningstate.state["lrate[]"][-1][1],
+                ' [BEST]' if is_best else '')
+
 
 class ClassificationTrainer(SupervisedTrainer):
     """
@@ -365,7 +292,7 @@ class ClassificationTrainer(SupervisedTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
+        super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -374,191 +301,7 @@ class ClassificationTrainer(SupervisedTrainer):
                  combined_training_epochs,
                  use_cuda,
                  profile)
-    
-    
-    def fit(self, dataloader_training, epochs=1, validation_set=None, 
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
-        """
-        Fits a model with given training and validation dataset
-        
-        Arguments
-        ---------
-        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
-                                The dataloader that provides the training data
-        epochs              :   int
-                                Epochs to train
-        validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
-                                The validation dataset
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
-        eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == same as
-                                training batch size)
-        
-        """
-        # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._input_data_validation_supervised(dataloader_training, 
-            validation_set)
-        epochs = self._input_params_validation(epochs)
-        if eval_batch_size == -1:
-            eval_batch_size = dataloader_training.batch_size
-        
-        # PROBLEM SUMMARY
-        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
-        
-        for epoch in range(self.epoch, self.epoch + epochs):
-        
-            # Buffer for asynchronous model evaluation
-            output_buffer = []
-            
-            # EPOCH PREPARATION
-            time_dict = super(ClassificationTrainer, self)._prepare_epoch()
-            
-            # Moving average
-            n, avg_training_loss = 5, None
-            training_loss_buffer = np.zeros(n, dtype=np.float32)
-            
-            # COMPUTE ONE EPOCH                
-            for batch, data in enumerate(dataloader_training, 0):
-                
-                # time dataloader
-                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
-                
-                # Get the inputs
-                inputs, targets = Variable(data[0]), Variable(data[1])
-        
-                # Handle cuda
-                if self.use_cuda:
-                    inputs, targets = inputs.cuda(), targets.cuda()
-                
-                output, time_dict = super(ClassificationTrainer, self)._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = super(ClassificationTrainer, self)._loss_one_batch(output, targets, time_dict)
-                
-                # Backpropagation
-                time_dict = super(ClassificationTrainer, self)._backward_one_batch(loss, 
-                                                      time_dict, after_backward_hook, output, targets)
-                
-                # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, loss.cpu(), training_loss_buffer)
-        
-                
-                # Reporting
-                time_dict = super(ClassificationTrainer, self)._finish_one_batch(
-                                                    batch, batches, epoch, 
-                                                    avg_training_loss, 
-                                                    dataloader_training.batch_size, 
-                                                    time_dict)
-                
-                # Save output for later evaluation
-                output_buffer.append((output.data.clone(), targets.data.clone(), batch))
-                
-            #Evaluate                
-            self._evaluate_training(batch, batches, 
-                          time_dict, 
-                          epoch,  
-                          validation_set, 
-                          avg_training_loss,
-                          dataloader_training, 
-                          after_eval_hook, 
-                          eval_batch_size, 
-                          output_buffer)
-            
-            # SAVE MODEL
-            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-               
-             # CLEAN UP
-            del output_buffer[:]
-            
-            # CHECK TRAINING CONVERGENCE
-            if super(ClassificationTrainer, self)._has_converged():
-                break
-            
-            # ANNEAL LEARNING RATE
-            if self.scheduler:
-                try:
-                    self.scheduler.step()
-                except StepsFinished:
-                    break
-                     
-        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        super(ClassificationTrainer, self)._combined_retraining(dataloader_training, validation_set, 
-                             after_backward_hook, after_eval_hook, eval_batch_size)
-    
-    
-    def _evaluate_training(self, batch, batches, 
-                  time_dict, 
-                  epoch, 
-                  validation_set, 
-                  avg_training_loss, 
-                  dataloader_training, 
-                  after_eval_hook, 
-                  eval_batch_size, 
-                  output_buffer):
-
-        # Log epoch
-        if validation_set is not None:
-                # Compute Running average accuracy
-                avg_training_acc = None
-                training_acc_buffer = np.zeros(5, dtype=np.float32)
-                for saved_output, saved_targets, batch in output_buffer:
-                    classes = ClassificationAnalyzer.classify(saved_output.cpu())
-                    acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
-                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc_buffer)
-        
-            
-                # MODEL EVALUATION
-                evaluation_dict = ClassificationAnalyzer.evaluate(self.model, 
-                                                    self.criterion, 
-                                                    validation_set, 
-                                                    self.logger, 
-                                                    after_eval_hook, 
-                                                    batch_size=eval_batch_size)
-                
-                # UPDATE TRAININGSTATE
-                self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                                        training_loss = avg_training_loss, 
-                                        training_accuracy = avg_training_acc,
-                                        training_batchsize = dataloader_training.batch_size,
-                                        training_dataset = dataloader_training.dataset,
-                                        trainer_instance = type(self),
-                                        precision = self.precision,
-                                        detailed_loss = repr(self.criterion),
-                                        validation_loss = evaluation_dict["loss"], 
-                                        validation_accuracy = evaluation_dict["accuracy"], 
-                                        validation_dataset = validation_set,
-                                        samples_per_second = evaluation_dict["samples_per_second"],
-                                        scheduler = self.scheduler)
-        
-                        
-        else: # no validation set
-                
-                # Compute Running average accuracy
-                avg_training_acc = None
-                training_acc_buffer = np.zeros(5, dtype=np.float32)
-                for saved_output, saved_targets, batch in output_buffer:
-                    classes = ClassificationAnalyzer.classify(saved_output.cpu())
-                    acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
-                    avg_training_acc = self._moving_average(batch, avg_training_acc, acc, training_acc_buffer)
-                
-                self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                    training_loss = avg_training_loss, 
-                    training_accuracy = avg_training_acc,
-                    training_batchsize = dataloader_training.batch_size,
-                    training_dataset = dataloader_training.dataset,
-                    trainer_instance = type(self),
-                    precision = self.precision,
-                    detailed_loss = repr(self.criterion))
-       
-        self.logger.log_epoch(epoch + 1, batch + 1, 
-                              batches, 
-                              avg_training_loss, 
-                              dataloader_training.batch_size, 
-                              time_dict, 
-                              self.logger.evalstr_class(self.trainingstate),
-                              self.profile)
-        
+        self.analyzer = ClassificationAnalyzer
 
 
 class ClassificationAnalyzer(SupervisedAnalyzer):
@@ -575,7 +318,8 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
     """
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1, 
+        output_buffer=None):
         """
         Evaluates a model with given validation dataset
         
@@ -610,10 +354,20 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
+        
+        # Compute Running average training accuracy
+        avg_training_acc = 0.
+        for saved_output, saved_targets, batch in output_buffer:
+            classes = ClassificationAnalyzer.classify(saved_output.cpu())
+            acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
+            avg_training_acc = ClassificationAnalyzer._online_average(acc, batch + 1, 
+                avg_training_acc)
+        
+        # evaluate on validation set
         loss_average, acc_average = 0.,0.
         bs = len(dataset) if batch_size == -1 else batch_size
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
-        output_buffer = []
+        outbuf = []
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
@@ -642,21 +396,46 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                     after_eval_hook(model, output.data, targets.data, loss.data)
                 
                 # Save output for later evaluation
-                output_buffer.append((output.data.clone(), targets.data.clone(), i))
+                outbuf.append((output.data.clone(), targets.data.clone(), i))
                 
-        # Compute classification accuracy
-        for saved_output, saved_targets, batch in output_buffer:
+        # Compute classification accuracy on validation set
+        for saved_output, saved_targets, batch in outbuf:
             classes = ClassificationAnalyzer.classify(saved_output.cpu())
             acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
             acc_average = ClassificationAnalyzer._online_average(acc, batch + 1, acc_average)
+        
+        # save results in dict
+        evaluation_dict["training_accuracy"] = avg_training_acc
         evaluation_dict["accuracy"] = acc_average
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = repr(loss_function)
         evaluation_dict["args[]"] = {}
-        del output_buffer[:]
-
+        
+        del outbuf[:]
         return evaluation_dict
+    
+    
+    # output evaluation string for classifier
+    @staticmethod
+    def evalstr(learningstate):
+        
+        # without validation data
+        if learningstate.state["validation_loss[]"] == []:
+            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["lrate[]"][-1][1])
+        
+        # with validation data
+        else:
+            is_best = learningstate.state["validation_loss[]"][-1][1] == \
+                learningstate.state["best_validation_loss"][1]
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
+                learningstate.state["training_loss[]"][-1][1], 
+                learningstate.state["validation_loss[]"][-1][1],
+                learningstate.state["validation_accuracy[]"][-1][1]*100,
+                learningstate.state["lrate[]"][-1][1],
+                ' [BEST]' if is_best else '')
     
     
     # Get index of class with max probability
@@ -667,7 +446,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         ------
         classes (torch.LongTensor) - Shape [B x 1]
         """
-
+        
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
             classes = (output + 1e-12).sign().long()    
@@ -681,7 +460,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
     @staticmethod
     def compute_accuracy(classes, targets):
         assert targets.shape[0] == classes.shape[0]
-
+        
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (targets.dim() > 1 and targets.size(1) == 1) or targets.dim() == 1:
             # Sanity check binary case
@@ -695,20 +474,19 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
        
         if not isinstance(targets, torch.LongTensor):
             targets = targets.long()
-
+        
         # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
-
+        
         # BACKWARD COMPATBILITY FOR TORCH < 0.4
         sum_correct = correct.sum()
-
+        
         if type(sum_correct) == torch.Tensor:
             sum_correct = sum_correct.item()
-
+        
         # accuracy
         accuracy = sum_correct / len(targets)
         return accuracy
-    
 
 
 class SiameseTrainer(SupervisedTrainer):
@@ -762,7 +540,7 @@ class SiameseTrainer(SupervisedTrainer):
                  combined_training_epochs = 0,
                  use_cuda = False,
                  profile = False):
-           super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
+        super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
                  scheduler, 
                  model_filename, 
                  model_keep_epochs,
@@ -771,8 +549,10 @@ class SiameseTrainer(SupervisedTrainer):
                  combined_training_epochs,
                  use_cuda,
                  profile)
+        self.analyzer = SiameseAnalyzer
     
-    def _input_data_validation_siamese(self, dataloader_training, validation_set):
+    
+    def _data_validation(self, dataloader_training, validation_set):
         """
         Does input data validation for training and validation data.
         
@@ -798,6 +578,7 @@ class SiameseTrainer(SupervisedTrainer):
        
         return dataloader_training, validation_set, batches
     
+    
     def fit(self, dataloader_training, epochs=1, validation_set=None,  
         after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
         """
@@ -820,7 +601,7 @@ class SiameseTrainer(SupervisedTrainer):
         """
         
         # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._input_data_validation_siamese(dataloader_training, validation_set)
+        dataloader_training, validation_set, batches = self._data_validation(dataloader_training, validation_set)
         epochs = self._input_params_validation(epochs)
         
         # PROBLEM SUMMARY
@@ -876,7 +657,7 @@ class SiameseTrainer(SupervisedTrainer):
                                                           avg_training_loss,
                                                           dataloader_training, 
                                                           after_eval_hook, 
-                                                          eval_batch_size)
+                                                          eval_batch_size, None)
     
             # SAVE MODEL
             self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
@@ -915,7 +696,8 @@ class SiameseAnalyzer(SupervisedAnalyzer):
             
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, 
+        batch_size=-1, output_buffer=None):
         """
         Evaluates a model with given validation dataset
         
@@ -977,6 +759,8 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                     after_eval_hook(model, output.data, targets.data, loss.data)
                 
                 
+        evaluation_dict["training_accuracy"] = 0.0        
+        evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = repr(loss_function)

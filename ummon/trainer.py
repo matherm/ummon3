@@ -6,7 +6,7 @@ import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from .logger import Logger
-from .schedulers import StepLR_earlystop
+from .schedulers import *
 from .trainingstate import *
 
 __all__ = ["MetaTrainer"]
@@ -91,6 +91,7 @@ class MetaTrainer:
         self.criterion = loss_function
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.analyzer = None # needs to be implemented by subclass
         self.epoch = 0
         self.precision = precision
         self.convergence_eps = convergence_eps
@@ -118,8 +119,10 @@ class MetaTrainer:
         self.model = Trainingstate.transform_model(self.model, self.optimizer, precision, use_cuda)
     
     
-    def fit(self):
+    # This depends on the learning problem => needs to be defined by subclass
+    def _data_validation(self, dataloader_training, validation_set):
         raise NotImplementedError("This class is superclass.")
+    
     
     def _prepare_epoch(self):
         """
@@ -371,7 +374,8 @@ class MetaTrainer:
                   avg_training_loss,
                   dataloader_training, 
                   after_eval_hook, 
-                  eval_batch_size):
+                  eval_batch_size,
+                  output_buffer):
         """
         Evaluates the current training state against agiven analyzer
         
@@ -400,17 +404,20 @@ class MetaTrainer:
                                                     validation_set, 
                                                     self.logger, 
                                                     after_eval_hook,
-                                                    eval_batch_size)
+                                                    eval_batch_size,
+                                                    output_buffer)
                 
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                                         training_loss = avg_training_loss, 
+                                        training_accuracy = evaluation_dict["training_accuracy"],
                                         training_batchsize = dataloader_training.batch_size,
                                         training_dataset = dataloader_training.dataset,
                                         trainer_instance = type(self),
                                         precision = self.precision,
                                         detailed_loss = repr(self.criterion),
-                                        validation_loss = evaluation_dict["loss"], 
+                                        validation_loss = evaluation_dict["loss"],
+                                        validation_accuracy = evaluation_dict["accuracy"],  
                                         validation_dataset = validation_set,
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler,
@@ -430,9 +437,8 @@ class MetaTrainer:
                               avg_training_loss, 
                               dataloader_training.batch_size, 
                               time_dict,
-                              self.logger.evalstr_regr(self.trainingstate), 
+                              Analyzer.evalstr(self.trainingstate), 
                               self.profile)
-        
     
     
     def _combined_retraining(self, dataloader_training, validation_set, 
@@ -487,7 +493,8 @@ class MetaTrainer:
                 self.combined_training_epochs = combined_training_epochs
                 self.model_filename = model_filename
                 self.model_keep_epochs = model_keep_epochs
-
+    
+    
     def _repair_references(self, model, optimizer, scheduler):
         """
         Helper method to repair references after the model's parameters have changed.
@@ -500,6 +507,106 @@ class MetaTrainer:
         model (nn.module) : the new model with weights
         optimizer (torch.utils.data.optimizer) : the optimizer
         scheduler (torch.utils.data.scheduler) : OPTIONAL a scheduler pointing to an optimizer
-
+        
         """
         pass
+    
+    
+    def fit(self, dataloader_training, epochs=1, validation_set=None, 
+        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
+        """
+        Fits a model with given training and validation dataset
+        
+        Arguments
+        ---------
+        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
+                                The dataloader that provides the training data
+        epochs              :   int
+                                Epochs to train
+        validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
+                                The validation dataset
+        eval_interval       :   int
+                                Evaluation interval for validation dataset in epochs
+        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
+                                A hook that gets called after backward pass during training
+        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
+                                A hook that gets called after forward pass during evaluation
+        eval_batch_size     :   OPTIONAL int
+                                batch size used for evaluation (default: -1 == ALL)
+        """
+        
+        # INPUT VALIDATION
+        dataloader_training, validation_set, batches = self._data_validation(
+            dataloader_training, validation_set)
+        epochs = self._input_params_validation(epochs)
+        if eval_batch_size == -1:
+            eval_batch_size = dataloader_training.batch_size
+
+        # PROBLEM SUMMARY
+        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
+        
+        for epoch in range(self.epoch, self.epoch + epochs):
+        
+            # EPOCH PREPARATION
+            time_dict = self._prepare_epoch()
+            
+            # Moving average
+            n, avg_training_loss = 5, None
+            training_loss_buffer= np.zeros(n, dtype=np.float32)
+            
+            # Buffer for asynchronous model evaluation
+            output_buffer = []
+            
+            # COMPUTE ONE EPOCH                
+            for batch, data in enumerate(dataloader_training, 0):
+                
+                # time dataloader
+                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
+                
+                # Get the inputs
+                inputs, targets = Variable(data[0]), Variable(data[1])
+                
+                # Handle cuda
+                if self.use_cuda:
+                    inputs, targets = inputs.cuda(), targets.cuda()
+                
+                output, time_dict = self._forward_one_batch(inputs, time_dict)
+                loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
+                
+                # Backpropagation
+                time_dict = self._backward_one_batch(loss, time_dict, after_backward_hook, 
+                    output, targets)
+                
+                # Loss averaging
+                avg_training_loss = self._moving_average(batch, avg_training_loss, 
+                    loss.cpu(), training_loss_buffer)
+                
+                # Reporting
+                time_dict = self._finish_one_batch(batch, batches, epoch, avg_training_loss,
+                    dataloader_training.batch_size, time_dict)
+                
+                # Save output for later evaluation
+                output_buffer.append((output.data.clone(), targets.data.clone(), batch))
+            
+            # Evaluate
+            self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  
+                validation_set, avg_training_loss, dataloader_training, after_eval_hook, 
+                eval_batch_size, output_buffer)
+            
+            # SAVE MODEL
+            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
+                     
+            # CHECK TRAINING CONVERGENCE
+            if self._has_converged():
+                break
+            
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
+                
+        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
+        self._combined_retraining(dataloader_training, validation_set, 
+                             after_backward_hook, after_eval_hook, eval_batch_size)
