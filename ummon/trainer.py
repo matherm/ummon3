@@ -54,69 +54,82 @@ class MetaTrainer:
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
-                 trainingstate = None, 
-                 scheduler = None, 
-                 model_filename = "model.pth.tar", 
-                 model_keep_epochs = False,
-                 precision = np.float32,
-                 convergence_eps = np.finfo(np.float32).min,
-                 combined_training_epochs = False,
-                 use_cuda = False,
-                 profile = False):
+    def __init__(self, *args, **kwargs):
         
-        assert type(logger) == Logger
-        assert isinstance(model, nn.Module)
-        assert isinstance(optimizer, torch.optim.Optimizer)
-        assert isinstance(loss_function, nn.Module)
-        if trainingstate == None:
-            self.trainingstate = Trainingstate()
-        elif not isinstance(trainingstate, Trainingstate):
-            raise TypeError('{} is not a training state'.format(type(trainingstate).__name__))
-        else:
-            self.trainingstate = trainingstate
-        if scheduler is not None:
-            if not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler) and not \
-                isinstance(scheduler, StepLR_earlystop):
-                raise TypeError('{} is not a scheduler'.format(type(scheduler).__name__))
-            if isinstance(scheduler, StepLR_earlystop) and trainingstate == None:
-                raise ValueError('StepLR_earlystop needs an external Trainingstate (you provided None).')
-        assert precision == np.float32 or precision == np.float64
+        # required arguments
+        if len(args) != 4:
+            raise ValueError('You must provide at least a logger, model, loss_function and optimizer for training.') 
+        self.logger = args[0]
+        assert type(self.logger) == Logger
+        self.model = args[1]
+        assert isinstance(self.model, nn.Module)
+        self.criterion = args[2]
+        assert isinstance(self.criterion, nn.Module)
+        self.optimizer = args[3]
+        assert isinstance(self.optimizer, torch.optim.Optimizer)
         
-        # MEMBER VARIABLES
+        # defaults
+        self.trainingstate = Trainingstate()
+        self.scheduler = None
+        self.analyzer = None # needs to be implemented by subclass
+        self.model_filename = "model.pth.tar"
+        self.model_keep_epochs = False
+        self.precision = np.float32
+        self.convergence_eps = np.finfo(np.float32).min
+        self.combined_training_epochs = False
+        self.use_cuda = False
+        self.profile = False
+        
+        # optional arguments
+        for key in kwargs:
+            if key == 'trainingstate':
+                if not isinstance(kwargs[key], Trainingstate):
+                    raise TypeError('{} is not a training state'.format(type(kwargs[key]).__name__))
+                self.trainingstate = kwargs[key]
+            elif key == 'scheduler':
+                if not isinstance(kwargs[key], torch.optim.lr_scheduler._LRScheduler) and not \
+                    isinstance(kwargs[key], StepLR_earlystop):
+                    raise TypeError('{} is not a scheduler'.format(type(kwargs[key]).__name__))
+                if isinstance(kwargs[key], StepLR_earlystop) and 'trainingstate' not in kwargs.keys():
+                    raise ValueError('StepLR_earlystop needs an external Trainingstate (you provided None).')
+                self.scheduler = kwargs[key]
+            elif key == 'model_filename':
+                model_filename = str(kwargs[key])
+                self.model_filename = model_filename.split(self.trainingstate.extension)[0]
+            elif key == 'model_keep_epochs':
+                self.model_keep_epochs = int(kwargs[key])
+            elif key == 'precision':
+                assert kwargs[key] == np.float32 or kwargs[key] == np.float64
+                self.precision = kwargs[key]
+            elif key == 'convergence_eps':
+                self.convergence_eps = float(kwargs[key])
+            elif key == 'combined_training_epochs':
+                self.combined_training_epochs = int(kwargs[key])
+            elif key == 'use_cuda':
+                self.use_cuda = bool(kwargs[key])
+            elif key == 'profile':
+                self.profile = bool(kwargs[key])
+            else:
+                raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
         # Training parameters
-        self.logger = logger
-        self.model = model
-        self.criterion = loss_function
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.analyzer = None # needs to be implemented by subclass
         self.epoch = 0
-        self.precision = precision
-        self.convergence_eps = convergence_eps
-        self.combined_training_epochs = combined_training_epochs
-        self.use_cuda = use_cuda
-        self.profile = profile
         
         # training state was filled by previous training or by persisted training state
-        if self.trainingstate.state is not None:
+        if 'trainingstate' in kwargs.keys() and self.trainingstate.state != None:
             self._status_summary()
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
             self.optimizer = self.trainingstate.load_optimizer(self.optimizer)
-            self.model = self.trainingstate.load_weights(self.model, optimizer)
+            self.model = self.trainingstate.load_weights(self.model, self.optimizer)
             if isinstance(self.scheduler, StepLR_earlystop):
                 self.scheduler = self.trainingstate.load_scheduler(self.scheduler)
-        
-        #  Persistency parameters
-        self.model_filename = model_filename.split(Trainingstate().extension)[0]
-        self.model_keep_epochs = model_keep_epochs
         
         # Computational configuration
         if self.use_cuda:
             if not torch.cuda.is_available():
                 logger.error('CUDA is not available on your system.')
-        self.model = Trainingstate.transform_model(self.model, self.optimizer, precision, use_cuda)
+        self.model = Trainingstate.transform_model(self.model, self.optimizer, 
+            self.precision, self.use_cuda)
     
     
     # This depends on the learning problem => needs to be defined by subclass

@@ -61,28 +61,11 @@ class UnsupervisedTrainer(MetaTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
-                 trainingstate = None,             
-                 scheduler = None, 
-                 model_filename = "model.pth.tar", 
-                 model_keep_epochs = False,
-                 precision = np.float32,
-                 convergence_eps = np.finfo(np.float32).min,
-                 combined_training_epochs = 0,
-                 use_cuda = False,
-                 profile = False):
-        super(UnsupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
-                 scheduler, 
-                 model_filename, 
-                 model_keep_epochs,
-                 precision,
-                 convergence_eps,
-                 combined_training_epochs,
-                 use_cuda,
-                 profile)
+    def __init__(self, *args, **kwargs):
+        super(UnsupervisedTrainer, self).__init__(*args, **kwargs)
         self.analyzer = UnsupervisedAnalyzer
     
-     
+    
     def _data_validation(self, dataloader_training, validation_set):
         """
         Does input data validation for training and validation data.

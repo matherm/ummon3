@@ -63,25 +63,8 @@ class SupervisedTrainer(MetaTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, 
-                 trainingstate = None,
-                 scheduler = None, 
-                 model_filename = "model.pth.tar", 
-                 model_keep_epochs = False,
-                 precision = np.float32,
-                 convergence_eps = np.finfo(np.float32).min,
-                 combined_training_epochs = 0,
-                 use_cuda = False,
-                 profile = False):
-        super(SupervisedTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate, 
-                 scheduler, 
-                 model_filename, 
-                 model_keep_epochs,
-                 precision,
-                 convergence_eps,
-                 combined_training_epochs,
-                 use_cuda,
-                 profile)
+    def __init__(self, *args, **kwargs):
+        super(SupervisedTrainer, self).__init__(*args, **kwargs)
         self.analyzer = SupervisedAnalyzer
     
     
@@ -282,25 +265,8 @@ class ClassificationTrainer(SupervisedTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer,
-                 trainingstate = None,
-                 scheduler = None, 
-                 model_filename = "model.pth.tar", 
-                 model_keep_epochs = False,
-                 precision = np.float32,
-                 convergence_eps = np.finfo(np.float32).min,
-                 combined_training_epochs = 0,
-                 use_cuda = False,
-                 profile = False):
-        super(ClassificationTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
-                 scheduler, 
-                 model_filename, 
-                 model_keep_epochs,
-                 precision,
-                 convergence_eps,
-                 combined_training_epochs,
-                 use_cuda,
-                 profile)
+    def __init__(self, *args, **kwargs):
+        super(ClassificationTrainer, self).__init__(*args, **kwargs)
         self.analyzer = ClassificationAnalyzer
 
 
@@ -531,24 +497,8 @@ class SiameseTrainer(SupervisedTrainer):
     _moving_average():  helper method
              
     """
-    def __init__(self, logger, model, loss_function, optimizer, trainingstate,
-                 scheduler = None, 
-                 model_filename = "model.pth.tar", 
-                 model_keep_epochs = False,
-                 precision = np.float32,
-                 convergence_eps = np.finfo(np.float32).min,
-                 combined_training_epochs = 0,
-                 use_cuda = False,
-                 profile = False):
-        super(SiameseTrainer, self).__init__(logger, model, loss_function, optimizer, trainingstate,
-                 scheduler, 
-                 model_filename, 
-                 model_keep_epochs,
-                 precision,
-                 convergence_eps,
-                 combined_training_epochs,
-                 use_cuda,
-                 profile)
+    def __init__(self,  *args, **kwargs):
+        super(SiameseTrainer, self).__init__(*args, **kwargs)
         self.analyzer = SiameseAnalyzer
     
     

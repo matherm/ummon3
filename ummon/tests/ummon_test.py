@@ -431,8 +431,9 @@ class TestUmmon(unittest.TestCase):
         
         # CREATE A TRAINER
         trs = Trainingstate()
-        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
+        lg = Logger(loglevel=logging.ERROR)
+        my_trainer = SupervisedTrainer(lg, model, criterion, optimizer, trainingstate=trs, 
+            model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -447,7 +448,7 @@ class TestUmmon(unittest.TestCase):
         
         # RESTORE STATE
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
-            optimizer, trs, model_filename="testcase", precision=np.float32)
+            optimizer, trainingstate=trs, model_filename="testcase", precision=np.float32)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -509,7 +510,7 @@ class TestUmmon(unittest.TestCase):
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR),  model, criterion, optimizer, trs, model_filename="testcase",  
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR),  model, criterion, optimizer, trainingstate=trs, model_filename="testcase",  
                              model_keep_epochs=True, use_cuda=True)
         
         # START TRAINING
@@ -531,7 +532,7 @@ class TestUmmon(unittest.TestCase):
 
         # RESTORE STATE
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), 
-                             model, criterion, optimizer, trs, model_filename="testcase", 
+                             model, criterion, optimizer, trainingstate=trs, model_filename="testcase", 
                               precision=np.float32, use_cuda=True)
 
         # RESTART TRAINING
@@ -694,7 +695,7 @@ class TestUmmon(unittest.TestCase):
         
         # CREATE A CPU TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+            optimizer, trainingstate=trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         
         # START TRAINING
@@ -708,7 +709,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A CUDA TRAINER
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = True)
+            optimizer, trainingstate=state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = True)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -771,7 +772,7 @@ class TestUmmon(unittest.TestCase):
         
          # CREATE A CUDA TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase_cuda",  model_keep_epochs=True, use_cuda = True)
+            optimizer, trainingstate=trs, model_filename="testcase_cuda",  model_keep_epochs=True, use_cuda = True)
         
         
         # START TRAINING
@@ -785,7 +786,7 @@ class TestUmmon(unittest.TestCase):
         
         # CREATE A CUDA TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, state_cuda, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+            optimizer, trainingstate=state_cuda, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -842,7 +843,8 @@ class TestUmmon(unittest.TestCase):
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase_float", model_keep_epochs=True, use_cuda = False, precision = np.float32)
+            optimizer, trainingstate=trs, model_filename="testcase_float", 
+            model_keep_epochs=True, use_cuda = False, precision = np.float32)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -910,7 +912,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase_valid",  model_keep_epochs=True)
+            optimizer, trainingstate=trs, model_filename="testcase_valid",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -984,7 +986,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -1208,7 +1210,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = ClassificationTrainer(Logger(), model, loss, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
+            optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
         my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, validation_set=dataset_valid)
         output = SupervisedAnalyzer.inference(model, dataset_valid)
@@ -1265,7 +1267,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01/10)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
@@ -1329,7 +1331,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = SiameseTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase",  model_keep_epochs=False)
+            optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=False)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
@@ -1389,7 +1391,7 @@ class TestUmmon(unittest.TestCase):
   
         # CREATE A TRAINER
         my_trainer = SupervisedTrainer(lg, model, criterion,
-            optimizer, ts, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
+            optimizer, trainingstate=ts, scheduler = earlystop, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
@@ -1446,7 +1448,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
+            optimizer, trainingstate=trs, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
@@ -1499,14 +1501,12 @@ class TestUmmon(unittest.TestCase):
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase", combined_training_epochs = 2)
+            optimizer, trainingstate=trs, model_filename="testcase", combined_training_epochs = 2)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=1,
                                         validation_set=dataset_valid)
-        
-        assert len(trs["training_loss[]"]) > len(trs["validation_loss[]"])
         assert len(trs["training_loss[]"]) == 3
         
         # TEST PERSISTED MODEL
@@ -1560,7 +1560,7 @@ class TestUmmon(unittest.TestCase):
         
         # CREATE A CPU TRAINER
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+            optimizer, trainingstate=trs, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         
         # START TRAINING
@@ -1573,7 +1573,7 @@ class TestUmmon(unittest.TestCase):
         # CREATE A NEW CPU TRAINER
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
+            optimizer, trainingstate=state_cpu, model_filename="testcase_cpu",  model_keep_epochs=True, use_cuda = False)
         
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
