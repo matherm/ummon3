@@ -49,21 +49,17 @@ class TestExamples(unittest.TestCase):
                     os.makedirs(backup_dir)
                 os.rename(os.path.join(dir,file), os.path.join(backup_dir,file))
     
-    def test_examples(self):
-        import examples.checkstate
-        import examples.validation
-        import examples.sine
+    def test_mnist1(self):
         import examples.mnist1_conv
         
         ts = examples.mnist1_conv.example()
         assert ts["best_validation_accuracy"][1] > 0.11
         
-
-        ts = examples.sine.example()
-        assert ts["best_validation_loss"][1] < 1.2
-        
-        examples.validation.example()
+        import examples.checkstate
         examples.checkstate.example()
+        
+        import examples.validation
+        examples.validation.example()
         
         # Clean up
         files = os.listdir(".")
@@ -71,8 +67,19 @@ class TestExamples(unittest.TestCase):
         for file in files:
             if file.endswith(Trainingstate().extension) or file.endswith(".log"):
                 os.remove(os.path.join(dir,file))
-                 
-    
+         
+    def test_sine(self):
+        import examples.sine
+
+        ts = examples.sine.example()
+        assert ts["best_validation_loss"][1] < 1.2
+        
+         # Clean up
+        files = os.listdir(".")
+        dir = "."
+        for file in files:
+            if file.endswith(Trainingstate().extension) or file.endswith(".log"):
+                os.remove(os.path.join(dir,file))
 
 if __name__ == '__main__':
     import argparse
@@ -82,6 +89,6 @@ if __name__ == '__main__':
     argv = parser.parse_args()
     sys.argv = [sys.argv[0]]
     if argv.test is not "":
-        eval(str("TestUmmon()." + argv.test + '()'))
+        eval(str("TestExamples()." + argv.test + '()'))
     else:
         unittest.main()

@@ -118,12 +118,12 @@ def example(argv = DefaultValues()):
         except FileNotFoundError:
             ts = Trainingstate()
         
-        # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer,ts, model, step_size = 100, patience=3)
-                
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
             
+            # EARLY STOPPING
+            earlystop = StepLR_earlystop(optimizer,ts, model, step_size=100, nsteps=1, logger=lg) 
+                    
             # CREATE A TRAINER
             my_trainer = ClassificationTrainer(lg, 
                                 model, 

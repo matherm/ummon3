@@ -704,7 +704,6 @@ class TestUmmon(unittest.TestCase):
                                         validation_set=dataset_valid)
         
         loss_epoch_3_cpu = trs["validation_loss[]"][-1][1]
-        print(trs["validation_loss[]"])
         
         # CREATE A CUDA TRAINER
         state_cpu = Trainingstate("testcase_cpu_epoch_2")
@@ -1254,10 +1253,10 @@ class TestUmmon(unittest.TestCase):
                 return x
     
         
-        x_valid = torch.from_numpy(np.random.normal(0, 1, 1000).reshape(1000,1))
-        dataset_valid = UnsupTensorDataset(x_valid.float())
-        x = torch.from_numpy(np.random.normal(0, 1, 1000).reshape(1000,1))
-        dataset = UnsupTensorDataset(x.float())
+        x_valid = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1)).float()
+        dataset_valid = UnsupTensorDataset(x_valid)
+        x = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1)).float()
+        dataset = UnsupTensorDataset(x)
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
@@ -1275,13 +1274,24 @@ class TestUmmon(unittest.TestCase):
                                         validation_set=dataset_valid)
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
-        xn_valid = np.random.normal(0, 1, 1000).reshape(1000,1).astype(np.float32)
-        xn = np.random.normal(0, 1, 1000).reshape(1000,1).astype(np.float32)
-        # TEST SIMPLIFIED INTERFACE 
-        my_trainer.fit(dataloader_training=(xn, 10),
-                                        epochs=3,
-                                        validation_set=xn_valid)
         
+        # TEST SIMPLIFIED INTERFACE 
+        model = Net()
+        criterion = nn.MSELoss(size_average=False)
+        trs = Trainingstate()
+        
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01/10)
+        my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
+            optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=True)
+       
+         # START TRAINING
+        my_trainer.fit(dataloader_training=(x.numpy(), 10),
+                                        epochs=3,
+                                        validation_set=x_valid.numpy())
+        
+        print(trs)
+        assert len(trs["training_loss[]"]) == 3
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         files = os.listdir(".")
@@ -1370,9 +1380,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 10, 1000).reshape(1000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 1000).reshape(1000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -1381,12 +1391,12 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         ts = Trainingstate()
         lg = Logger(loglevel=logging.ERROR)
     
         # EARLY STOPPING
-        earlystop = StepLR_earlystop(optimizer, ts, model, step_size=20, nsteps=1, logger=lg, 
+        earlystop = StepLR_earlystop(optimizer, ts, model, step_size=10, nsteps=3, logger=lg, 
             patience=1)
   
         # CREATE A TRAINER
@@ -1395,14 +1405,13 @@ class TestUmmon(unittest.TestCase):
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=20,
+                                        epochs=30,
                                         validation_set=dataset_valid)
-        # Validation Error
-        # (18, 0.7694963872712105, 10000), (19, 0.7768834088072186, 10000)
-
-        # Scheduler implicitly loaded best validation model from epoch 18
-        assert ts["best_validation_loss"][0] == 18
-        assert np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"], 0.7694963872712105, 1e-5)
+        
+        # assert monotony in lrate and validation loss
+        assert any([ts["lrate[]"][i-1][1] > ts["lrate[]"][i][1] for i in range(1, len(ts["lrate[]"]))])
+        assert any([ts["validation_loss[]"][i-1][1] > ts["validation_loss[]"][i][1] for i in range(1, len(ts["validation_loss[]"]))])
+        assert ts["best_validation_loss"][0] < 30
         
         files = os.listdir(".")
         dir = "."
@@ -1420,8 +1429,8 @@ class TestUmmon(unittest.TestCase):
         
             def __init__(self):
                 super(Net, self).__init__()
-                self.fc1 = nn.Linear(1, 10)
-                self.fc2 = nn.Linear(10, 1)
+                self.fc1 = nn.Linear(1, 100)
+                self.fc2 = nn.Linear(100, 1)
                 
                 # Initialization
                 def weights_init_normal(m):
@@ -1435,9 +1444,9 @@ class TestUmmon(unittest.TestCase):
                 return x
     
         
-        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.normal(0, 0.1, 100).reshape(100,1))
         dataset_valid = UnsupTensorDataset(x_valid.float())
-        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1))
         dataset = UnsupTensorDataset(x.float())
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
@@ -1446,17 +1455,16 @@ class TestUmmon(unittest.TestCase):
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trainingstate=trs, model_filename="testcase", convergence_eps = 1e-2, model_keep_epochs=True)
+            optimizer, trainingstate=trs, model_filename="testcase", convergence_eps = 1e-3, model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
-                                        epochs=50,
+                                        epochs=25,
                                         validation_set=dataset_valid)
         
-        # CRITERION SHOULD BE REACHED AFTER 3 EPOCHS
-        assert trs["training_loss[]"][-1][0] == 3
+        assert trs["training_loss[]"][-1][0] < 25
         
         files = os.listdir(".")
         dir = "."
@@ -1488,30 +1496,30 @@ class TestUmmon(unittest.TestCase):
                 return x
     
         
-        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.normal(0, 0.1, 10).reshape(10,1))
         dataset_valid = UnsupTensorDataset(x_valid.float())
-        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
+        
+        x = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1))
         dataset = UnsupTensorDataset(x.float())
-        dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_training = DataLoader(dataset, batch_size=5, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
-            optimizer, trainingstate=trs, model_filename="testcase", combined_training_epochs = 2)
+            optimizer, trainingstate=trs, model_filename="testcase", combined_training_epochs = 4)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
-                                        epochs=1,
+                                        epochs=2,
                                         validation_set=dataset_valid)
-        assert len(trs["training_loss[]"]) == 3
+        assert len(trs["training_loss[]"]) == 6
         
         # TEST PERSISTED MODEL
-        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_1"))
-        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_2"))
+        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_4"))
         assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-2][1]    
 
         files = os.listdir(".")

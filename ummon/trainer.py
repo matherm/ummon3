@@ -5,6 +5,7 @@ import torch.utils.data
 import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from torch.utils.data.dataset import ConcatDataset
 from .logger import Logger
 from .schedulers import *
 from .trainingstate import *
@@ -478,7 +479,7 @@ class MetaTrainer:
                 self.logger.warn("Combined retraining needs validation data.")
             else:                
                 # combine the two datasets
-                dataloader_combined = uu.add_dataset_to_loader(dataloader_training, validation_set)   
+                dataloader_combined = self._add_dataset_to_loader(dataloader_training, validation_set)   
                 
                 # give some information about what we are going to do
                 self.logger.info('Combined retraining...')  
@@ -494,6 +495,9 @@ class MetaTrainer:
                 self.model_filename = str(self.model_filename + self.trainingstate.combined_retraining_pattern)
                 self.model_keep_epochs = True
                 
+                # reset to best validation model
+                self.model = self.trainingstate.load_weights_best_validation(self.model, self.optimizer)
+                
                 # do actual retraining
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
@@ -507,24 +511,20 @@ class MetaTrainer:
                 self.model_filename = model_filename
                 self.model_keep_epochs = model_keep_epochs
     
-    
-    def _repair_references(self, model, optimizer, scheduler):
+    def _add_dataset_to_loader(self, dataloader, merge_dataset):
         """
-        Helper method to repair references after the model's parameters have changed.
-        This happens when the model is converted to CUDA or older weights are loaded.
-        When this happens, the optimizer optimizes old weights as he does not have the current weights.
-        Therefore we need to repoint the optimizers weights to the new model.
+        Adds a dataset to an existing dataloader
         
-        Arguments
-        --------
-        model (nn.module) : the new model with weights
-        optimizer (torch.utils.data.optimizer) : the optimizer
-        scheduler (torch.utils.data.scheduler) : OPTIONAL a scheduler pointing to an optimizer
-        
+        dataloader (torch.utils.data.DataLoader) : A new instance of a dataloader that contains the merged dataset
         """
-        pass
-    
-    
+        dataset_origin = dataloader.dataset
+        dataset_merged = ConcatDataset([dataset_origin, merge_dataset])
+        dataloader_merged = DataLoader(dataset_merged, 
+                                       batch_size=dataloader.batch_size, 
+                                       shuffle=True, 
+                                       num_workers=dataloader.num_workers)
+        return dataloader_merged
+        
     # prepares one batch for processing (can be overwritten by sibling)
     def _get_batch(self, data):
         

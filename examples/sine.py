@@ -94,17 +94,18 @@ def example(argv = DefaultValues()):
         except FileNotFoundError:
             ts = Trainingstate()
         
-        with Logger(logdir='.', log_batch_interval=100) as lg:
+        with Logger(loglevel=20, logdir='.', log_batch_interval=100) as lg:
             
             # CREATE A TRAINER
             my_trainer = SupervisedTrainer(lg, 
                                 model, 
                                 criterion, 
                                 optimizer, 
-                                ts,
+                                trainingstate=ts,
                                 model_filename="SINE", 
                                 precision=np.float32,
                                 use_cuda=argv.use_cuda)
+            
             
             # START TRAINING
             my_trainer.fit(dataloader_training=(Xtr, ytr, argv.batch_size),
