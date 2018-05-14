@@ -48,11 +48,16 @@ class Linear(nn.Linear):
         # initialize weights
         init = str(init)
         nn.init.__dict__[init](self.weight)
+        self.num_weights = self.in_features*self.out_features
         if self.bias is not None:
             nn.init.constant(self.bias,0.0)
+            self.num_weights += self.out_features
+        self.num_adj_weights = self.num_weights
+        self.num_neurons = self.out_features
         
         # weight decay is only set at the beginning
         self._wdecay = float(wdecay)
+    
     
     # return printable representation
     def __repr__(self):
@@ -61,15 +66,27 @@ class Linear(nn.Linear):
             str(self.out_features), str(self._wdecay)) \
             + ', bias=' + str(self.bias is not None) + ')' 
     
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block. Since this is
+        a fully connected layer, the entire input layer is returned as a block.
+        '''
+        return [0, 0, 0, 0, 0, self.in_features - 1]
+    
+    
     # get weights
     @property
     def w(self):
         return self.weight.data.numpy()
     
+    
     # set weights
     @w.setter
     def w(self, wmat):
         self.weight.data = torch.from_numpy(wmat)
+    
     
     # get bias
     @property
@@ -79,8 +96,10 @@ class Linear(nn.Linear):
         else:
             return None
     
+    
     # set bias
     @b.setter
     def b(self, bvec):
         if self.bias is not None:
             self.bias.data = torch.from_numpy(bvec)
+
