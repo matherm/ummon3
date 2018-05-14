@@ -36,4 +36,40 @@ class Sequential(nn.Sequential):
         for key, module in self._modules.items():
             modstr = module.__repr__()
             tmpstr = tmpstr + '  ' + key + ': ' + modstr + '\n'
+        tmpstr = tmpstr + '  -\n{0:25}: {1}\n'.format('  Number of layers', self.num_layers) + \
+            '{0:25}: {1}\n'.format('  Number of neurons', self.num_neurons) + \
+            '{0:25}: {1}\n'.format('  Number of weights', self.num_weights) + \
+            '{0:25}: {1}\n'.format('  Number of adj. weights', self.num_adj_weights)
         return tmpstr
+    
+    # read only attribute: number of layers on path
+    @property
+    def num_layers(self):
+        return len(self._modules.items())
+    
+    # read only attribute: number of neurons in network
+    @property
+    def num_neurons(self):
+        n = 0
+        for key, module in self._modules.items():
+            if hasattr(module, 'num_neurons'):
+                n += module.num_neurons
+        return n
+    
+    # read only attribute: number of weights (independently from being shared or not)
+    @property
+    def num_weights(self):
+        n = 0
+        for key, module in self._modules.items():
+            if hasattr(module, 'num_weights'):
+                n += module.num_weights
+        return n
+    
+    # read only attribute: number of adjustable weights 
+    @property
+    def num_adj_weights(self):
+        n = 0
+        for key, module in self._modules.items():
+            if hasattr(module, 'num_adj_weights'):
+                n += module.num_adj_weights
+        return n
