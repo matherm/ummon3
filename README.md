@@ -31,6 +31,10 @@ To list all existing Anaconda environments
 To install to an arbitrary location
 
     conda create -p /path/to/environment python=3.6 anaconda
+    
+To clone to an arbitrary location
+
+    conda create -p /path/to/environment --clone `SOURCE`
 
 or on a Mac (macOS Binaries dont support CUDA, install from source if CUDA is needed: https://github.com/pytorch/pytorch#from-source)
 
@@ -133,7 +137,7 @@ For latest development version:
     git clone git@git.ios.htwg-konstanz.de:mof-applications/ummon3.git
     
 For latest stable version (replace TAG with e.g. 3.4.0)
-    git clone -b TAG git@git.ios.htwg-konstanz.de:mof-applications/ummon3.git
+    git clone -b `TAG` git@git.ios.htwg-konstanz.de:mof-applications/ummon3.git
 
 Go into the installation directory and execute:
 
