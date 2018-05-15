@@ -129,7 +129,11 @@ To test your GPU support, cut and paste the following program into a file and ru
 ## Installation
 Clone ummon from the IOS Github via
 
+For latest development version:
     git clone git@git.ios.htwg-konstanz.de:mof-applications/ummon3.git
+    
+For latest stable version (replace TAG with e.g. 3.4.0)
+    git clone -b TAG git@git.ios.htwg-konstanz.de:mof-applications/ummon3.git
 
 Go into the installation directory and execute:
 
