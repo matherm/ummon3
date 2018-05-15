@@ -50,9 +50,9 @@ class TestExamples(unittest.TestCase):
                 os.rename(os.path.join(dir,file), os.path.join(backup_dir,file))
     
     def test_mnist1(self):
-        import examples.mnist1_conv
+        import examples.mnist_conv
         
-        ts = examples.mnist1_conv.example()
+        ts = examples.mnist_conv.example()
         assert ts["best_validation_accuracy"][1] > 0.11
         
         import examples.checkstate

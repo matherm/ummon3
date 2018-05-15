@@ -6,6 +6,9 @@ import numpy as np
 import pickle
 import os
 from pathlib import Path
+import paramiko
+import getpass
+import zipfile
 
 class PrimPatchVoxel(Dataset):
     """
@@ -103,10 +106,6 @@ class PrimPatchVoxel(Dataset):
         Login with username and password, and check the path to extract the downloaded file.
         :return: zippath: path to the extraced files
         """
-        
-        import paramiko
-        import getpass
-        import zipfile
         
         transport = paramiko.Transport((self.host, self.port))
         

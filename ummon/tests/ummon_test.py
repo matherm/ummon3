@@ -26,6 +26,7 @@ from ummon.supervised import *
 from ummon.logger import *
 from ummon.trainingstate import *
 from ummon.analyzer import *
+from ummon.predictor import *
 from ummon.visualizer import *
 from ummon.modules.container import *
 from ummon.modules.linear import *
@@ -1109,8 +1110,46 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=1)["loss"] < 1.)
         self.assertTrue(np.allclose(SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size= 1)["loss"],
                                     SupervisedAnalyzer.evaluate(model, criterion, dataset_valid,  batch_size=10)["loss"]))
-        self.assertTrue(type(SupervisedAnalyzer.inference(model, dataset_valid, Logger())) == torch.Tensor)
-     
+       
+    def test_predictor(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = F.relu(self.fc1(x))
+                x = F.relu(self.fc2(x))
+                return x
+    
+        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        dataset_valid = UnsupTensorDataset(x_valid.float())
+        
+        model = Net()
+        model = Trainingstate.transform_model(model, None, precision=np.float32)
+        self.assertTrue(type(Predictor.predict(model, dataset_valid)) == torch.Tensor)
+        
+        # SIMPLIFIED Interface
+        y = Predictor.predict(model, x_valid.float().numpy(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        self.assertTrue(type(y) == torch.Tensor)
+   
+        # SIMPLIFIED Interface with Tensors
+        y = Predictor.predict(model, x_valid.float(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        self.assertTrue(type(y) == torch.Tensor)
+   
+        
         
     def test_hooks(self):
         #
@@ -1212,14 +1251,13 @@ class TestUmmon(unittest.TestCase):
             optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         
         my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, validation_set=dataset_valid)
-        output = SupervisedAnalyzer.inference(model, dataset_valid)
-        predicts = ClassificationAnalyzer.classify(output)
-        accuracy = ClassificationAnalyzer.compute_accuracy(predicts, y_valid)
+        output = Predictor.predict(model, x_valid.numpy())
+        predicts = Predictor.classify(output)
+        accuracy = Predictor.compute_accuracy(predicts, y_valid)
         assert accuracy > 0.48
 
-        output = SupervisedAnalyzer.inference(model, dataset_valid2)
-        predicts = ClassificationAnalyzer.classify(output)
-        accuracy = ClassificationAnalyzer.compute_accuracy(predicts, y_valid2)
+        predicts = Predictor.classify(output)
+        accuracy = Predictor.compute_accuracy(predicts, y_valid2)
         assert accuracy > 0.48
         
         files = os.listdir(".")

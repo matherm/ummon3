@@ -19,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 import load_mnist
 from ummon import *
@@ -62,7 +63,7 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     trn.fit((x0,y0,mbs), epochs=epochs, validation_set=(x2,y2))
     
     # predict on test set
-    y1_pred = net(x3)
+    y1_pred = Predictor.predict(net, x1, batch_size=mbs, output_transform=F.softmax)
     
     # evaluate
     correct = np.sum(y1 == np.argmax(y1_pred.data.numpy(), axis=1))

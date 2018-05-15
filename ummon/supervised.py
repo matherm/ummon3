@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import ummon.utils as uu
@@ -17,6 +18,7 @@ from .trainer import MetaTrainer
 from .analyzer import MetaAnalyzer
 from .logger import Logger
 from .schedulers import *
+from .predictor import *
 
 __all__ = ["SupervisedTrainer" , "SupervisedAnalyzer", "ClassificationTrainer", "ClassificationAnalyzer", 
            "SiameseTrainer", "SiameseAnalyzer" ]
@@ -325,8 +327,8 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         if output_buffer is not None and len(output_buffer) > 0:
             avg_training_acc = 0.
             for saved_output, saved_targets, batch in output_buffer:
-                classes = ClassificationAnalyzer.classify(saved_output.cpu())
-                acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
+                classes = Predictor.classify(saved_output.cpu(), loss_function)
+                acc = Predictor.compute_accuracy(classes, saved_targets.cpu())
                 avg_training_acc = MetaAnalyzer._online_average(acc, batch + 1, 
                     avg_training_acc)
         else:
@@ -369,8 +371,8 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 
         # Compute classification accuracy on validation set
         for saved_output, saved_targets, batch in outbuf:
-            classes = ClassificationAnalyzer.classify(saved_output.cpu())
-            acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
+            classes = Predictor.classify(saved_output.cpu(), loss_function)
+            acc = Predictor.compute_accuracy(classes, saved_targets.cpu())
             acc_average = ClassificationAnalyzer._online_average(acc, batch + 1, acc_average)
         
         # save results in dict
@@ -405,57 +407,6 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 learningstate.state["validation_accuracy[]"][-1][1]*100,
                 learningstate.state["lrate[]"][-1][1],
                 ' [BEST]' if is_best else '')
-    
-    
-    # Get index of class with max probability
-    @staticmethod
-    def classify(output):
-        """
-        Return
-        ------
-        classes (torch.LongTensor) - Shape [B x 1]
-        """
-        
-        # Case single output neurons (e.g. one-class-svm sign(output))
-        if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
-            classes = (output + 1e-12).sign().long()    
-        
-        # One-Hot-Encoding
-        if (output.dim() > 1 and output.size(1) > 1):
-            classes = output.max(1, keepdim=True)[1] 
-        return classes
-    
-    
-    @staticmethod
-    def compute_accuracy(classes, targets):
-        assert targets.shape[0] == classes.shape[0]
-        
-        # Case single output neurons (e.g. one-class-svm sign(output))
-        if (targets.dim() > 1 and targets.size(1) == 1) or targets.dim() == 1:
-            # Sanity check binary case
-            if not targets.max() > 1:
-                # Transform 0,1 encoding to -1 +1
-                targets = (targets.float() - 1e-12).sign().long()
-        
-        # Classification one-hot coded targets are first converted in class labels
-        if targets.dim() > 1 and targets.size(1) > 1:
-            targets = targets.max(1, keepdim=True)[1]
-       
-        if not isinstance(targets, torch.LongTensor):
-            targets = targets.long()
-        
-        # number of correctly classified examples
-        correct = classes.eq(targets.view_as(classes))
-        
-        # BACKWARD COMPATBILITY FOR TORCH < 0.4
-        sum_correct = correct.sum()
-        
-        if type(sum_correct) == torch.Tensor:
-            sum_correct = sum_correct.item()
-        
-        # accuracy
-        accuracy = sum_correct / len(targets)
-        return accuracy
 
 
 class SiameseTrainer(SupervisedTrainer):

@@ -20,6 +20,7 @@ Copyright (C) 2018 by IOS Konstanz
 '''
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
 from torch.autograd import Variable
 
@@ -67,11 +68,15 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     # train
     trn.fit((x0,y0,batch_size), epochs=70, validation_set=(x2,y2))
     
+    # network output
+    y = net(x3)
+    
     # predict on test set
-    y1_pred = net(x3)
+    y_pred = F.sigmoid(y)
+    y_pred_2 = Predictor.predict(net, x3, batch_size=batch_size, output_transform=F.sigmoid)
     
     # evaluate
-    correct = np.argmax(y1, axis=1) == np.argmax(y1_pred.data.numpy(), axis=1) # correctly classified
-    bce = ((loss(y1_pred, y3).data.numpy())[0])/y1.shape[0]*batch_size # loss
+    correct = np.argmax(y1, axis=1) == np.argmax(y_pred.data.numpy(), axis=1) # correctly classified
+    bce = ((loss(y, y3).data.numpy())[0])/y1.shape[0]*batch_size # loss
     lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(bce, 100.0*correct.sum()/y1.shape[0]))
 

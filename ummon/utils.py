@@ -194,10 +194,30 @@ def check_data(logger, X, y=[]):
     return X, y
 
 def construct_dataset_from_tuple(logger, data_tuple, train = True):
+    """
+    Constructs a dataset from a given data tuple.
+        
+    Valid tuples are:
+        (np.ndarray, np.ndarray, bs)
+        (torch.tensor, torch.tensor, bs)
+        (np.ndarray, bs)
+        (torch.tensor, bs)
+        np.ndarray
+        torch.tensor
+        
+    Arguments:
+        * logger     : ummon.Logger
+        * data_tuple : input data
+        * train      : specifies training or prediction mode where no labels are available (optional)
+        
+    Return:
+        * dataset :  torch.utils.data.Datase
+
+    """
     if train == True and len(data_tuple) != 3 and len(data_tuple) != 2:
             logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
                 TypeError)
-    if train == False and len(data_tuple) != 2 and type(data_tuple) != 1 and type(data_tuple) != np.ndarray:
+    if train == False and len(data_tuple) != 2 and type(data_tuple) != 1 and type(data_tuple) != np.ndarray and not istensor(data_tuple):
                 logger.error('Validation data must be provided as a tuple (X,(y)) or as PyTorch DataLoader.',
                     TypeError)          
  
@@ -206,6 +226,11 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
         # extract training data
         Xtr = data_tuple[0]
         ytr = data_tuple[1]
+        if istensor(Xtr):
+            Xtr = Xtr.numpy()
+        if istensor(ytr):
+            ytr = ytr.numpy()
+        
         Xtrn, ytrn = check_data(logger, Xtr, ytr)
         
         # construct pytorch dataloader from 2-tupel
@@ -227,12 +252,13 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
         return dataset
     # UNSUPERVISED
     else:
-        if type(data_tuple) != np.ndarray:
+        if type(data_tuple) != np.ndarray and not istensor(data_tuple):
             # extract training data
             Xtr = data_tuple[0]
         else:
             Xtr = data_tuple
-        
+        if istensor(Xtr):
+            Xtr = Xtr.numpy()
         # construct pytorch dataloader from 2-tupel
         x = torch.from_numpy(Xtr)
         precision = Xtr.dtype
@@ -244,6 +270,17 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
             logger.error(str('Precision: ' + precision + ' is not supported yet.'))
         return dataset
         
+def istensor(t):
+    return type(t) ==  torch.Tensor \
+            or type(t) ==  torch.FloatTensor      \
+            or type(t) ==  torch.DoubleTensor \
+            or type(t) ==  torch.HalfTensor   \
+            or type(t) ==  torch.ByteTensor   \
+            or type(t) ==  torch.CharTensor  \
+            or type(t) ==  torch.ShortTensor \
+            or type(t) ==  torch.IntTensor   \
+            or type(t) ==  torch.LongTensor  \
+
 
 
 def get_proc_memory_info():

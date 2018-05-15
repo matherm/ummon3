@@ -58,6 +58,7 @@ from .logger import *
 from .trainingstate import *
 from .analyzer import *
 from .visualizer import *
+from .predictor import *
 from .modules.container import *
 from .modules.linear import *
 from .modules.loss import *
