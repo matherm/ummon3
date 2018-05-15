@@ -927,14 +927,14 @@ class TestUmmon(unittest.TestCase):
             criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE
-        model = trs.load_weights_best_validation(model, optimizer)
+        trs.load_weights_best_validation_(model, optimizer)
         
         # ASSERT INFERENCE
         assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
             criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE 2
-        model = trs.load_weights_best_training(model, optimizer)
+        trs.load_weights_best_training_(model, optimizer)
         
         # ASSERT INFERENCE
         assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
@@ -998,7 +998,7 @@ class TestUmmon(unittest.TestCase):
             trs.state["best_training_loss"][1], 1e-1)
 
         # RESET STATE
-        model = trs.load_weights_best_training(model, optimizer)
+        trs.load_weights_best_training_(model, optimizer)
         
         # ASSERT INFERENCE 
         assert np.allclose(15469687.0, SupervisedAnalyzer.evaluate(model, criterion, 

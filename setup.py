@@ -90,7 +90,7 @@ setup(
         'scipy',
         ],
       test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.tests'],
+      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.tests', 'ummon.datasets'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )

@@ -7,7 +7,7 @@ class TestSystem(unittest.TestCase):
 
     def test_framework_system_environment(self):
         
-        developer_tested_pytorch_versions = ["0.3.1.post2", "0.4.0"]
+        developer_tested_pytorch_versions = ["0.3.0.post4", "0.3.1.post2", "0.4.0"]
         assert torch.__version__ in developer_tested_pytorch_versions
         
         developer_tested_numpy_versions =  ["1.13.3", "1.14.0"]

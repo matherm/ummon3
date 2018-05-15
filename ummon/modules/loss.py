@@ -9,7 +9,7 @@ Created on Wed Apr 18 11:21:57 2018
 import torch.nn as nn
 import ummon.functionals.visualattention as va
 
-class VisualAttentionLoss(nn.Module):
+class VisualAttentionLoss(nn.CrossEntropyLoss):
     """
     This loss function can be used for training models with visual attention loss. 
     

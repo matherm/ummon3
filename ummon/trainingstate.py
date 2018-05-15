@@ -323,7 +323,7 @@ class Trainingstate():
             shutil.copyfile(filename, str(short_filename + self.valid_pattern + self.extension))
             
     
-    def load_weights_best_training(self, model, optimizer):
+    def load_weights_best_training_(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -335,10 +335,6 @@ class Trainingstate():
         ---------
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
         *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
-        
-        Return
-        ------
-        *model (torch.nn.Module) : The weight initialized model.
         
         """
         assert isinstance(model, nn.Module)
@@ -350,9 +346,9 @@ class Trainingstate():
         else:
             self.load_state(str(short_filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
            
-        return self.load_weights(model, optimizer)           
+        self.load_weights_(model, optimizer)           
     
-    def load_weights_best_validation(self, model, optimizer):
+    def load_weights_best_validation_(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -364,10 +360,6 @@ class Trainingstate():
         ---------
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
         *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
-        
-        Return
-        ------
-        *model (torch.nn.Module) : The weight initialized model.
         
         """
         assert isinstance(model, nn.Module)
@@ -378,10 +370,11 @@ class Trainingstate():
             self.load_state(str(short_filename + self.extension), self.force_weights_to_cpu)
         else:
             self.load_state(str(short_filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
-        return self.load_weights(model, optimizer)           
+        
+        self.load_weights_(model, optimizer)           
     
     
-    def load_weights(self, model, optimizer):
+    def load_weights_(self, model, optimizer):
         """
         Loads the persisted weights into a given model.
         
@@ -394,10 +387,6 @@ class Trainingstate():
         *model (torch.nn.Module) : A model that needs to be filled with the stored weights.
         *optimizer (torch.optim.Optimizer) : A optimizer that needs to be repointed to the new weights
         
-        Return
-        ------
-        *model (torch.nn.Module) : The weight initialized model.
-        
         """
         assert self.state is not None
         assert isinstance(model, nn.Module)
@@ -405,11 +394,9 @@ class Trainingstate():
         model.load_state_dict(self.state["model_state"])            
         
         if optimizer is not None:
-            Trainingstate.update_optimizer_weights(model, optimizer)
-       
-        return model
+            Trainingstate.update_optimizer_weights_(model, optimizer)
     
-    def load_optimizer(self, optimizer):
+    def load_optimizer_(self, optimizer):
         """
         Loads the persisted weights into a given optimizer.
         
@@ -427,15 +414,13 @@ class Trainingstate():
             
         optimizer.load_state_dict(self.state["optimizer_state"])
         
-        return optimizer
     
-    def load_scheduler(self, scheduler):
+    def load_scheduler_(self, scheduler):
         assert self.state is not None
         
         if isinstance(scheduler, StepLR_earlystop):
             scheduler.load_state_dict(self.state['scheduler_state'])
         
-        return scheduler
 
     @staticmethod
     def transform_model(model, optimizer, precision, use_cuda = False):
@@ -472,12 +457,12 @@ class Trainingstate():
             model = model.cpu()
 
         if optimizer is not None:
-            Trainingstate.update_optimizer_weights(model, optimizer)
+            Trainingstate.update_optimizer_weights_(model, optimizer)
 
         return model
     
     @staticmethod
-    def update_optimizer_weights(model, optimizer):
+    def update_optimizer_weights_(model, optimizer):
         """
         Repoints the weights of an optimizer to a new model.
        

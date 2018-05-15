@@ -35,7 +35,7 @@ def get_abs_avg_weights(model):
         weights.append(p.data)
     return weights
 
-def register_nan_checks(model):
+def register_nan_checks_(model):
     def check_grad(module, input, output):
         if not hasattr(module, "weight"):
             return
@@ -48,7 +48,7 @@ def register_nan_checks(model):
         handles.append(module.register_forward_hook(check_grad))
     return handles
 
-def unregister_hooks(handles):
+def unregister_hooks_(handles):
     for handle in handles:
         handle.remove()
         

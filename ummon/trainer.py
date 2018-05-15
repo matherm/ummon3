@@ -120,10 +120,10 @@ class MetaTrainer:
         if 'trainingstate' in kwargs.keys() and self.trainingstate.state != None:
             self._status_summary()
             self.epoch = self.trainingstate.state["training_loss[]"][-1][0]
-            self.optimizer = self.trainingstate.load_optimizer(self.optimizer)
-            self.model = self.trainingstate.load_weights(self.model, self.optimizer)
+            self.trainingstate.load_optimizer_(self.optimizer)
+            self.trainingstate.load_weights_(self.model, self.optimizer)
             if isinstance(self.scheduler, StepLR_earlystop):
-                self.scheduler = self.trainingstate.load_scheduler(self.scheduler)
+                self.trainingstate.load_scheduler_(self.scheduler)
         
         # Computational configuration
         if self.use_cuda:
@@ -496,7 +496,7 @@ class MetaTrainer:
                 self.model_keep_epochs = True
                 
                 # reset to best validation model
-                self.model = self.trainingstate.load_weights_best_validation(self.model, self.optimizer)
+                self.trainingstate.load_weights_best_validation_(self.model, self.optimizer)
                 
                 # do actual retraining
                 self.fit(dataloader_combined, 

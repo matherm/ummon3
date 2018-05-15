@@ -77,10 +77,11 @@ class Predictor:
                 output = model(Variable(inputs))
                 
                 # Apply output transforms
-                if output_transform.__name__ == 'softmax':
-                    output = output_transform(output, dim = 1) if output_transform is not None else output
-                else:
-                    output = output_transform(output) if output_transform is not None else output
+                if output_transform is not None:
+                    if output_transform.__name__ == 'softmax':
+                        output = output_transform(output, dim = 1)
+                    else:
+                        output = output_transform(output)
                 # Save output for later evaluation
                 outbuf.append(output.data.cpu())
                 
@@ -102,9 +103,6 @@ class Predictor:
                 output = F.sigmoid(Variable(output)).data
             
             if isinstance(loss_function, torch.nn.CrossEntropyLoss):
-                output = F.softmax(Variable(output), dim=1).data
-            
-            if isinstance(loss_function, VisualAttentionLoss):
                 output = F.softmax(Variable(output), dim=1).data
         
         # Case single output neurons (e.g. one-class-svm sign(output))

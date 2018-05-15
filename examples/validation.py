@@ -104,7 +104,7 @@ def example(argv = DefaultValues()):
         # LOAD TRAINING STATE
         if argv.model is not "":
             ts = Trainingstate(argv.model)
-            model = ts.load_weights(model, None)
+            ts.load_weights_(model, None)
         
         with Logger(logdir='.', log_batch_interval=500) as lg:
             lg.info(ClassificationAnalyzer.evaluate(model, criterion, (Xtr, ytr)))
