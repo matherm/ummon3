@@ -194,9 +194,6 @@ def check_data(logger, X, y=[]):
             #y = y.reshape((len(y), 1)).copy()
         if np.shape(y)[0] != np.shape(X)[0]:
             logger.error('Number of targets must match number of inputs.')
-        if y.dtype != 'float32':
-            #TODO: This causes trouble as some losses (e.g. crossentropy expect long-types
-            y = y.astype('float32')
     return X, y
 
 def construct_dataset_from_tuple(logger, data_tuple, train = True):
