@@ -33,6 +33,7 @@ y0 = np.argmax(y0, axis=1).astype('int64') # pytorch cross entropy expects class
 y1 = np.argmax(y1, axis=1).astype('int64')
 y2 = np.argmax(yv, axis=1).astype('int64')
 x3 = Variable(torch.FloatTensor(x1), requires_grad=False)
+y3 = Variable(torch.LongTensor(y1), requires_grad=False)
         
 # network parameters
 mbs = 16                        # batch size
@@ -62,10 +63,15 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     # train
     trn.fit((x0,y0,mbs), epochs=epochs, validation_set=(x2,y2))
     
+    # network output
+    y = net(x3)
+    
     # predict on test set
     y1_pred = Predictor.predict(net, x1, batch_size=mbs, output_transform=F.softmax)
     
     # evaluate
     correct = np.sum(y1 == np.argmax(y1_pred.numpy(), axis=1))
-    lg.info("Performance on test set: {:.2f}% correct".format(100.0*correct/y1.shape[0]))
+    llh = ((loss(y, y3).data.numpy())[0])/y1.shape[0]*mbs # loss
+    lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(llh, 
+        100.0*correct.sum()/y1.shape[0]))
 
