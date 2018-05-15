@@ -53,7 +53,6 @@ class Predictor:
         The output
         """
         # simple interface: training and test data given as numpy arrays
-        print(type(dataset))
         if type(dataset) == tuple or type(dataset) == np.ndarray or uu.istensor(dataset):
                  dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
         assert isinstance(dataset, torch.utils.data.Dataset)
@@ -78,7 +77,7 @@ class Predictor:
                 output = model(Variable(inputs))
                 
                 # Apply output transforms
-                if type(output_transform) == torch.nn.functional.softmax:
+                if output_transform.__name__ == 'softmax':
                     output = output_transform(output, dim = 1) if output_transform is not None else output
                 else:
                     output = output_transform(output) if output_transform is not None else output

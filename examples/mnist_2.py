@@ -39,7 +39,7 @@ mbs = 16                        # batch size
 eta = 0.1                       # learning rate
 no_hidden = 100                 # number of hidden neurons 
 wdecay = eta*5.0/x0.shape[0]    # weight decay
-epochs = 60                 
+epochs = 60
 
 # network
 net = Sequential(
@@ -66,6 +66,6 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     y1_pred = Predictor.predict(net, x1, batch_size=mbs, output_transform=F.softmax)
     
     # evaluate
-    correct = np.sum(y1 == np.argmax(y1_pred.data.numpy(), axis=1))
+    correct = np.sum(y1 == np.argmax(y1_pred.numpy(), axis=1))
     lg.info("Performance on test set: {:.2f}% correct".format(100.0*correct/y1.shape[0]))
 
