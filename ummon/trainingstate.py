@@ -9,6 +9,7 @@ import torch.nn as nn
 import shutil
 import numpy as np
 import ummon.utils as uu
+from collections import OrderedDict
 
 __all__ = [ "Trainingstate" ]
 
@@ -196,7 +197,19 @@ class Trainingstate():
                          "combined_retraining" : self.state["combined_retraining"],
                          "args[]" : args
                           }
-        
+    def __repr__(self):
+        formatted_string = [str(str(key) + "\t" + str(value) + "\n") for key,value in sorted(self.state.items())]
+        return str(''.join(formatted_string))
+    
+    
+    def __str__(self):
+        formatted_string = [str(str(key) + "\t" + str(value) + "\n") for key,value in sorted(self.state.items())]
+        return str(''.join(formatted_string))
+    
+    
+    def __getitem__(self, item):
+         return self.state[item]
+    
     def get_summary(self):
         """
         Returns a summary of the trainingstate
@@ -209,11 +222,11 @@ class Trainingstate():
         if self.state is None:
             return {}
 
-        return {
+        return OrderedDict({
                     "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
                     "Best Validation Loss" : self.state["best_validation_loss"],
-                  }
+                  })
         
         
     def get_loss(self):
@@ -228,13 +241,13 @@ class Trainingstate():
         if self.state is None:
             return {}
 
-        return {
+        return OrderedDict({
                     "Epochs"               : self.state["training_loss[]"][-1][0],
                     "Best Training Loss"   : self.state["best_training_loss"],
                     "Best Validation Loss" : self.state["best_validation_loss"],
                     "validation_loss[]"    : self.state["validation_loss[]"],
                     "training_loss[]"      : self.state["training_loss[]"],
-                  }
+                  })
     
     
     def load_state(self, filename = None, force_weights_to_cpu = True):
@@ -299,7 +312,7 @@ class Trainingstate():
             if len(state["validation_loss[]"]) == 0:
                 return False
             # was not an evaluation pass
-            if state["validation_loss[]"][-1][0] < state["training_loss[]"][-1][0]:
+            if state["validation_loss[]"][-1][0] < state["validation_loss[]"][-1][0]:
                 return False
             return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
@@ -309,18 +322,6 @@ class Trainingstate():
         if is_best_valid(self.state):
             shutil.copyfile(filename, str(short_filename + self.valid_pattern + self.extension))
             
-     
-    def __repr__(self):
-        return str(self.state)
-    
-    
-    def __str__(self):
-        return str(self.state)
-    
-    
-    def __getitem__(self, item):
-         return self.state[item]
-    
     
     def load_weights_best_training(self, model, optimizer):
         """
@@ -404,7 +405,7 @@ class Trainingstate():
         model.load_state_dict(self.state["model_state"])            
         
         if optimizer is not None:
-            uu.update_optimizer_weights(model, optimizer)
+            Trainingstate.update_optimizer_weights(model, optimizer)
        
         return model
     
@@ -471,9 +472,31 @@ class Trainingstate():
             model = model.cpu()
 
         if optimizer is not None:
-            uu.update_optimizer_weights(model, optimizer)
+            Trainingstate.update_optimizer_weights(model, optimizer)
 
         return model
+    
+    @staticmethod
+    def update_optimizer_weights(model, optimizer):
+        """
+        Repoints the weights of an optimizer to a new model.
+       
+        Helper method to repair references after the model's parameters have changed.
+        This happens when the model is converted to CUDA or older weights are loaded.
+        When this happens, the optimizer optimizes old weights as he does not have the current weights.
+        Therefore we need to repoint the optimizers weights to the new model.
+        """
+        # Delete the current weights
+        del optimizer.param_groups[:]
+    
+        param_groups = list(model.parameters())
+        if len(param_groups) == 0:
+            raise ValueError("optimizer got an empty parameter list")
+        if not isinstance(param_groups[0], dict):
+            param_groups = [{'params': param_groups}]
+    
+        for param_group in param_groups:
+                optimizer.add_param_group(param_group)
  
 
 from .schedulers import StepLR_earlystop

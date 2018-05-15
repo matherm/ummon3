@@ -322,12 +322,15 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         evaluation_dict = {}
         
         # Compute Running average training accuracy
-        avg_training_acc = 0.
-        for saved_output, saved_targets, batch in output_buffer:
-            classes = ClassificationAnalyzer.classify(saved_output.cpu())
-            acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
-            avg_training_acc = ClassificationAnalyzer._online_average(acc, batch + 1, 
-                avg_training_acc)
+        if output_buffer is not None and len(output_buffer) > 0:
+            avg_training_acc = 0.
+            for saved_output, saved_targets, batch in output_buffer:
+                classes = ClassificationAnalyzer.classify(saved_output.cpu())
+                acc = ClassificationAnalyzer.compute_accuracy(classes, saved_targets.cpu())
+                avg_training_acc = MetaAnalyzer._online_average(acc, batch + 1, 
+                    avg_training_acc)
+        else:
+            avg_training_acc = None
         
         # evaluate on validation set
         loss_average, acc_average = 0.,0.
