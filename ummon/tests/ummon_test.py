@@ -17,19 +17,7 @@ from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
 import ummon.utils as uu
-from ummon.schedulers import *
-from ummon.trainingstate import *
-from ummon.data import *
-from ummon.trainer import *
-from ummon.unsupervised import *
-from ummon.supervised import *
-from ummon.logger import *
-from ummon.trainingstate import *
-from ummon.analyzer import *
-from ummon.predictor import *
-from ummon.visualizer import *
-from ummon.modules.container import *
-from ummon.modules.linear import *
+from ummon import *
 
 # set fixed seed for reproducible results
 torch.manual_seed(4)
@@ -167,42 +155,6 @@ class TestUmmon(unittest.TestCase):
         hinge_true = (np.maximum(0, 1 - x0*y0)).sum()
         print('True Hin:', hinge_true)
         assert np.allclose(hinge, hinge_true, 0, 1e-3)
-        
-    #     # test 3 pixel error metric function
-    #         loss = Loss('3Pix', [7], cnet, [], '3_pixel')
-    #         cnet.init_network()
-    # 
-    #         x1 = np.zeros((batch+1, 7), dtype=np.float32)
-    #         y1 = np.zeros((batch+1, 7), dtype=np.float32)
-    #         # simulate softmax
-    #         x1[:, 0] = -1
-    #         x1[:, 1] = -2
-    #         x1[:, 2] = -3
-    #         x1[:, 3] = -4
-    #         x1[:, 4] = -5
-    #         x1[:, 5] = -6
-    #         x1[:, 6] = -7
-    # 
-    #         y1[0][3] = 1
-    #         y1[1][3] = 1
-    #         y1[2][3] = 1
-    #         y1[3][3] = 1
-    #         y1[4][3] = 1
-    #         y1[5][3] = 1
-    #         y1[6][3] = 1
-    # 
-    #         pix = cnet.avg_loss(x1, y1)
-    #         print('3 Pix:   ', pix)
-    # 
-    #         pix_true = 0
-    #         x1_gt = np.array([0.05, 0.2, 0.5, 0.2, 0.05])
-    #         for i in range(0, x1.shape[0]):
-    #             mul = x1_gt*x1[i,1:6]
-    #             pix_true = pix_true - mul.sum()
-    # 
-    # 
-    #         print('True 3 Pix:', pix_true)
-    #         assert np.allclose(pix, pix_true, 0, 1e-3)
     
     
     # check gradient
@@ -333,8 +285,8 @@ class TestUmmon(unittest.TestCase):
                 lg.error('Test error!', ValueError)
             except ValueError:
                 print("Only a test - no worries ...")
-
-
+    
+    
     # test training
     def test_train(self):
         print('\n')
@@ -377,7 +329,7 @@ class TestUmmon(unittest.TestCase):
         print(w)
         print('Ref. bias:')
         print(b.T[0])
-
+        
         # fit
         with Logger(logdir='', loglevel=logging.ERROR) as lg:
             trn = ClassificationTrainer(lg, cnet, loss, opt)
@@ -392,6 +344,66 @@ class TestUmmon(unittest.TestCase):
         print(b0)
         assert np.allclose(w, w0, 0, 1e-1)
         assert np.allclose(b, b0, 0, 1e-1)
+    
+    
+    # test flatten
+    def test_flatten(self):
+        print('\n')
+        
+        # create net 
+        batch = 5
+        cnet = Sequential(
+            ('sigm0', nn.Sigmoid()),
+            ('flatt', Flatten([1,3,2]))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch, 1, 3, 2).astype('float32')
+        
+        # compute reference forward path
+        y3 = sigmoid(x0)
+        y4 = np.reshape(y3, (1,1,batch,6))
+        
+        # predict and check Flatten
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y1 = cnet(x1)
+        y = y1.data.numpy()        
+        print('Predictions Flatten:')
+        print(y)
+        print('Reference predictions:')
+        print(y4)
+        assert np.allclose(y, y4, 0, 1e-5)
+    
+    
+    # test unflatten
+    def test_unflatten(self):
+        print('\n')
+    
+        # create net 
+        batch = 5
+        cnet = Sequential(
+            ('unfla', Unflatten([6], [1,3,2])),
+            ('sigm0', nn.Sigmoid())
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch, 6).astype('float32')
+        
+        # compute reference forward path
+        y2 = np.reshape(x0, (batch,1,3,2))
+        y3 = sigmoid(y2)
+        
+        # predict and check unflatten
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y1 = cnet(x1)
+        y = y1.data.numpy()        
+        print('Predictions Unflatten:')
+        print(y)
+        print('Reference predictions:')
+        print(y3)
+        assert np.allclose(y, y3, 0, 1e-5)
     
     
     def test_Trainer(self):
