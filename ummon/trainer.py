@@ -452,7 +452,8 @@ class MetaTrainer:
                               dataloader_training.batch_size, 
                               time_dict,
                               Analyzer.evalstr(self.trainingstate), 
-                              self.profile)
+                              self.profile,
+                              evaluation_dict)
     
     
     def _combined_retraining(self, dataloader_training, validation_set, 
