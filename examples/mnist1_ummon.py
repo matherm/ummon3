@@ -75,7 +75,8 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     y_pred = Predictor.predict(net, x1, batch_size=batch_size, output_transform=F.sigmoid)
     
     # evaluate
-    correct = np.argmax(y1, axis=1) == np.argmax(y_pred.numpy(), axis=1) # correctly classified
-    bce = ((loss(y, y3).data.numpy())[0])/y1.shape[0]*batch_size # loss
+    correct = np.argmax(y1, axis=1) == np.argmax(y_pred, axis=1) # correctly classified
+    bce = ((loss(y, y3).data.numpy()))/y1.shape[0]*batch_size # loss
+    bce = bce[0] if type(bce) == np.ndarray else bce
     lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(bce, 100.0*correct.sum()/y1.shape[0]))
 

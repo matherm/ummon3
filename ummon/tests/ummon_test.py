@@ -1142,12 +1142,14 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(type(Predictor.predict(model, dataset_valid)) == torch.Tensor)
         
         # SIMPLIFIED Interface
-        y = Predictor.predict(model, x_valid.float().numpy(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
-        self.assertTrue(type(y) == torch.Tensor)
+        y0 = Predictor.predict(model, x_valid.float().numpy(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        self.assertTrue(type(y0) == np.ndarray)
    
         # SIMPLIFIED Interface with Tensors
-        y = Predictor.predict(model, x_valid.float(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
-        self.assertTrue(type(y) == torch.Tensor)
+        y1 = Predictor.predict(model, x_valid.float(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        self.assertTrue(type(y1) == torch.Tensor)
+        
+        assert np.allclose(y0, y1.numpy())
    
         
         

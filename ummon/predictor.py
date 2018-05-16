@@ -37,7 +37,7 @@ class Predictor:
         ---------
         model           : nn.module
                           The model
-        dataset         : torch.utils.data.Dataset OR numpy X
+        dataset         : torch.utils.data.Dataset OR numpy X or torch.Tensor or torch.utils.data.DataLoader
                           Dataset to evaluate
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -53,16 +53,21 @@ class Predictor:
         The output
         """
         # simple interface: training and test data given as numpy arrays
-        if type(dataset) == tuple or type(dataset) == np.ndarray or uu.istensor(dataset):
-                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
-        assert isinstance(dataset, torch.utils.data.Dataset)
         assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataset, model)
+        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
+            torch_dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
+        if isinstance(dataset, torch.utils.data.Dataset):
+            torch_dataset = dataset
+        if isinstance(dataset, torch.utils.data.DataLoader):
+            dataloader = dataset
+            torch_dataset = dataloader.dataset
+        else:
+            bs = len(torch_dataset) if batch_size == -1 else batch_size
+            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)  
+        assert uu.check_precision(torch_dataset, model)
         
         model.eval()
         use_cuda = next(model.parameters()).is_cuda
-        bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)  
         outbuf = []
         for i, data in enumerate(dataloader, 0):
 
@@ -83,27 +88,41 @@ class Predictor:
                     else:
                         output = output_transform(output)
                 # Save output for later evaluation
-                outbuf.append(output.data.cpu())
+                outbuf.append(output.data)
                 
         model.train()
-        return torch.cat(outbuf, dim=0)
+        full_output = torch.cat(outbuf, dim=0).cpu()
+        if type(dataset) == np.ndarray:
+            return full_output.numpy()
+        else:
+            return full_output
     
     
      # Get index of class with max probability
     @staticmethod
-    def classify(output, loss_function = None):
+    def classify(output, loss_function = None, logger = Logger()):
         """
         Return
         ------
         classes (torch.LongTensor) - Shape [B x 1]
         """
+        if isinstance(output, np.ndarray):
+            output = torch.from_numpy(output)
+        
         if loss_function is not None:
             # Evaluate non-linearity in case of a combined loss-function like CrossEntropy
             if isinstance(loss_function, torch.nn.BCEWithLogitsLoss):
+               # Check if we are using a doubled SoftMax-Layer i.e. output is already softmaxed
+                if torch.max(output[0]) <= 1 and torch.min(output[0]) >= 0:
+                    logger.warn("Model output is already normalized (between 0 and 1). Did you unintentionally use sigmoid in loss function AND model?")
                 output = F.sigmoid(Variable(output)).data
             
             if isinstance(loss_function, torch.nn.CrossEntropyLoss):
+                # Check if we are using a doubled SoftMax-Layer i.e. output is already softmaxed
+                if np.allclose(torch.sum(output[0]), 1, 1e-4):
+                    logger.warn("Model output is already normalized (sums to 1). Did you unintentionally use softmax in loss function AND model?")
                 output = F.softmax(Variable(output), dim=1).data
+                
         
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
