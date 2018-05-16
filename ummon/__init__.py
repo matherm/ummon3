@@ -62,4 +62,5 @@ from .predictor import *
 from .modules.container import *
 from .modules.linear import *
 from .modules.loss import *
+from .modules.flatten import *
 

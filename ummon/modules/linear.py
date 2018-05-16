@@ -10,7 +10,7 @@ class Linear(nn.Linear):
     '''
     Fully connected linear layer class::
     
-        line0 = Linear(n, num_neurons, init, wdecay, bias)
+        line0 = Linear([n], num_neurons, init, bias)
     
     creates a fully connected linear layer with 'n' input neurons and
     'num_neurons' output neurons. The weight matrix is initialized
@@ -25,10 +25,10 @@ class Linear(nn.Linear):
     where the input is given as an mbs x n matrix X with the flattened n-dimensional
     inputs as rows and the mini batch size mbs, the output as an mbs x m matrix Y with 
     neuron outputs in a row, the m x n weight matrix W and the m x 1 bias vector b. 
-    The node accepts only input tensors of size [1,1,mbs,n] and produces output tensors 
+    The layer accepts only flat input tensors of size [1,1,mbs,n] and produces output tensors 
     of size [1,1,mbs,n]. If the input is in unflattened format, a Flatten node has to be 
-    included as input layer. You can set an L2 weight decay 'wdecay' for the weights for 
-    this layer individually.
+    included as input layer. If the argument 'bias' is set to False the bias vector is 
+    ignored.
     
     Attributes:
     
@@ -36,7 +36,7 @@ class Linear(nn.Linear):
     * b: bias vector
     
     '''    
-    def __init__(self, insize, num_neurons=10, init='xavier_normal', wdecay=0.0, bias=True):
+    def __init__(self, insize, num_neurons=10, init='xavier_normal', bias=True):
         
         # allow both for list as input size (ummon style) and for number of input neurons
         if type(insize) == list:
@@ -54,17 +54,13 @@ class Linear(nn.Linear):
             self.num_weights += self.out_features
         self.num_adj_weights = self.num_weights
         self.num_neurons = self.out_features
-        
-        # weight decay is only set at the beginning
-        self._wdecay = float(wdecay)
     
     
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[1,1,1,{}]->[1,1,1,{}],wdec={})'.format(str(self.in_features), 
-            str(self.out_features), str(self._wdecay)) \
-            + ', bias=' + str(self.bias is not None) + ')' 
+            + '[1,1,bs,{}]->[1,1,bs,{}])'.format(str(self.in_features), 
+            str(self.out_features)) + ', bias=' + str(self.bias is not None) + ')' 
     
     
     # Get the input block of a given output block
