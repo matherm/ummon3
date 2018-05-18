@@ -70,8 +70,9 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     y1_pred = Predictor.predict(net, x1, batch_size=mbs, output_transform=F.softmax)
     
     # evaluate
-    correct = np.sum(y1 == np.argmax(y1_pred.numpy(), axis=1))
-    llh = ((loss(y, y3).data.numpy())[0])/y1.shape[0]*mbs # loss
+    correct = np.sum(y1 == np.argmax(y1_pred, axis=1))
+    llh = ((loss(y, y3).data.numpy()))/y1.shape[0]*mbs # loss
+    llh = llh[0] if type(llh) == np.ndarray else llh
     lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(llh, 
         100.0*correct.sum()/y1.shape[0]))
 

@@ -76,7 +76,10 @@ class SupervisedTrainer(MetaTrainer):
         
         Arguments
         ---------
-        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
+        *dataloader_training (torch.utils.data.Dataloader OR
+                              torch.utils.data.Dataset OR 
+                              numpy (X, y, bs) OR 
+                              torch.Tensor (X y,, bs) : A data structure holding the training data.
         *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
         
         Return
@@ -87,27 +90,37 @@ class SupervisedTrainer(MetaTrainer):
         """
         # simple interface: training and test data given as numpy arrays
         if type(dataloader_training) == tuple:
-            dataset = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=dataloader_training, train=True)
-            # supervised
-            if len(dataloader_training) == 3:
-                batch = int(dataloader_training[2])
+            data = dataloader_training
+            if len(data) == 3:
+                batch_size = int(data[2])
             else:
-                self.logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
-                TypeError)
-            dataloader_training = DataLoader(dataset, batch_size=batch, shuffle=True, 
-                sampler=None, batch_sampler=None, num_workers=0)
-        assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
+                self.logger.error('Training data must be provided as a tuple (X, y, batch) or as PyTorch DataLoader.',TypeError)
+            if isinstance(data[0], np.ndarray) or uu.istensor(data[0]):
+                torch_dataset = uu.construct_dataset_from_tuple(self.logger, data, train=True)
+
+        if isinstance(dataloader_training, torch.utils.data.Dataset):
+                batch_size = -1
+                torch_dataset = dataloader_training
+
+        if isinstance(dataloader_training, torch.utils.data.DataLoader):
+            dataloader = dataloader_training
+            torch_dataset = dataloader.dataset
+        else:
+            bs = len(torch_dataset) if batch_size == -1 else batch_size
+            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)       
+
+        assert uu.check_precision(dataloader.dataset, self.model, self.precision)
+        
+        # COMPUTE BATCHES PER EPOCH
+        batches = int(np.ceil(len(torch_dataset) / dataloader.batch_size))
+       
         if validation_set is not None:
             if type(validation_set) == tuple or type(validation_set) == np.ndarray:
                 validation_set = uu.construct_dataset_from_tuple(logger=self.logger, data_tuple=validation_set, train=False)
             assert isinstance(validation_set, torch.utils.data.Dataset)
             assert uu.check_precision(validation_set, self.model, self.precision)
             
-        # COMPUTE BATCHES PER EPOCH
-        batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
-       
-        return dataloader_training, validation_set, batches
+        return dataloader, validation_set, batches
 
 
 class SupervisedAnalyzer(MetaAnalyzer):
@@ -126,7 +139,44 @@ class SupervisedAnalyzer(MetaAnalyzer):
     def __init__(self):
         self.name = "ummon.SupervisedAnalyzer"
             
-            
+    @staticmethod
+    def _data_validation(eval_dataset, batch_size, logger):
+        """
+        Does input data validation for training and validation data.
+        
+        Arguments
+        ---------
+        *dataset (torch.utils.data.Dataloader OR
+                              torch.utils.data.Dataset OR 
+                              numpy (X, y) OR 
+                              torch.Tensor (X, y) : A data structure holding the validation data.
+        *batch_size (int) : The batch size
+        *logger (ummon.logger) : the logger 
+        
+        Return
+        ------
+        *dataloader (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
+        """
+        # simple interface: training and test data given as numpy arrays
+        if type(eval_dataset) == tuple:
+            data = eval_dataset
+            if len(eval_dataset) != 2:
+                logger.error('Training data must be provided as a tuple (X, y) or as PyTorch DataLoader.',TypeError)
+            if isinstance(data[0], np.ndarray) or uu.istensor(data[0]):
+                torch_dataset = uu.construct_dataset_from_tuple(logger, data, train=False)
+
+        if isinstance(eval_dataset, torch.utils.data.Dataset):
+                torch_dataset = eval_dataset
+
+        if isinstance(eval_dataset, torch.utils.data.DataLoader):
+            dataloader = eval_dataset
+            torch_dataset = dataloader.dataset
+        else:
+            bs = len(torch_dataset) if batch_size == -1 else batch_size
+            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)        
+
+        return dataloader
+    
     @staticmethod    
     def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
         output_buffer=None):
@@ -153,21 +203,13 @@ class SupervisedAnalyzer(MetaAnalyzer):
         Dictionary
         A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
-        # simple interface: training and test data given as numpy arrays
-        if type(dataset) == tuple:
-                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
-        
-        assert isinstance(dataset, torch.utils.data.Dataset)
-        assert isinstance(loss_function, nn.Module)
-        assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataset, model)
+        # Input validation
+        dataloader = SupervisedAnalyzer._data_validation(dataset, batch_size, logger)
+        assert uu.check_precision(dataloader.dataset, model)
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
         loss_average = 0.
-        bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, 
-                batch_sampler=None)
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
@@ -311,23 +353,15 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         Dictionary
         A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
-        # simple interface: training and test data given as numpy arrays
-        if type(dataset) == tuple:
-                 dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
-        
-        assert isinstance(dataset, torch.utils.data.Dataset)
-        assert isinstance(loss_function, nn.Module)
-        assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataset, model)
-        
-        use_cuda = next(model.parameters()).is_cuda
-        evaluation_dict = {}
+        # Input validation
+        dataloader = SupervisedAnalyzer._data_validation(dataset, batch_size, logger)
+        assert uu.check_precision(dataloader.dataset, model)
         
         # Compute Running average training accuracy
         if output_buffer is not None and len(output_buffer) > 0:
             avg_training_acc = 0.
             for saved_output, saved_targets, batch in output_buffer:
-                classes = Predictor.classify(saved_output.cpu(), loss_function)
+                classes = Predictor.classify(saved_output.cpu(), loss_function, logger)
                 acc = Predictor.compute_accuracy(classes, saved_targets.cpu())
                 avg_training_acc = MetaAnalyzer._online_average(acc, batch + 1, 
                     avg_training_acc)
@@ -335,9 +369,9 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
             avg_training_acc = None
         
         # evaluate on validation set
+        use_cuda = next(model.parameters()).is_cuda
+        evaluation_dict = {}
         loss_average, acc_average = 0.,0.
-        bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
         outbuf = []
         for i, data in enumerate(dataloader, 0):
                 
@@ -371,7 +405,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 
         # Compute classification accuracy on validation set
         for saved_output, saved_targets, batch in outbuf:
-            classes = Predictor.classify(saved_output.cpu(), loss_function)
+            classes = Predictor.classify(saved_output.cpu(), loss_function, logger)
             acc = Predictor.compute_accuracy(classes, saved_targets.cpu())
             acc_average = ClassificationAnalyzer._online_average(acc, batch + 1, acc_average)
         

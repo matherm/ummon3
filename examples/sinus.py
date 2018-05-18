@@ -127,32 +127,31 @@ if __name__ == "__main__":
         optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
 
         # LOAD TRAINING STATE
-        ts = None
+        ts = Trainingstate
         if argv.trainingstate:
             try:
                 ts = Trainingstate("SINUS_best_validation_loss.pth.tar")
             except FileNotFoundError:
-                ts = None
+                ts = Trainingstate()
 
         with Logger(logdir='.', log_batch_interval=1000, log_epoch_interval=100, loglevel=1) as lg:
 
             # CREATE A TRAINER
-            my_trainer = Trainer(lg,
+            my_trainer = SupervisedTrainer(lg,
                                  model,
                                  criterion,
                                  optimizer,
                                  model_filename="SINUS",
+                                 trainingstate = ts,
                                  precision=np.float32,
                                  use_cuda=argv.use_cuda)
 
             # START TRAINING
-            trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+            my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                             epochs=argv.epochs,
-                                            validation_set=TensorDataset(tes, test),
-                                            eval_interval=argv.eval_interval,
-                                            trainingstate=ts)
+                                            validation_set=TensorDataset(tes, test))
 
-            results = Analyzer.inference(model, dataset=TensorDataset(tes, test), logger=lg)
+            results = Predictor.predict(model, tes, logger=lg)
 
             #PLOT results
             if argv.plot:

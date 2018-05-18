@@ -311,9 +311,6 @@ class Trainingstate():
         def is_best_valid(state):
             if len(state["validation_loss[]"]) == 0:
                 return False
-            # was not an evaluation pass
-            if state["validation_loss[]"][-1][0] < state["validation_loss[]"][-1][0]:
-                return False
             return state["validation_loss[]"][-1][1] == state["best_validation_loss"][1]
         
         if is_best_train(self.state):

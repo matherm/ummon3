@@ -193,7 +193,7 @@ class Logger(logging.getLoggerClass()):
     
     # log at end of epoch
     def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict, 
-        evalstr=None, profile=False):
+        evalstr=None, profile=False, evaluation_dict = None):
         if epoch % self.log_epoch_interval == 0:
             if profile:
                 self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
@@ -205,7 +205,8 @@ class Logger(logging.getLoggerClass()):
                     int(time_dict["backprop"] - time_dict["loss"]), 
                     int(time_dict["hooks"] - time_dict["backprop"]),
                     int((batches * batchsize/(time_dict["total"])))))
-                self.info('       Memory status: RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
+                self.info('       Memory status : RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
+                self.info('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
             else:
                 self.info('Epoch: {} - {}. [{}s] ~ {:5} samples/s '.format(
                     epoch, evalstr, 
