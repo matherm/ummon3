@@ -379,7 +379,7 @@ class TestUmmon(unittest.TestCase):
     # test unflatten
     def test_unflatten(self):
         print('\n')
-    
+        
         # create net 
         batch = 5
         cnet = Sequential(
@@ -404,6 +404,49 @@ class TestUmmon(unittest.TestCase):
         print('Reference predictions:')
         print(y3)
         assert np.allclose(y, y3, 0, 1e-5)
+    
+    
+    # test convolutional layer valid padding
+    def test_conv_valid(self):
+        print('\n')
+        
+        # create net
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3]))
+        )
+        print(cnet)
+        
+        # check weight matrix size
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        assert w.shape == (2,1,3,3)
+        assert b.shape == (2,)
+        
+        # test input
+        x0 = np.zeros((2,25), dtype=np.float32)
+        x0[0,12] = 1.0
+        x0[1,12] = 3.0
+        y0 = np.random.randn(2, 18).astype('float32')
+        y1 = np.zeros((2,2,3,3), dtype=np.float32)
+        
+        # predict and check cross-correlation
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Predictions Conv for delta input:')
+        print(y2)
+        print('Reference predictions:')
+        y1[0,0,:,:] = np.flipud(np.fliplr(w[0,0,:,:])) + b[0]
+        y1[0,1,:,:] = np.flipud(np.fliplr(w[1,0,:,:])) + b[1]
+        y1[1,0,:,:] = np.flipud(np.fliplr(3*w[0,0,:,:])) + b[0]
+        y1[1,1,:,:] = np.flipud(np.fliplr(3*w[1,0,:,:])) + b[1]
+        print(y1)
+        assert np.allclose(y1, y2, 0, 1e-5)
     
     
     def test_Trainer(self):

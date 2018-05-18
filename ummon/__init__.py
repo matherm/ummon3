@@ -63,4 +63,5 @@ from .modules.container import *
 from .modules.linear import *
 from .modules.loss import *
 from .modules.flatten import *
+from .modules.conv import *
 
