@@ -175,7 +175,6 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
             torch_dataset = uu.construct_dataset_from_tuple(logger, data, train=False)
 
         if isinstance(eval_dataset, torch.utils.data.Dataset):
-                batch_size = -1
                 torch_dataset = eval_dataset
 
         if isinstance(eval_dataset, torch.utils.data.DataLoader):
