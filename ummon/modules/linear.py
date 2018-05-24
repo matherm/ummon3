@@ -81,6 +81,10 @@ class Linear(nn.Linear):
     # set weights
     @w.setter
     def w(self, wmat):
+        if type(wmat) != np.ndarray:
+            raise TypeError('Provided weight matrix is not a *NumPy* array')
+        if wmat.shape != (self.out_features, self.in_features):
+            raise TypeError('Provided weight tensor has wrong size.')
         self.weight.data = torch.from_numpy(wmat)
     
     
@@ -97,5 +101,11 @@ class Linear(nn.Linear):
     @b.setter
     def b(self, bvec):
         if self.bias is not None:
+            if type(bvec) != np.ndarray:
+                raise TypeError('Provided bias vector is not a *NumPy* array')
+            if bvec.ndim == 1:
+                bvec = bvec.reshape((len(bvec),1)).copy()
+            if bvec.shape != (self.out_features, 1):
+                raise TypeError('Provided bias vector has wrong size.')
             self.bias.data = torch.from_numpy(bvec)
 

@@ -32,6 +32,10 @@ class Flatten(nn.Module):
         self.insize = list(insize)
         if len(self.insize) != 3:
             raise TypeError('Input size list must have 3 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
     
     
     # return printable representation
@@ -111,6 +115,8 @@ class Unflatten(nn.Module):
             raise TypeError('Output size list must have 3 elements.')
         for s in self.outsize:
             s = int(s)
+            if s < 1:
+                raise ValueError('Output size must be > 0.')        
         if self.insize != self.outsize[0] * self.outsize[1] * self.outsize[2]:
             raise ValueError('Input size must be the product of the input sizes.')
     
