@@ -231,7 +231,10 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 t = time.time()
 
                 # Get the inputs
-                inputs = Variable(data)
+                if type(data) == tuple or type(data) == list:
+                    inputs = Variable(data[0])
+                else:
+                    inputs = Variable(data)
                 
                 # Handle cuda
                 if use_cuda:
