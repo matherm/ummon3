@@ -119,6 +119,21 @@ class UnsupervisedTrainer(MetaTrainer):
        
         return dataloader, validation_set, batches
     
+    # prepares one batch for processing
+    def _get_batch(self, data):
+        
+        # Get the inputs
+        if type(data) == tuple or type(data) == list:
+            inputs = Variable(data[0])
+        else:
+            inputs = Variable(data)
+        
+        # Handle cuda
+        if self.use_cuda:
+            inputs = inputs.cuda()
+        
+        return inputs, inputs.detach()
+    
     
 class UnsupervisedAnalyzer(MetaAnalyzer):
     """

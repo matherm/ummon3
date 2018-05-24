@@ -1494,20 +1494,19 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc1(x)
                 x = self.fc2(x)
                 return x
-    
         
-        x_valid = torch.from_numpy(np.random.normal(0, 0.1, 100).reshape(100,1))
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 100).reshape(100,1))
         dataset_valid = UnsupTensorDataset(x_valid.float())
-        x = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1))
+        x = torch.from_numpy(np.random.normal(0, 1, 1000).reshape(1000,1))
         dataset = UnsupTensorDataset(x.float())
-        dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_training = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01/10)
         my_trainer = UnsupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trainingstate=trs, model_filename="testcase", convergence_eps = 1e-3, model_keep_epochs=True)
         

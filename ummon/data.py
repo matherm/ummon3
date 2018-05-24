@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
 __all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "TripletTensorDataset"]
 

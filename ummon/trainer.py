@@ -200,8 +200,9 @@ class MetaTrainer:
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
         
         """
-        if targets.is_cuda or output.is_cuda:
-            output, targets = output.cuda(), targets.cuda()
+        if type(output) != tuple and type(output) != list and targets is not None:
+            if targets.is_cuda or output.is_cuda:
+                output, targets = output.cuda(), targets.cuda()
         
         loss = self.criterion(output, targets)
         
@@ -595,7 +596,7 @@ class MetaTrainer:
                 
                 output, time_dict = self._forward_one_batch(inputs, time_dict)
                 loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
-                
+
                 # Backpropagation
                 time_dict = self._backward_one_batch(loss, time_dict, after_backward_hook, 
                     output, targets)
@@ -633,3 +634,7 @@ class MetaTrainer:
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
         self._combined_retraining(dataloader_training, validation_set, 
                              after_backward_hook, after_eval_hook, eval_batch_size)
+        
+        
+        
+        
