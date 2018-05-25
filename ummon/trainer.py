@@ -219,7 +219,7 @@ class MetaTrainer:
         ---------
         *loss      (torch.autograd.Variable): The computed loss as scalar
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
-        *OPTIONAL after_backward_hook (function(model, output.data, targets.data, loss.data)):
+        *OPTIONAL after_backward_hook (function(output.data, targets.data, loss.data)):
                                             : A hook that gets executed after backward pass.
         *OPTIONAL output    (torch.autograd.Variable): A packed torch.Tensor representing a 
                                               single output of a mini-batch.
@@ -242,7 +242,7 @@ class MetaTrainer:
         
         # Run hooks
         if after_backward_hook is not None:
-            after_backward_hook(self.model, output.data, targets.data, loss.cpu().data)
+            after_backward_hook(output.data, targets.data, loss.cpu().data)
         
         # time hooks
         if self.profile and self.use_cuda: torch.cuda.synchronize()
@@ -468,9 +468,9 @@ class MetaTrainer:
                                 The dataloader that provides the training data
         validation_set      :   torch.utils.data.Dataset OR tuple (X)
                                 The validation dataset
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
@@ -555,9 +555,9 @@ class MetaTrainer:
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        after_backward_hook :   OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)

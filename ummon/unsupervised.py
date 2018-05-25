@@ -207,7 +207,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook : OPTIONAL function(output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -231,13 +231,14 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
 
                 # Get the inputs
                 if type(data) == tuple or type(data) == list:
-                    inputs = Variable(data[0])
+                    inputs, targets = Variable(data[0]), data[1]
                 else:
-                    inputs = Variable(data)
+                    inputs, targets = Variable(data), None
                 
                 # Handle cuda
                 if use_cuda:
                     inputs = inputs.cuda()
+                    targets = targets.cuda() if targets is not None else None
                 
                 # Execute Model
                 output = model(inputs)
@@ -249,7 +250,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, None, loss.data)
+                    after_eval_hook(output.data, targets, loss.data)
                 
                 
         evaluation_dict["training_accuracy"] = 0.0        

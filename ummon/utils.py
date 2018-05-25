@@ -329,3 +329,46 @@ def tensor_tuple_to_variables(the_tuple):
 def tensor_tuple_to_cuda(the_tuple):
     assert type(the_tuple) == tuple or type(the_tuple) == list
     return tuple([t.cuda() for t in the_tuple])            
+
+
+def online_average(data, count, avg):
+    # BACKWARD COMPATIBILITY FOR TORCH < 0.4
+    if type(data) is not float:
+        if type(data) == torch.Tensor:
+            data = data.item()
+        else:
+            data = data.data[0]
+    navg = avg + (data - avg) / count
+    return navg
+     
+def moving_average(self, t, ma, value, buffer):
+    """
+    Helper method for computing moving averages.
+    
+    Arguments
+    ---------
+    * t (int) : The timestep
+    * ma (float) : Current moving average
+    * value (float) : Current value
+    * buffer (List<float>) : The buffer of size N
+    
+    Return
+    ------
+    * moving_average (float) : The new computed moving average.
+    
+    """
+    # BACKWARD COMPATIBILITY FOR TORCH < 0.4
+    if type(value) is not float:
+        if type(value) == torch.Tensor:
+            value = value.item()
+        else:
+            value = value.data[0]
+    
+    n = buffer.shape[0]
+    if ma is None:
+        moving_average = value
+        buffer += value
+    else:
+        moving_average = ma + (value / n) - (buffer[t % n] / n)
+    buffer[t % n] = value
+    return moving_average

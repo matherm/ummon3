@@ -193,7 +193,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook : OPTIONAL function(output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -234,7 +234,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, targets.data, loss.data)
+                    after_eval_hook(output.data, targets.data, loss.data)
                 
                 
         evaluation_dict["training_accuracy"] = 0.0        
@@ -343,7 +343,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook : OPTIONAL function(output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -398,7 +398,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, targets.data, loss.data)
+                    after_eval_hook(output.data, targets.data, loss.data)
                 
                 # Save output for later evaluation
                 outbuf.append((output.data.clone(), targets.data.clone(), i))
@@ -566,7 +566,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook : OPTIONAL function(output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -611,7 +611,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, targets.data, loss.data)
+                    after_eval_hook(output.data, targets.data, loss.data)
                 
                 
         evaluation_dict["training_accuracy"] = 0.0        
