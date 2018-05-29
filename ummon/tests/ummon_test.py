@@ -1247,10 +1247,10 @@ class TestUmmon(unittest.TestCase):
         my_trainer = SupervisedTrainer(Logger(), model, criterion, 
             optimizer, model_filename="testcase",  model_keep_epochs=True)
         
-        def backward(model, output, targets, loss):
+        def backward(output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
-        def eval(model, output, targets, loss):
+        def eval(output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
         # START TRAINING
