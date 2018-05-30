@@ -206,7 +206,14 @@ class Logger(logging.getLoggerClass()):
                     int(time_dict["hooks"] - time_dict["backprop"]),
                     int((batches * batchsize/(time_dict["total"])))))
                 self.info('       Memory status : RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
-                self.info('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
+                if type(evaluation_dict["detailed_loss"]) == dict:
+                    for k, v in evaluation_dict["detailed_loss"].items():
+                        if type(v) == str:
+                            self.info("       __repr__(loss): {:20} {}".format(k, v))
+                        else:
+                            self.info("       __repr__(loss): {:20} {:.2f}".format(k, v))
+                else:
+                    self.info('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
             else:
                 self.info('Epoch: {} - {}. [{}s] ~ {:5} samples/s '.format(
                     epoch, evalstr, 

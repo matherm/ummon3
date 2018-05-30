@@ -1250,7 +1250,7 @@ class TestUmmon(unittest.TestCase):
         def backward(output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
-        def eval(output, targets, loss):
+        def eval(ctx, output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
         # START TRAINING

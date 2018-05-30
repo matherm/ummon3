@@ -42,7 +42,7 @@ class MetaAnalyzer:
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(model, output.data, targets.data, loss.data)
+        after_eval_hook : OPTIONAL function(ctx, model, output.data, targets.data, loss.data)
                           A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
@@ -58,6 +58,7 @@ class MetaAnalyzer:
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
+        ctx = {}
         loss_average = 0.
         for i, data in enumerate(dataloader, 0):
                 
@@ -83,7 +84,7 @@ class MetaAnalyzer:
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    after_eval_hook(model, output.data, targets.data, loss.data)
+                    ctx = after_eval_hook(ctx, model, output.data, targets.data, loss.data)
                 
                 
         evaluation_dict["training_accuracy"] = 0.0        

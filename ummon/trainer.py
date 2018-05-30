@@ -430,7 +430,7 @@ class MetaTrainer:
                                         training_dataset = dataloader_training.dataset,
                                         trainer_instance = type(self),
                                         precision = self.precision,
-                                        detailed_loss = repr(self.criterion),
+                                        detailed_loss = evaluation_dict["detailed_loss"],
                                         validation_loss = evaluation_dict["loss"],
                                         validation_accuracy = evaluation_dict["accuracy"],  
                                         validation_dataset = validation_set,
@@ -557,7 +557,7 @@ class MetaTrainer:
                                 Evaluation interval for validation dataset in epochs
         after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
                                 A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
+        after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
                                 A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
