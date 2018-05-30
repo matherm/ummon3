@@ -970,29 +970,40 @@ class TestUmmon(unittest.TestCase):
             optimizer, trainingstate=trs, model_filename="testcase_valid",  model_keep_epochs=True)
         
         # START TRAINING
+        # Validation loss
+        # ..  (9, 0.9189968437328946, 10000), **
+        #    (10, 0.9509468257427217, 10000), 
+        #    (11, 0.8643921442590652, 10000)]
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=5,
+                                        epochs=10,
                                         validation_set=dataset_valid)
         # Validation Error
-        assert 5 ==  trs.state["best_validation_loss"][0]
-        assert np.allclose(1.2176150370091205, trs.state["best_validation_loss"][1], 1e-4)
+        assert 9 ==  trs.state["best_validation_loss"][0]
+        assert np.allclose(0.9189968437328946, trs.state["best_validation_loss"][1], 1e-4)
+        
+        assert 9 ==  trs.state["best_validation_loss"][0]
+        assert np.allclose(0.9189968437328946, trs.state["best_validation_loss"][1], 1e-4)
         
         # ASSERT INFERENCE BEFORE
-        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+        assert np.allclose(0.9509468257427217, SupervisedAnalyzer.evaluate(model, 
             criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE
         trs.load_weights_best_validation_(model, optimizer)
         
         # ASSERT INFERENCE
-        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+        assert np.allclose(0.9189968437328946, SupervisedAnalyzer.evaluate(model, 
             criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE 2
+        # Trainingloss
+        # (8, 0.91432171463966838, 10), 
+        # (9, 0.69970237612724273, 10),** 
+        # (10,0.91136816442012725, 10) 
         trs.load_weights_best_training_(model, optimizer)
         
         # ASSERT INFERENCE
-        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
+        assert np.allclose(0.9189968437328946, SupervisedAnalyzer.evaluate(model, 
             criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         files = os.listdir(".")
@@ -1694,12 +1705,10 @@ class TestUmmon(unittest.TestCase):
                 os.remove(os.path.join(dir,file))
                 
 
-
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test', default="", metavar="",
+    parser.add_argument('test', default="", metavar="",
                         help="Execute a specific test")
     argv = parser.parse_args()
     sys.argv = [sys.argv[0]]

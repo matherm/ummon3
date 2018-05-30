@@ -1,19 +1,12 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
-#############################################################################################
-
 """
 
-ummon3 Examples
+ummon3 Tools
 
 Check the trainingstate of a learned model
 
 Run command:
     
-    python check-trainingstate.py --view MNIST1.pth.tar
+    python -m ummon.tools.stateviewer MNIST1.pth.tar
 
 """
 
@@ -21,6 +14,7 @@ Run command:
 # IMPORTS
 from ummon.trainingstate import Trainingstate
 import pprint
+import sys
 
 class DefaultValues(dict):
     def __init__(self):
@@ -33,11 +27,11 @@ class DefaultValues(dict):
     __delattr__ = dict.__delitem__  
 
 
-def example(argv = DefaultValues()):
+def view(model, verbose = False):
    
-    if argv.model is not "":
-        ts = Trainingstate(argv.model)
-        if argv.verbose == True:
+    if model is not "":
+        ts = Trainingstate(model)
+        if verbose == True:
             # DELETE MODEL PARAMETERS
             ts.state.pop("model_state" , None)
             # PRETTY PRINT
@@ -48,16 +42,15 @@ def example(argv = DefaultValues()):
     else:
         raise Exception("No model was given..") 
 
+
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='ummon3 - example - trainingstate checker')
-    parser.add_argument('--model', default="", metavar="",
+    parser = argparse.ArgumentParser(description='ummon3 - tools - trainingstate checker')
+    parser.add_argument('model', default="", metavar="",
                         help="Print summary about a trained model")
     parser.add_argument('-v', action='store_true', dest='verbose', 
                         help="Verbose (default: False)")
     argv = parser.parse_args()
     sys.argv = [sys.argv[0]]                    
     
-    example(argv)
-    
-    
+    view(argv.model, argv.verbose)

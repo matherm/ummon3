@@ -393,7 +393,7 @@ class Trainingstate():
         if optimizer is not None:
             Trainingstate.update_optimizer_weights_(model, optimizer)
     
-    def load_optimizer_(self, optimizer):
+    def load_optimizer_(self, optimizer, cuda=False):
         """
         Loads the persisted weights into a given optimizer.
         
@@ -455,6 +455,13 @@ class Trainingstate():
 
         if optimizer is not None:
             Trainingstate.update_optimizer_weights_(model, optimizer)
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        if use_cuda:
+                            state[k] = v.cuda()
+                        else:
+                            state[k] = v.cpu()
 
         return model
     

@@ -55,6 +55,9 @@ class Installation(install):
         print("\n To run an example:")
         print("\tpython examples/mnist1.py")
         
+        print("\n To view a model:")
+        print("\tpython -m ummon.tools.stateviewer mnist1.pth.tar")
+        
         print("\n To import and use ummon:")
         print("\timport ummon")
         print("\tprint(ummon.version)")   
@@ -90,7 +93,7 @@ setup(
         'scipy',
         ],
       test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.tests', 'ummon.datasets'],
+      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.tests', 'ummon.datasets', 'ummon.tools'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )
