@@ -114,7 +114,7 @@ class Conv(nn.Conv2d):
         
         # network stats
         self.num_neurons = self.outsize[0] * self.outsize[1] * self.outsize[2]
-        self.num_weights = self.num_neurons*self.filtsize[1]*self.filtsize[2] 
+        self.num_weights = self.num_neurons*self.filtsize[1]*self.filtsize[2]*self.insize[0] 
         self.num_adj_weights = self.filtsize[0]*self.insize[0]*self.filtsize[1]* \
             self.filtsize[2]
         if self.bias is not None:
@@ -125,10 +125,10 @@ class Conv(nn.Conv2d):
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[bs,{},{},{}]->[bs,{},{},{}],mask[{},{},{},{}],str={},pad={}'.format(
+            + '[bs,{},{},{}]->[bs,{},{},{}],mask[{},{},{},{}],str=({},{}),pad={}'.format(
             self.insize[0], self.insize[1], self.insize[2], self.outsize[0], self.outsize[1], 
             self.outsize[2], self.filtsize[0], self.insize[0], self.filtsize[1], 
-            self.filtsize[2], self._stride, self._padding) + ', bias=' + \
+            self.filtsize[2], self._stride[0], self._stride[1], self._padding) + ',bias=' + \
             str(self.bias is not None) + ')' 
     
     
