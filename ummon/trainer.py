@@ -366,7 +366,7 @@ class MetaTrainer:
         """
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         early_stopping = isinstance(scheduler, StepLR_earlystop)
-        self.logger.print_problem_summary(self.model, self.criterion, self.optimizer, 
+        self.logger.print_problem_summary(self, self.model, self.criterion, self.optimizer, 
             dataloader_training, validation_set, epochs, early_stopping, self.combined_training_epochs)
         
         # training startup message

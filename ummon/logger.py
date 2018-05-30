@@ -225,13 +225,17 @@ class Logger(logging.getLoggerClass()):
 
     
     # output description of learning task
-    def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
+    def print_problem_summary(self, trainer, model, loss_function, optimizer, dataloader_train, 
         dataset_validation = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):
         
         if hasattr(loss_function, "size_average"):
             size_average = loss_function.size_average
         else:
             size_average = None
+        
+        self.debug(' ')
+        self.debug('[Trainer]')
+        self.debug(str(type(trainer)).replace("<class '", "").replace("'>", ""))
         
         self.debug(' ')
         self.debug('[Model]')
