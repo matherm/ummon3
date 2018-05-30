@@ -9,6 +9,7 @@ import unittest
 import logging
 import os
 import numpy as np
+from scipy.signal import convolve2d, correlate2d
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -447,6 +448,82 @@ class TestUmmon(unittest.TestCase):
         y1[1,1,:,:] = np.flipud(np.fliplr(3*w[1,0,:,:])) + b[1]
         print(y1)
         assert np.allclose(y1, y2, 0, 1e-5)
+    
+    
+    # test convolutional layer gradient
+    def test_conv_valid_gradient(self):
+        print('\n')
+        
+        # create net
+        eta = 0.1
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3])),
+            ('flatt', Flatten([2,3,3]))
+        )
+        print(cnet)
+        loss = nn.MSELoss(size_average=False)
+        opt = torch.optim.SGD(cnet.parameters(), lr=eta)
+        
+        # weight matrix
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        
+        # test input
+        x0 = np.zeros((2,25), dtype=np.float32)
+        x0[0,12] = 1.0
+        x0[1,12] = 3.0
+        y0 = np.random.randn(2, 18).astype('float32')
+        
+        # check update
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
+        y2 = cnet(x1)
+        lo = loss(y2, y1)
+        lo.backward() # torch gradient
+        print('Analytically computed gradient of w:')
+        dW0 = cnet.conv0.weight.grad.data.numpy()
+        print(dW0)
+        
+        # reference forward path
+        y3 = np.zeros((2,2,3,3), dtype=np.float32)
+        y3[0,0,:,:] = np.flipud(np.fliplr(w[0,0,:,:])) + b[0]
+        y3[0,1,:,:] = np.flipud(np.fliplr(w[1,0,:,:])) + b[1]
+        y3[1,0,:,:] = np.flipud(np.fliplr(3*w[0,0,:,:])) + b[0]
+        y3[1,1,:,:] = np.flipud(np.fliplr(3*w[1,0,:,:])) + b[1]
+        
+        # reference backward path
+        y3 = np.reshape(y3, (1,1,2,18))
+        dL = 2.0*(y3 - y0)
+        dL1 = np.reshape(dL, (2,2,3,3))
+        dL2 = np.zeros((2,2,7,7), dtype=np.float32)
+        dL2[0,0,2:5,2:5] = dL1[0,0,:,:]
+        dL2[0,1,2:5,2:5] = dL1[0,1,:,:]
+        dL2[1,0,2:5,2:5] = dL1[1,0,:,:]
+        dL2[1,1,2:5,2:5] = dL1[1,1,:,:]
+        
+        # reference gradient of w
+        x3 = np.reshape(x0, (2,1,5,5))
+        dW1 = correlate2d(x3[0,0,:,:], dL1[0,0,:,:], 'valid')
+        dW2 = correlate2d(x3[0,0,:,:], dL1[0,1,:,:], 'valid')
+        dW1 += correlate2d(x3[1,0,:,:], dL1[1,0,:,:], 'valid')
+        dW2 += correlate2d(x3[1,0,:,:], dL1[1,1,:,:], 'valid')
+        print('True weight gradient:')
+        print(dW1)
+        print(dW2)
+        assert np.allclose(dW0[0,0,:,:], dW1, 0, 1e-5)
+        assert np.allclose(dW0[1,0,:,:], dW2, 0, 1e-5)
+        
+        print('Analytically computed gradient of b:')
+        db0 = cnet.conv0.bias.grad.data.numpy()
+        print(db0.transpose())
+        
+        # reference gradient of b
+        db1 = np.array([dL1[0,0,:,:].sum(), dL1[0,1,:,:].sum()])
+        db1 += np.array([dL1[1,0,:,:].sum(), dL1[1,1,:,:].sum()])
+        print('True bias gradient:')
+        print(db1)
+        assert np.allclose(db0.transpose(), db1, 0, 1e-5)
     
     
     def test_Trainer(self):
