@@ -223,7 +223,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         for i, data in enumerate(dataloader, 0):
                 
@@ -277,7 +277,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         else:
             is_best = learningstate.state["validation_loss[]"][-1][1] == \
                 learningstate.state["best_validation_loss"][1]
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}'.format(
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}{}'.format(
                 learningstate.state["training_loss[]"][-1][1], 
                 learningstate.state["validation_loss[]"][-1][1],
                 learningstate.state["lrate[]"][-1][1],

@@ -209,7 +209,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         for i, data in enumerate(dataloader, 0):
                 
@@ -372,7 +372,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         # evaluate on validation set
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average, acc_average = 0.,0.
         outbuf = []
         for i, data in enumerate(dataloader, 0):
@@ -585,7 +585,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         bs = len(dataset) if batch_size == -1 else batch_size
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)

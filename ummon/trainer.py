@@ -375,7 +375,7 @@ class MetaTrainer:
         
     def _status_summary(self):
         if self.trainingstate.state is not None:
-            self.logger.info("[Status]" )
+            self.logger.info("\n[Status]" )
             trs = self.trainingstate.get_summary()
             self.logger.info('Epochs: {}, best training loss ({}): {:.4f}, best validation loss ({}): {:.4f}'.format(
                 trs['Epochs'], trs['Best Training Loss'][0], trs['Best Training Loss'][1], 
