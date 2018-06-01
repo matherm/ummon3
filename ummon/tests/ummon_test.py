@@ -1329,24 +1329,25 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
-        
         def backward(output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
         def eval(ctx, output, targets, loss):
             assert isinstance(loss, torch.Tensor)
+        
+        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
+            optimizer, model_filename="testcase",  model_keep_epochs=True,
+                                        after_backward_hook=backward, 
+                                        after_eval_hook=eval)
+        
             
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid,
-                                        after_backward_hook=backward, 
-                                        after_eval_hook=eval)
+                                        validation_set=dataset_valid)
     def test_classification(self):
         np.random.seed(17)
         torch.manual_seed(17)

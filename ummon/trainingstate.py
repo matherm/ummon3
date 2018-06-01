@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0,'../../ummon3')  
 sys.path.insert(0,'../ummon3')     
 #############################################################################################
+import os
 import torch
 import torch.nn as nn
 import shutil
@@ -290,6 +291,10 @@ class Trainingstate():
             filename = self.filename
         if self.extension not in filename:
             filename = str(filename + self.extension)
+
+        # CREATE FOLDERS
+        if "/" in filename and not os.path.exists(filename[0:filename.rfind("/")]):
+            os.makedirs(filename[0:filename.rfind("/")])
 
         # UPDATE NAME            
         self.filename = filename.replace(self.train_pattern, '').replace(self.valid_pattern, '')

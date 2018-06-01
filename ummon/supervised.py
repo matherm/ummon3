@@ -57,6 +57,10 @@ class SupervisedTrainer(MetaTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)                        
     
     Methods
     -------
@@ -302,6 +306,10 @@ class ClassificationTrainer(SupervisedTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------
@@ -479,6 +487,10 @@ class SiameseTrainer(SupervisedTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------

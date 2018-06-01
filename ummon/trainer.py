@@ -47,6 +47,10 @@ class MetaTrainer:
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------
@@ -80,6 +84,8 @@ class MetaTrainer:
         self.combined_training_epochs = False
         self.use_cuda = False
         self.profile = False
+        self.after_eval_hook = None
+        self.after_backward_hook = None
         
         # optional arguments
         for key in kwargs:
@@ -109,6 +115,10 @@ class MetaTrainer:
             elif key == 'use_cuda':
                 self.use_cuda = bool(kwargs[key])
             elif key == 'profile':
+                self.profile = bool(kwargs[key])
+            elif key == 'after_backward_hook':
+                self.profile = bool(kwargs[key])
+            elif key == 'after_eval_hook':
                 self.profile = bool(kwargs[key])
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
@@ -211,7 +221,7 @@ class MetaTrainer:
         time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
         return loss, time_dict
       
-    def _backward_one_batch(self, loss, time_dict, after_backward_hook=None, output=None, targets=None):
+    def _backward_one_batch(self, loss, time_dict, output=None, targets=None):
         """
         Computes the loss for a single mini-batch
         
@@ -219,10 +229,7 @@ class MetaTrainer:
         ---------
         *loss      (torch.autograd.Variable): The computed loss as scalar
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
-        *OPTIONAL after_backward_hook (function(output.data, targets.data, loss.data)):
-                                            : A hook that gets executed after backward pass.
-        *OPTIONAL output    (torch.autograd.Variable): A packed torch.Tensor representing a 
-                                              single output of a mini-batch.
+        *OPTIONAL output    (torch.autograd.Variable): A packed torch.Tensor representing a single output of a mini-batch.
         *OPTIONAL targets   (torch.autograd.Variable): The targets for a mini-batch
         
         Return
@@ -241,8 +248,8 @@ class MetaTrainer:
         time_dict["backprop"] = time_dict["backprop"] + (time.time() - time_dict["t"])
         
         # Run hooks
-        if after_backward_hook is not None:
-            after_backward_hook(output.data, targets.data, loss.cpu().data)
+        if self.after_backward_hook is not None:
+            self.after_backward_hook(output.data, targets.data, loss.cpu().data)
         
         # time hooks
         if self.profile and self.use_cuda: torch.cuda.synchronize()
@@ -387,8 +394,7 @@ class MetaTrainer:
                   epoch,  
                   validation_set, 
                   avg_training_loss,
-                  dataloader_training, 
-                  after_eval_hook, 
+                  dataloader_training,
                   eval_batch_size,
                   output_buffer):
         """
@@ -405,7 +411,6 @@ class MetaTrainer:
         *validation_set (torch.utils.data.Dataset) : Validation data.
         *avg_training_loss (float) : the current training loss
         *dataloader_training : The training data
-        *after_eval_hook : A hook that gets executed after evaluation
         *eval_batch_size (int) : A custom batch size to be used during evaluation
         
         """
@@ -418,7 +423,7 @@ class MetaTrainer:
                                                     self.criterion, 
                                                     validation_set, 
                                                     self.logger, 
-                                                    after_eval_hook,
+                                                    self.after_eval_hook,
                                                     eval_batch_size,
                                                     output_buffer)
                 
@@ -457,8 +462,7 @@ class MetaTrainer:
                               evaluation_dict)
     
     
-    def _combined_retraining(self, dataloader_training, validation_set, 
-                             after_backward_hook, after_eval_hook, eval_batch_size):
+    def _combined_retraining(self, dataloader_training, validation_set, eval_batch_size):
         """
         Does combined retraining with validation AND training data. Can be used after the normal training to refine the model.
         
@@ -468,10 +472,6 @@ class MetaTrainer:
                                 The dataloader that provides the training data
         validation_set      :   torch.utils.data.Dataset OR tuple (X)
                                 The validation dataset
-        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         
@@ -504,8 +504,6 @@ class MetaTrainer:
                 self.fit(dataloader_combined, 
                          epochs=combined_training_epochs, 
                          validation_set=validation_set, 
-                         after_backward_hook=after_backward_hook, 
-                         after_eval_hook=after_eval_hook, 
                          eval_batch_size=eval_batch_size)
                 
                 # restore previous state
@@ -540,8 +538,7 @@ class MetaTrainer:
         return inputs, targets
     
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, 
-        after_backward_hook=None, after_eval_hook=None, eval_batch_size=-1):
+    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
         
@@ -555,10 +552,6 @@ class MetaTrainer:
                                 The validation dataset
         eval_interval       :   int
                                 Evaluation interval for validation dataset in epochs
-        after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
-                                A hook that gets called after backward pass during training
-        after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
-                                A hook that gets called after forward pass during evaluation
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         """
@@ -598,8 +591,7 @@ class MetaTrainer:
                 loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
 
                 # Backpropagation
-                time_dict = self._backward_one_batch(loss, time_dict, after_backward_hook, 
-                    output, targets)
+                time_dict = self._backward_one_batch(loss, time_dict, output, targets)
                 
                 # Loss averaging
                 avg_training_loss = self._moving_average(batch, avg_training_loss, 
@@ -614,8 +606,7 @@ class MetaTrainer:
             
             # Evaluate
             self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  
-                validation_set, avg_training_loss, dataloader_training, after_eval_hook, 
-                eval_batch_size, output_buffer)
+                validation_set, avg_training_loss, dataloader_training, eval_batch_size, output_buffer)
             
             # SAVE MODEL
             self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
@@ -632,8 +623,7 @@ class MetaTrainer:
                     break
                 
         # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        self._combined_retraining(dataloader_training, validation_set, 
-                             after_backward_hook, after_eval_hook, eval_batch_size)
+        self._combined_retraining(dataloader_training, validation_set, eval_batch_size)
         
         
         
