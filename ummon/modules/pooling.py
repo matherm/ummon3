@@ -3,59 +3,32 @@ import torch
 import torch.nn as nn
 
 #__all__ = [ 'Pooling', 'Unpool' ]
-__all__ = [ 'MaxPool' ]
+__all__ = [ 'MaxPool', 'AvgPool' ]
 
-# Pooling layer class
+# Max pooling layer class
 class MaxPool(nn.MaxPool2d):
     '''
-    Pooling layer class::
+    Max pooling layer class::
     
-        poo0 = Pooling(id, [n,p,q], cnet,['name 1',..], pool, padding, ystride, xstride,
-            ysize, xsize)
+        poo0 = MaxPool([n,p,q], kernel_size, stride, padding)
     
-    creates a pooling layer with ID string 'id' for an input tensor of size [n,p,q]. The
-    layer is registered in the network 'cnet' and connected to the input layers 'name 1', 
-    'name 2 ' etc. 
+    creates a max pooling layer. This method selects the local maximum in the 
+    neighborhood determined by 'kernel_size' as the output value. The error is sparsely 
+    backpropagated, i.e., only the pixels where the maximum occurred is updated with the 
+    backpropagated error, all others are ignored.
     
-    Applies pooling to subsample an input tensor and provides a certain translation 
+    Applies max pooling to subsample an input tensor and provides a certain translation 
     invariance. The input tensor for this node can have an arbitrary size. Pooling is 
-    controlled by 4 attributes: the stride between window centers in x- and y-direction
-    ('ystride' and 'xstride'), and the pooling window size ('ysize' and 'xsize'). You can 
-    set two types of padding for treating the image boundary regions:
-    
-    1. 'valid': the windows over which the output is pooled is strictly inside the 
-    image. The tiling is started in the upper left corner, boundary regions at the 
-    right and bottom which do not accomodate an entire window are ignored. Therefore,
-    you should preferably choose an image size that is a multiple of the pooling 
-    window size. For 'valid' padding, overlapping windows (i.e. window size exceeds
-    strides) are not allowed. If the input dimensions are [mini_batch_size, nmaps, 
-    rows, cols], the output dimensions are [mini_batch_size, nmaps, r, c] with r = 
-    rows//ystride and c = cols//xstride.
-    
-    2. 'same': the pooling windows are allowed to extend beyond the image boundaries.
-    Window regions outside the image are ignored during max pooling, for average pooling
-    they are padded with zeros. Overlapping windows
-    are allowed, i.e., the window size may exceed the stride. 'same' padding avoids 
-    ignoring image boundary regions at the right and bottom, but is slightly slower.
-    The first window center is placed at position (0,0), all others are placed
-    according to xstride and ystride. The window size must be odd. If the input dimensions are 
-    [mini_batch_size, nmaps, rows, cols], the output dimensions are [mini_batch_size, 
-    nmaps, r, c] with r = 1 + (rows - 1)//ystride and c = 1 + (cols - 1)//xstride. 
-    Typically, the output is slightly larger with 'same' padding as with 'valid' padding.
-    
-    Currently the following subsampling methods are available:
-    
-    1. 'max_pooling': this method selects the local maximum in the ystride x xstride
-    neighborhood as the output value. The error is sparsely backpropagated, i.e., only the 
-    pixels where the maximum occurred is updated with the backpropagated error, all others 
-    are ignored.
+    controlled by 3 attributes: the stride between window centers in x- and y-direction
+    ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
+    either a number or 2-tuple). You can set an additional padding region filled with
+    zeroes for treating the image boundary regions.
+    1. 'max_pooling': 
     
     2. 'avg_pooling': the average value in the pooling window is taken as output. 
     
     Attributes:
     
-    * padding (read only): padding type of the layer
-    * pooling (read only): pooling type of the layer.
     * ystride: stride in y-direction (read only)
     * xstride: stride in x-direction (read only)
     * ysize: window size in y-direction (read only)
@@ -80,17 +53,17 @@ class MaxPool(nn.MaxPool2d):
         
         # output size
         if type(stride) == int:
-            self.ystride = stride
-            self.xstride = stride
+            self._ystride = stride
+            self._xstride = stride
         else:
-            self.ystride = stride[0]
-            self.xstride = stride[1]
+            self._ystride = stride[0]
+            self._xstride = stride[1]
         if type(kernel_size) == int:
-            self.ysize = kernel_size
-            self.xsize = kernel_size
+            self._ysize = kernel_size
+            self._xsize = kernel_size
         else:
-            self.ysize = kernel_size[0]
-            self.xsize = kernel_size[1]
+            self._ysize = kernel_size[0]
+            self._xsize = kernel_size[1]
         if self.xstride == self.xsize and self.ystride == self.ysize: # valid pooling
             out_height = (self.insize[1] + 2*padding)//self.ystride
             out_width = (self.insize[2] + 2*padding)//self.xstride
@@ -138,6 +111,152 @@ class MaxPool(nn.MaxPool2d):
                 x1 = self.insize[2] - 1
         
         return [outp[0], y0, x0, outp[3], y1, x1]
+    
+    # Attribute: stride in y-direction (read only)
+    @property
+    def ystride(self):
+        return self._ystride
+    
+    # Attribute: stride in x-direction (read only)
+    @property
+    def xstride(self):
+        return self._xstride
+    
+    # Attribute: window size in y-direction (read only)
+    @property
+    def ysize(self):
+        return self._ysize
+    
+    # Attribute: window size in x-direction (read only)
+    @property
+    def xsize(self):
+        return self._xsize
+
+
+# Average pooling layer class
+class AvgPool(nn.AvgPool2d):
+    '''
+    Pooling layer class::
+    
+        poo0 = AvgPool([n,p,q], kernel_size, stride, padding)
+    
+    creates a max pooling layer. This method selects the local maximum in the 
+    neighborhood determined by 'kernel_size' as the output value. The error is sparsely 
+    backpropagated, i.e., only the pixels where the maximum occurred is updated with the 
+    backpropagated error, all others are ignored.
+    
+    Applies max pooling to subsample an input tensor and provides a certain translation 
+    invariance. The input tensor for this node can have an arbitrary size. Pooling is 
+    controlled by 3 attributes: the stride between window centers in x- and y-direction
+    ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
+    either a number or 2-tuple). You can set an additional padding region filled with
+    zeroes for treating the image boundary regions.
+    1. 'max_pooling': 
+    
+    2. 'avg_pooling': the average value in the pooling window is taken as output. 
+    
+    Attributes:
+    
+    * ystride: stride in y-direction (read only)
+    * xstride: stride in x-direction (read only)
+    * ysize: window size in y-direction (read only)
+    * xsize: window size in x-direction (read only)
+    
+    '''    
+    # constructor
+    def __init__(self, insize, kernel_size, stride=None, padding=0, count_include_pad=False):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 3:
+            raise TypeError('Input size list must have 3 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        
+        super(AvgPool, self).__init__(kernel_size, stride, padding, count_include_pad)
+        
+        # output size
+        if type(stride) == int:
+            self._ystride = stride
+            self._xstride = stride
+        else:
+            self._ystride = stride[0]
+            self._xstride = stride[1]
+        if type(kernel_size) == int:
+            self._ysize = kernel_size
+            self._xsize = kernel_size
+        else:
+            self._ysize = kernel_size[0]
+            self._xsize = kernel_size[1]
+        if self.xstride == self.xsize and self.ystride == self.ysize: # valid pooling
+            out_height = (self.insize[1] + 2*padding)//self.ystride
+            out_width = (self.insize[2] + 2*padding)//self.xstride
+        else:
+            out_height = (self.insize[1] + 2*padding - 2*(self.ysize//2) - 1) // self.ystride + 1
+            out_width =  (self.insize[2] + 2*padding - 2*(self.xsize//2) - 1) // self.xstride + 1
+        self.outsize = [self.insize[0], out_height, out_width]
+        
+        # network stats
+        self.num_neurons = self.outsize[0] * self.outsize[1] * self.outsize[2]
+        self.num_weights = self.num_adj_weights = 0
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+            + '[bs,{},{},{}]->[bs,{},{},{}];sz={},{};str={},{};pad={})'.format(
+            self.insize[0], self.insize[1], self.insize[2], self.outsize[0], self.outsize[1], 
+            self.outsize[2], self.ysize, self.xsize, self.ystride, self.xstride, self.padding)
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        if xstride == xsize and ystride == ysize: # valid pooling
+            y0 = outp[1]*self.ystride
+            x0 = outp[2]*self.xstride
+            y1 = outp[4]*self.ystride + self.ysize - 1
+            x1 = outp[5]*self.xstride + self.xsize - 1
+            
+        else: 
+            y0 = outp[1]*self.ystride - self.ysize//2
+            if y0 < 0:
+                y0 = 0
+            x0 = outp[2]*self.xstride - self.xsize//2
+            if x0 < 0: 
+                x0 = 0
+            y1 = outp[4]*self.ystride + self.ysize//2
+            if y1 >= self.insize[1]:
+                y1 = self.insize[1] - 1
+            x1 = outp[5]*self.xstride + self.xsize//2
+            if x1 >= self.insize[2]: 
+                x1 = self.insize[2] - 1
+        
+        return [outp[0], y0, x0, outp[3], y1, x1]
+    
+    # Attribute: stride in y-direction (read only)
+    @property
+    def ystride(self):
+        return self._ystride
+    
+    # Attribute: stride in x-direction (read only)
+    @property
+    def xstride(self):
+        return self._xstride
+    
+    # Attribute: window size in y-direction (read only)
+    @property
+    def ysize(self):
+        return self._ysize
+    
+    # Attribute: window size in x-direction (read only)
+    @property
+    def xsize(self):
+        return self._xsize
 
 
 # Unpooling layer class

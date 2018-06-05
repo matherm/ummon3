@@ -526,7 +526,8 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(db0.transpose(), db1, 0, 1e-5)
     
     
-    def test_max_pooling(self):
+    # test max pooling inside valid region
+    def test_max_pooling_valid(self):
         
         batch = 1    
         print('\n')
@@ -548,6 +549,42 @@ class TestUmmon(unittest.TestCase):
         y1[0,1] = x1[0,0,:2,3:6].max()
         y1[1,0] = x1[0,0,2:4,:3].max()
         y1[1,1] = x1[0,0,2:4,3:6].max()
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions max pooling:')
+        print(y2)
+        print('Reference predictions:')
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
+    # test average pooling inside valid region
+    def test_avg_pooling_valid(self):
+        
+        batch = 1    
+        print('\n')
+        cnet = Sequential(
+            ('unfla', Unflatten([35], [1,5,7])),
+            ('pool0', AvgPool([1,5,7], (2,3), (2,3)))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,35).astype('float32')
+        
+        # compute reference forward path
+        x1 = np.reshape(x0, (batch,1,5,7))
+        print('Input:')
+        print(x1)
+        y1 = np.zeros((2,2), dtype=np.float32)
+        y1 = np.zeros((2, 2), dtype=np.float32)
+        y1[0, 0] = x1[0, 0, :2, :3].mean()
+        y1[0, 1] = x1[0, 0, :2, 3:6].mean()
+        y1[1, 0] = x1[0, 0, 2:4, :3].mean()
+        y1[1, 1] = x1[0, 0, 2:4, 3:6].mean()
         
         # predict and check
         x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
