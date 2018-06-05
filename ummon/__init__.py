@@ -65,4 +65,4 @@ from .modules.linear import *
 from .modules.loss import *
 from .modules.flatten import *
 from .modules.conv import *
-
+from .modules.pooling import *

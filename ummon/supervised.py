@@ -57,6 +57,10 @@ class SupervisedTrainer(MetaTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)                        
     
     Methods
     -------
@@ -209,7 +213,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         for i, data in enumerate(dataloader, 0):
                 
@@ -302,6 +306,10 @@ class ClassificationTrainer(SupervisedTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------
@@ -372,7 +380,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         # evaluate on validation set
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average, acc_average = 0.,0.
         outbuf = []
         for i, data in enumerate(dataloader, 0):
@@ -479,6 +487,10 @@ class SiameseTrainer(SupervisedTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------
@@ -585,7 +597,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
-        ctx = {"desc" : repr(loss_function)}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         bs = len(dataset) if batch_size == -1 else batch_size
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)

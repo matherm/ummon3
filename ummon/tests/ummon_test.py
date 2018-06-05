@@ -526,6 +526,40 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(db0.transpose(), db1, 0, 1e-5)
     
     
+    def test_max_pooling(self):
+        
+        batch = 1    
+        print('\n')
+        cnet = Sequential(
+            ('unfla', Unflatten([35], [1,5,7])),
+            ('pool0', MaxPool([1,5,7], (2,3), (2,3)))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,35).astype('float32')
+        
+        # compute reference forward path
+        x1 = np.reshape(x0, (batch,1,5,7))
+        print('Input:')
+        print(x1)
+        y1 = np.zeros((2,2), dtype=np.float32)
+        y1[0,0] = x1[0,0,:2,:3].max()
+        y1[0,1] = x1[0,0,:2,3:6].max()
+        y1[1,0] = x1[0,0,2:4,:3].max()
+        y1[1,1] = x1[0,0,2:4,3:6].max()
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions max pooling:')
+        print(y2)
+        print('Reference predictions:')
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
@@ -541,7 +575,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -620,7 +654,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -698,7 +732,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
                 def forward(self, x):
@@ -738,7 +772,7 @@ class TestUmmon(unittest.TestCase):
                 
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
                 def forward(self, x):
@@ -804,7 +838,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -880,7 +914,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -952,7 +986,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1020,7 +1054,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1105,7 +1139,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1167,7 +1201,7 @@ class TestUmmon(unittest.TestCase):
                 
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
                 def forward(self, x):
@@ -1235,7 +1269,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1269,7 +1303,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1309,7 +1343,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1329,24 +1363,25 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
-        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
-            optimizer, model_filename="testcase",  model_keep_epochs=True)
-        
         def backward(output, targets, loss):
             assert isinstance(loss, torch.Tensor)
             
         def eval(ctx, output, targets, loss):
             assert isinstance(loss, torch.Tensor)
+        
+        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
+            optimizer, model_filename="testcase",  model_keep_epochs=True,
+                                        after_backward_hook=backward, 
+                                        after_eval_hook=eval)
+        
             
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=5,
-                                        validation_set=dataset_valid,
-                                        after_backward_hook=backward, 
-                                        after_eval_hook=eval)
+                                        validation_set=dataset_valid)
     def test_classification(self):
         np.random.seed(17)
         torch.manual_seed(17)
@@ -1362,7 +1397,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1427,7 +1462,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1499,7 +1534,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1555,7 +1590,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1618,7 +1653,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
@@ -1669,7 +1704,7 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):

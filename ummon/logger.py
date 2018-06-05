@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from torch.nn.modules.loss import _Loss
 from platform import platform
 import ummon
+import re
 
 __all__ = [ 'Logger' ]
 
@@ -134,8 +135,7 @@ class Logger(logging.getLoggerClass()):
     # debug
     def debug(self, msg=''):
         self.logger.debug(msg)
-    
-    
+        
     # set logging directory
     def set_logdir(self, pathname):
         
@@ -196,7 +196,7 @@ class Logger(logging.getLoggerClass()):
         evalstr=None, profile=False, evaluation_dict = None):
         if epoch % self.log_epoch_interval == 0:
             if profile:
-                self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] ~ {:5} samples/s '.format(
+                self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] @~{} samples/s '.format(
                     epoch, evalstr, 
                     int(time_dict["total"]),
                     int(time_dict["loader"]), 
@@ -206,29 +206,36 @@ class Logger(logging.getLoggerClass()):
                     int(time_dict["hooks"] - time_dict["backprop"]),
                     int((batches * batchsize/(time_dict["total"])))))
                 self.info('       Memory status : RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
-                if type(evaluation_dict["detailed_loss"]) == dict:
-                    for k, v in evaluation_dict["detailed_loss"].items():
-                        if type(v) == str:
-                            self.info("       __repr__(loss): {:20} {}".format(k, v))
-                        else:
-                            self.info("       __repr__(loss): {:20} {:.2f}".format(k, v))
-                else:
-                    self.info('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
             else:
-                self.info('Epoch: {} - {}. [{}s] ~ {:5} samples/s '.format(
+                self.info('Epoch: {} - {}. [{}s] @~{} samples/s '.format(
                     epoch, evalstr, 
                     int(time_dict["total"]),
                     int((batches * batchsize/(time_dict["total"])))))
-    
+            
+            # Detailed loss information comming from either __repr__(loss) or after_eval_hook()
+            if re.match(".*\d.*", str(evaluation_dict["detailed_loss"])):
+                if type(evaluation_dict["detailed_loss"]) == dict:
+                    for k, v in evaluation_dict["detailed_loss"].items():
+                        if type(v) == str:
+                            self.debug("       >> loss details: {:20} {}".format(k, v))
+                        else:
+                            self.debug("       >> loss details: {:20} {:.2f}".format(k, v))
+                else:
+                    self.debug('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
+
     
     # output description of learning task
-    def print_problem_summary(self, model, loss_function, optimizer, dataloader_train, 
+    def print_problem_summary(self, trainer, model, loss_function, optimizer, dataloader_train, 
         dataset_validation = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):
         
         if hasattr(loss_function, "size_average"):
             size_average = loss_function.size_average
         else:
             size_average = None
+        
+        self.debug(' ')
+        self.debug('[Trainer]')
+        self.debug(str(type(trainer)).replace("<class '", "").replace("'>", ""))
         
         self.debug(' ')
         self.debug('[Model]')
