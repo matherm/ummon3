@@ -625,6 +625,34 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y2, y1, 0, 1e-5)
     
     
+    # test dropout layer
+    def test_dropout(self):
+        print('\n')
+        cnet = Sequential(
+            ('drop0', Dropout(5, 0.5))
+        )
+        print(cnet)
+        
+        # predict
+        x0 = np.random.randn(5).astype('float32')
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Input:')
+        print(x0)
+        print('Output training:')
+        print(y2)
+        assert len(x0) == len(y2)
+        assert (y2[y2 != 0] == 2.0*x0[y2 != 0]).all()
+        cnet.eval()
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Output testing:')
+        print(y2)
+        assert np.allclose(y2, x0, 0, 1e-5)
+        
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
