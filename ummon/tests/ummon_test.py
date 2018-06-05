@@ -597,6 +597,34 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y2, y1, 0, 1e-5)
     
     
+    # test RELU nonlinearity
+    def test_relu(self):
+        print('\n')
+        cnet = Sequential(
+            ('relu0', nn.ReLU())
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(2,2,2,2).astype('float32')
+        print('Input:')
+        print(x0.flatten())
+        
+        # predict
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Predictions ReLu:')
+        print(y2.flatten())
+        
+        # reference forward path
+        y1 = np.zeros((2,2,2,2), dtype=np.float32)
+        y1[x0 > 0] = x0[x0 > 0]
+        print('Reference predictions:')
+        print(y1.flatten())
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)

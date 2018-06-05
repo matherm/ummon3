@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-#__all__ = [ 'Pooling', 'Unpool' ]
 __all__ = [ 'MaxPool', 'AvgPool' ]
 
 # Max pooling layer class
@@ -23,9 +22,6 @@ class MaxPool(nn.MaxPool2d):
     ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
     either a number or 2-tuple). You can set an additional padding region filled with
     zeroes for treating the image boundary regions.
-    1. 'max_pooling': 
-    
-    2. 'avg_pooling': the average value in the pooling window is taken as output. 
     
     Attributes:
     
@@ -136,24 +132,20 @@ class MaxPool(nn.MaxPool2d):
 # Average pooling layer class
 class AvgPool(nn.AvgPool2d):
     '''
-    Pooling layer class::
+    Average pooling layer class::
     
-        poo0 = AvgPool([n,p,q], kernel_size, stride, padding)
+        poo0 = AvgPool([n,p,q], kernel_size, stride, padding, count_include_pad)
     
-    creates a max pooling layer. This method selects the local maximum in the 
-    neighborhood determined by 'kernel_size' as the output value. The error is sparsely 
-    backpropagated, i.e., only the pixels where the maximum occurred is updated with the 
-    backpropagated error, all others are ignored.
+    creates an average pooling layer. This method takes the average value in the pooling window 
+    as the output value. 
     
-    Applies max pooling to subsample an input tensor and provides a certain translation 
+    Applies average pooling to subsample an input tensor and provides a certain translation 
     invariance. The input tensor for this node can have an arbitrary size. Pooling is 
     controlled by 3 attributes: the stride between window centers in x- and y-direction
     ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
     either a number or 2-tuple). You can set an additional padding region filled with
-    zeroes for treating the image boundary regions.
-    1. 'max_pooling': 
-    
-    2. 'avg_pooling': the average value in the pooling window is taken as output. 
+    zeroes for treating the image boundary regions. In this case you should set 
+    'the average value in the pooling window is taken as output' either to True or False.
     
     Attributes:
     
