@@ -562,7 +562,7 @@ class MetaTrainer:
         epochs = self._input_params_validation(epochs)
         if eval_batch_size == -1:
             eval_batch_size = dataloader_training.batch_size
-
+        
         # PROBLEM SUMMARY
         self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
         
@@ -587,11 +587,17 @@ class MetaTrainer:
                 # Get the inputs
                 inputs, targets = self._get_batch(data)
                 
+                # switch on training mode
+                self.model.train()
+                
                 output, time_dict = self._forward_one_batch(inputs, time_dict)
                 loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
-
+                
                 # Backpropagation
                 time_dict = self._backward_one_batch(loss, time_dict, output, targets)
+                
+                # switch back to evaluation mode
+                self.model.eval()
                 
                 # Loss averaging
                 avg_training_loss = self._moving_average(batch, avg_training_loss, 

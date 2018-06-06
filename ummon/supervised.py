@@ -215,6 +215,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         evaluation_dict = {}
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
+        model.eval() # switch to evaluation mode
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
@@ -367,6 +368,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         assert uu.check_precision(dataloader.dataset, model)
         
         # Compute Running average training accuracy
+        model.eval() # switch to evaluation mode
         if output_buffer is not None and len(output_buffer) > 0:
             avg_training_acc = 0.
             for saved_output, saved_targets, batch in output_buffer:
@@ -601,6 +603,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         loss_average = 0.
         bs = len(dataset) if batch_size == -1 else batch_size
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
+        model.eval() # switch to evaluation mode
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time

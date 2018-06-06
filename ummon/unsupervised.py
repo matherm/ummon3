@@ -229,6 +229,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         evaluation_dict = {}
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
+        model.eval() # switch to evaluation mode
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
