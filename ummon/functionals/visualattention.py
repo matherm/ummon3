@@ -43,20 +43,20 @@ def visual_attention_loss(output, labels, gamma = 1., size_average = False):
         assert type(class_scores) == torch.autograd.Variable
         assert type(labels.data) == torch.LongTensor or type(labels.data) == torch.cuda.LongTensor
     else:
-        assert type(labels) == torch.LongTensor
+        assert isinstance(labels, torch.LongTensor)
     if type(class_scores) == torch.autograd.Variable:
         assert type(class_scores.data) == torch.FloatTensor or type(class_scores.data) == torch.cuda.FloatTensor 
     else:
-        assert type(class_scores) == torch.LongTensor
+        assert isinstance(class_scores, torch.FloatTensor)
     if type(saved_baselines[0]) == torch.autograd.Variable:
         assert type(saved_baselines[0].data) == torch.FloatTensor or type(saved_baselines[0].data) == torch.cuda.FloatTensor
     else:
-        assert type(saved_baselines[0]) == torch.FloatTensor or type(saved_baselines[0]) == torch.cuda.FloatTensor
+        assert isinstance(saved_baselines[0], torch.FloatTensor) or isinstance(saved_baselines[0], torch.cuda.FloatTensor)
     if type(saved_ln_pis[0]) == torch.autograd.Variable:
         assert type(saved_ln_pis[0].data) == torch.FloatTensor or type(saved_ln_pis[0].data) == torch.cuda.FloatTensor
     else:
-        assert type(saved_ln_pis[0]) == torch.FloatTensor or type(saved_ln_pis[0]) == torch.cuda.FloatTensor
-    assert type(rewards[0]) == torch.FloatTensor or type(rewards[0]) == torch.cuda.FloatTensor
+        assert isinstance(saved_ln_pis[0], torch.FloatTensor) or isinstance(saved_ln_pis[0], torch.cuda.FloatTensor)
+    assert isinstance(rewards[0], torch.FloatTensor) or isinstance(rewards[0], torch.cuda.FloatTensor)
     
     # ENSURE CUDA
     if labels.is_cuda or class_scores.is_cuda:

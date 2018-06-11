@@ -25,3 +25,16 @@ def to_translated(image, final_size=(60,60)):
     # PLACE IMAGE INTO NEW POSITION
     greater_im[:,x:x+image.size(1),y:y+image.size(2)] = image  
     return greater_im
+
+
+def binarize(x, double = False):
+    '''
+    Binarize Image
+    '''
+    m = torch.distributions.Uniform(0, 1)
+    xb = m.sample(x.size())
+    bin_image = (x > xb).float() * 1
+    if double == True:
+        return bin_image.double()
+    else:
+        return bin_image

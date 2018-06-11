@@ -261,7 +261,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         else:
             is_best = learningstate.state["validation_loss[]"][-1][1] == \
                 learningstate.state["best_validation_loss"][1]
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}'.format(
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}{}'.format(
                 learningstate.state["training_loss[]"][-1][1], 
                 learningstate.state["validation_loss[]"][-1][1],
                 learningstate.state["lrate[]"][-1][1],

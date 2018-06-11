@@ -320,7 +320,7 @@ class Trainingstate():
             shutil.copyfile(filename, str(short_filename + self.valid_pattern + self.extension))
             
     
-    def load_weights_best_training_(self, model, optimizer):
+    def load_weights_best_training_(self, model, optimizer=None):
         """
         Loads the persisted weights into a given model.
         
@@ -345,7 +345,7 @@ class Trainingstate():
            
         self.load_weights_(model, optimizer)           
     
-    def load_weights_best_validation_(self, model, optimizer):
+    def load_weights_best_validation_(self, model, optimizer=None):
         """
         Loads the persisted weights into a given model.
         
@@ -371,7 +371,7 @@ class Trainingstate():
         self.load_weights_(model, optimizer)           
     
     
-    def load_weights_(self, model, optimizer):
+    def load_weights_(self, model, optimizer=None):
         """
         Loads the persisted weights into a given model.
         
