@@ -101,8 +101,13 @@ class StepLR_earlystop(object):
         self.lr = []
         for param_group in self.optimizer.param_groups:
             self.lr.append(float(param_group['lr']))
-        self.logger.info('Scheduler: {} learning rates decreased by factor {} after {} epochs, early stopping after {}, {} mode.'.format(
-            self.nsteps, self.gamma, self.step_size, self.patience, self.mode))
+        if self.nsteps > 1:
+            self.logger.info('Scheduler: {} learning rates decreased by factor {} after {} epochs, early stopping after {}, {} mode.'.format(
+                self.nsteps, self.gamma, self.step_size, self.patience, self.mode))
+        else:
+            self.logger.info('Scheduler: lr={}, {} epochs, early stopping after {}, {} mode.'.format(
+                self.lr[0], self.step_size, self.patience, self.mode))
+            
         self.reset()
     
     

@@ -53,6 +53,10 @@ class UnsupervisedTrainer(MetaTrainer):
                         OPTIONAL Shall cuda be used as computational backend (default False)
     profile           : bool
                         OPTIONAL Activates some advanced timing and profiling logs (default False)
+    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
+                            A hook that gets called after backward pass during training (default None)
+    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                            A hook that gets called after forward pass during evaluation (default None)
     
     Methods
     -------
@@ -225,6 +229,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         evaluation_dict = {}
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
+        model.eval() # switch to evaluation mode
         for i, data in enumerate(dataloader, 0):
                 
                 # Take time
