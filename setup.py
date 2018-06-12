@@ -59,7 +59,7 @@ class Installation(install):
         print("\tpython -m ummon.tools.stateviewer mnist1.pth.tar")
         
         print("\n To import and use ummon:")
-        print("\timport ummon")
+        print("\tfrom ummon import *")
         print("\tprint(ummon.version)")   
         print("\tummon.system_info()")   
 

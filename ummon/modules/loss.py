@@ -9,6 +9,9 @@ Created on Wed Apr 18 11:21:57 2018
 import torch.nn as nn
 import ummon.functionals.visualattention as va
 
+
+__all__ = [ 'VisualAttentionLoss', 'ANNSNNLoss' ]
+
 class VisualAttentionLoss(nn.CrossEntropyLoss):
     """
     This loss function can be used for training models with visual attention loss. 
@@ -41,6 +44,19 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
                                 self.__value_loss[0] if self.__value_loss is not None else "-")
     
     def forward(self, output, labels):
+        """
+        Computes the combined loss of REINFORCE, Actor-Critic and CrossEntropy 
+        
+        Arguments
+        ---------
+        output (torch.FloatTensor) : class_scores 
+        labels      : torch.LongTensor
+                      Ground truth with shape [B]
+    
+        Return
+        ------                      
+        loss    :   float
+        """
         output = (output, self.model.policy.saved_baselines, self.model.policy.saved_ln_pis, self.model.policy.rewards)
         classification_loss, _policy_loss, _value_loss = va.visual_attention_loss(output, labels, self.gamma, self.size_average)
         
@@ -80,7 +96,7 @@ class ANNSNNLoss(nn.Module):
         
         Parameters
         -----------
-        * preds (tuple<torch.Tensor>) with shape (B x F, B x F)
+        * preds (tuple<torch.Tensor> or Tensor) with shape (B x F, B x F) or (2 x B x F)
         * labels (list) with len B 
         
         """

@@ -77,13 +77,13 @@ class Predictor:
                  # Handle cuda
                 if use_cuda:
                     if type(inputs) == tuple or type(inputs) == list:
-                        inputs = inputs.cuda()# uu.tensor_tuple_to_cuda(inputs)
+                        inputs = uu.tensor_tuple_to_cuda(inputs)
                     else:
                         inputs = inputs.cuda()
                 
                 # Execute Model
                 if type(inputs) == tuple or type(inputs) == list:
-                    inputs = Variable(inputs)# uu.tensor_tuple_to_variables(inputs)
+                    inputs = uu.tensor_tuple_to_variables(inputs)
                 else:
                     inputs = Variable(inputs)
                 

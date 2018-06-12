@@ -213,6 +213,12 @@ class MetaTrainer:
         if type(output) != tuple and type(output) != list and targets is not None and type(targets) != list and type(targets) != tuple:
                 if targets.is_cuda or output.is_cuda:
                     output, targets = output.cuda(), targets.cuda()
+                    
+        if (type(output) == tuple or type(output) == list) and targets is not None:
+            if output[0].is_cuda or output[1].is_cuda:
+                output = uu.tensor_tuple_to_cuda(output)
+                if type(targets) == tuple or type(targets) == list:
+                    targets = uu.tensor_tuple_to_cuda(targets)
         
         loss = self.criterion(output, targets)
         
@@ -541,8 +547,19 @@ class MetaTrainer:
     def _get_output_for_buffer(self, output, targets, batch):
         """
         Prepares the output tuple for buffering and later evaluation.
+        
         """
-        return (output.data.clone(), targets.data.clone(), batch)
+        if type(output) == tuple or type(output) == list:
+            output = tuple([t.data.clone() for t in output])  
+        else:
+            output = output.data.clone()
+            
+        if type(targets) == tuple or type(targets) == list:
+            targets = tuple([t.data.clone() for t in targets])  
+        else:
+            targets = targets.data.clone()
+        
+        return output, targets, batch
         
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
