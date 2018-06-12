@@ -103,7 +103,7 @@ class Conv(nn.Conv2d):
         init = str(init)
         nn.init.__dict__[init](self.weight)
         if self.bias is not None:
-            nn.init.constant(self.bias,0.0)
+            nn.init.constant_(self.bias,0.0)
         
         # output size
         out_height = (self.insize[1] + 2*self._padding - self.filtsize[1]) // \

@@ -112,15 +112,9 @@ class Predictor:
         if loss_function is not None:
             # Evaluate non-linearity in case of a combined loss-function like CrossEntropy
             if isinstance(loss_function, torch.nn.BCEWithLogitsLoss):
-               # Check if we are using a doubled SoftMax-Layer i.e. output is already softmaxed
-                if torch.max(output[0]) <= 1 and torch.min(output[0]) >= 0:
-                    logger.warn("Model output is already normalized (between 0 and 1). Did you unintentionally use sigmoid in loss function AND model?")
                 output = F.sigmoid(Variable(output)).data
             
             if isinstance(loss_function, torch.nn.CrossEntropyLoss):
-                # Check if we are using a doubled SoftMax-Layer i.e. output is already softmaxed
-                if np.allclose(torch.sum(output[0]), 1, 1e-4):
-                    logger.warn("Model output is already normalized (sums to 1). Did you unintentionally use softmax in loss function AND model?")
                 output = F.softmax(Variable(output), dim=1).data
                 
         

@@ -20,9 +20,7 @@ Copyright (C) 2018 by IOS Konstanz
 '''
 import numpy as np
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
-from torch.autograd import Variable
 
 import load_mnist
 from ummon import *
@@ -36,22 +34,20 @@ x2 = (1.0/255.0)*Xv.astype('float32')
 y0 = y0.astype('float32')
 y1 = y1.astype('float32')
 y2 = yv.astype('float32')
-x3 = Variable(torch.FloatTensor(x1), requires_grad=False)
-y3 = Variable(torch.FloatTensor(y1), requires_grad=False)
 
 # network
 net = Sequential(
-    ('line0', Linear( [784], 30, 'xavier_normal')),
+    ('line0', Linear( [784], 30, 'xavier_normal_')),
     ('sigm0', nn.Sigmoid()),
-    ('line1', Linear( [30],  10, 'xavier_normal'))
+    ('line1', Linear( [30],  10, 'xavier_normal_'))
 )
 
 # loss (size_averaging is numerically unstable)
 loss = nn.BCEWithLogitsLoss(size_average = False)
 
 # optimizer
-batch_size = 16
-opt = torch.optim.SGD(net.parameters(), lr=1/batch_size)
+mbs = 16
+opt = torch.optim.SGD(net.parameters(), lr=1/mbs)
 
 # training state
 trs = Trainingstate()
@@ -66,17 +62,11 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
         combined_training_epochs=5)
     
     # train
-    trn.fit((x0,y0,batch_size), epochs=70, validation_set=(x2,y2))
+    trn.fit((x0,y0,mbs), epochs=70, validation_set=(x2,y2))
     
-    # network output
-    y = net(x3)
     
-    # predict on test set
-    y_pred = Predictor.predict(net, x1, batch_size=batch_size, output_transform=F.sigmoid)
-    
-    # evaluate
-    correct = np.argmax(y1, axis=1) == np.argmax(y_pred, axis=1) # correctly classified
-    bce = ((loss(y, y3).data.numpy()))/y1.shape[0]*batch_size # loss
-    bce = bce[0] if type(bce) == np.ndarray else bce
-    lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(bce, 100.0*correct.sum()/y1.shape[0]))
+    # evaluate on test set
+    ev = ClassificationAnalyzer.evaluate(net, loss, (x1,y1), lg)
+    lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(
+        ev["loss"]/y1.shape[0]*mbs,100.0*ev["accuracy"]))
 

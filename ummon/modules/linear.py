@@ -50,7 +50,7 @@ class Linear(nn.Linear):
         nn.init.__dict__[init](self.weight)
         self.num_weights = self.in_features*self.out_features
         if self.bias is not None:
-            nn.init.constant(self.bias,0.0)
+            nn.init.constant_(self.bias,0.0)
             self.num_weights += self.out_features
         self.num_adj_weights = self.num_weights
         self.num_neurons = self.out_features

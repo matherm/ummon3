@@ -18,8 +18,6 @@ Copyright (C) 2018 by IOS Konstanz
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-import torch.nn.functional as F
 
 import load_mnist
 from ummon import *
@@ -32,8 +30,6 @@ x2 = (1.0/255.0)*Xv.astype('float32')
 y0 = np.argmax(y0, axis=1).astype('int64') # pytorch cross entropy expects class label as target
 y1 = np.argmax(y1, axis=1).astype('int64')
 y2 = np.argmax(yv, axis=1).astype('int64')
-x3 = Variable(torch.FloatTensor(x1), requires_grad=False)
-y3 = Variable(torch.LongTensor(y1), requires_grad=False)
         
 # network parameters
 mbs = 16                        # batch size
@@ -44,9 +40,9 @@ epochs = 60
 
 # network
 net = Sequential(
-    ('line0', Linear( [784], no_hidden, 'xavier_normal')),
+    ('line0', Linear( [784], no_hidden, 'xavier_normal_')),
     ('sigm0', nn.Sigmoid()),
-    ('line1', Linear( [no_hidden], 10,  'xavier_normal'))
+    ('line1', Linear( [no_hidden], 10,  'xavier_normal_'))
 )
 
 # loss (size_averaging is numerically unstable)
@@ -63,16 +59,8 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     # train
     trn.fit((x0,y0,mbs), epochs=epochs, validation_set=(x2,y2))
     
-    # network output
-    y = net(x3)
-    
-    # predict on test set
-    y1_pred = Predictor.predict(net, x1, batch_size=mbs, output_transform=F.softmax)
-    
-    # evaluate
-    correct = np.sum(y1 == np.argmax(y1_pred, axis=1))
-    llh = ((loss(y, y3).data.numpy()))/y1.shape[0]*mbs # loss
-    llh = llh[0] if type(llh) == np.ndarray else llh
-    lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(llh, 
-        100.0*correct.sum()/y1.shape[0]))
+    # evaluate on test set
+    ev = ClassificationAnalyzer.evaluate(net, loss, (x1,y1), lg)
+    lg.info("Performance on test set: loss={:6.4f}; {:.2f}% correct".format(
+        ev["loss"]/y1.shape[0]*mbs,100.0*ev["accuracy"]))
 
