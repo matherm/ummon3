@@ -151,9 +151,9 @@ class SupervisedAnalyzer(MetaAnalyzer):
         Arguments
         ---------
         *dataset (torch.utils.data.Dataloader OR
-                              torch.utils.data.Dataset OR 
-                              numpy (X, y) OR 
-                              torch.Tensor (X, y) : A data structure holding the validation data.
+                  torch.utils.data.Dataset OR 
+                  numpy (X, y, (bs)) OR 
+                  torch.Tensor (X, y, (bs)) : A data structure holding the validation data.
         *batch_size (int) : The batch size
         *logger (ummon.logger) : the logger 
         
@@ -164,10 +164,12 @@ class SupervisedAnalyzer(MetaAnalyzer):
         # simple interface: training and test data given as numpy arrays
         if type(eval_dataset) == tuple:
             data = eval_dataset
-            if len(eval_dataset) != 2:
-                logger.error('Training data must be provided as a tuple (X, y) or as PyTorch DataLoader.',TypeError)
+            if len(eval_dataset) != 2 and len(eval_dataset) != 3:
+                logger.error('Training data must be provided as a tuple (X, y, (bs)) or as PyTorch DataLoader.',TypeError)
             if isinstance(data[0], np.ndarray) or uu.istensor(data[0]):
                 torch_dataset = uu.construct_dataset_from_tuple(logger, data, train=False)
+            if len(eval_dataset) == 3:
+                batch_size = data[2]
 
         if isinstance(eval_dataset, torch.utils.data.Dataset):
                 torch_dataset = eval_dataset
@@ -193,7 +195,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                           The model
         loss_function   : nn.module
                           The loss function to evaluate
-        dataset         : torch.utils.data.Dataset OR tuple (X,y)
+        dataset         : torch.utils.data.Dataset OR tuple (X,y, (bs))
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
@@ -349,7 +351,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                           The model
         loss_function   : nn.module
                           The loss function to evaluate
-        dataset         : torch.utils.data.Dataset OR tuple (X,y)
+        dataset         : torch.utils.data.Dataset OR tuple (X,y, (bs))
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages

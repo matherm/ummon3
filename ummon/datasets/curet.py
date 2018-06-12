@@ -9,7 +9,7 @@ import paramiko
 import getpass
 import tarfile
 
-class VGG19grams(Dataset):
+class CuretVGG19grams(Dataset):
     """
     Processed Curet dataset.
     Dataset is downloaded from ios share. Hence, you need an account on iosds01.

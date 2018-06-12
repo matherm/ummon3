@@ -165,7 +165,8 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         *dataset (torch.utils.data.Dataloader OR
                               torch.utils.data.Dataset OR 
                               numpy X OR 
-                              torch.Tensor X : A data structure holding the validation data.
+                              torch.Tensor X OR
+                              tuple (X, bs): A data structure holding the validation data.
         *batch_size (int) : The batch size
         *logger (ummon.logger) : The logger 
         
@@ -174,7 +175,14 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         *dataloader (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
         """
         # simple interface: training and test data given as numpy arrays
-        data = eval_dataset
+        if type(eval_dataset) == tuple:
+            if len(eval_dataset) != 2:
+                logger.error('Training data must be provided as a tuple (X, (bs)) or as PyTorch DataLoader.',TypeError) 
+            batch_size = eval_dataset[1]
+            data = eval_dataset[0]
+        else:
+            data = eval_dataset
+       
         if isinstance(data, np.ndarray) or uu.istensor(data):
             torch_dataset = uu.construct_dataset_from_tuple(logger, data, train=False)
 
@@ -205,8 +213,8 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                           The loss function to evaluate
         dataset         : torch.utils.data.Dataloader OR
                           torch.utils.data.Dataset OR 
-                          numpy (X, bs) OR 
-                          torch.Tensor (X, bs) 
+                          numpy (X, (bs)) OR 
+                          torch.Tensor (X, (bs)) 
                           A data structure holding the validation data.
                           Dataset to evaluate
         logger          : ummon.Logger (Optional)
