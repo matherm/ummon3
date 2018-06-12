@@ -184,7 +184,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         return dataloader
     
     @staticmethod
-    def _get_batch(data):
+    def _get_batch(data, use_cuda):
         # Get the inputs
         inputs, targets = data
         
@@ -195,6 +195,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
         
         # Compute Loss
         targets = Variable(targets)
+        inputs = Variable(inputs)
         return inputs, targets
     
     
@@ -240,12 +241,11 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 t = time.time()
 
                 # Get the batch
-                output, targets = SupervisedAnalyzer._get_batch(data)
+                inputs, targets = SupervisedAnalyzer._get_batch(data, use_cuda)
                 
                 # Execute Model
-                output = model(Variable(inputs))
+                output = model(inputs)
         
-                
                 loss = loss_function(output, targets).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
@@ -531,6 +531,58 @@ class SiameseTrainer(SupervisedTrainer):
         return inputs, targets
 
 
+    def _get_output_for_buffer(self, output, targets, batch):
+        """
+        Prepares the output tuple for buffering and later evaluation.
+        
+        """
+        if type(output) == tuple or type(output) == list:
+            output = tuple([t.data.clone() for t in output])  
+        else:
+            output = output.data.clone()
+            
+        if type(targets) == tuple or type(targets) == list:
+            targets = tuple([t.data.clone() for t in targets])  
+        else:
+            targets = targets.data.clone()
+        
+        return output, targets, batch
+
+
+    def _loss_one_batch(self, output, targets, time_dict):
+        """
+        Computes the loss for a single mini-batch
+        
+        Arguments
+        ---------
+        *output    (torch.Tensor): A packed torch.Tensor representing a single output of a mini-batch.
+        *targets   (torch.Tensor): The targets for a mini-batch
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        Return
+        ------
+        *loss      (torch.Tensor): The computed loss as scalar
+        *time_dict (dict)                   : Dictionary that is used for profiling executing time.
+        
+        """
+        if type(output) != tuple and type(output) != list and targets is not None and type(targets) != list and type(targets) != tuple:
+                if targets.is_cuda or output.is_cuda:
+                    output, targets = output.cuda(), targets.cuda()
+        
+        if (type(output) == tuple or type(output) == list) and targets is not None:
+            if output[0].is_cuda or output[1].is_cuda:
+                output = uu.tensor_tuple_to_cuda(output)
+                if type(targets) == tuple or type(targets) == list:
+                    targets = uu.tensor_tuple_to_cuda(targets)
+        
+        loss = self.criterion(output, targets)
+        
+        # time loss
+        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
+        return loss, time_dict
+
+
 class SiameseAnalyzer(SupervisedAnalyzer):
     """
     This class provides a generic analyzer for PyTorch siamese models. For a given model it 
@@ -550,18 +602,81 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         
     # prepares one batch for processing (can be overwritten by sibling)
     @staticmethod
-    def _get_batch(data):
+    def _get_batch(data, use_cuda):
         
         # Get the inputs
         inputs, targets = uu.tensor_tuple_to_variables(data[0]),  uu.tensor_tuple_to_variables(data[1])
         
         # Handle cuda
-        if self.use_cuda:
+        if use_cuda:
             inputs, targets = uu.tensor_tuple_to_cuda(inputs), uu.tensor_tuple_to_cuda(targets)
         
         return inputs, targets
 
-       
+    
+    @staticmethod    
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
+        output_buffer=None):
+        """
+        Evaluates a model with given validation dataset
+        
+        Arguments
+        ---------
+        model           : nn.module
+                          The model
+        loss_function   : nn.module
+                          The loss function to evaluate
+        dataset         : torch.utils.data.Dataset OR tuple (X,y, (bs))
+                          Dataset to evaluate
+        logger          : ummon.Logger (Optional)
+                          The logger to be used for output messages
+        after_eval_hook : OPTIONAL function(ctx, output.data, targets.data, loss.data)
+                          A hook that gets called after forward pass
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
+        
+        Return
+        ------
+        Dictionary
+        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
+        """
+        # Input validation
+        dataloader = SupervisedAnalyzer._data_validation(dataset, batch_size, logger)
+        assert uu.check_precision(dataloader.dataset, model)
+        
+        use_cuda = next(model.parameters()).is_cuda
+        evaluation_dict = {}
+        ctx = {"__repr__(loss)" : repr(loss_function)}
+        loss_average = 0.
+        model.eval() # switch to evaluation mode
+        for i, data in enumerate(dataloader, 0):
+                
+                # Take time
+                t = time.time()
+
+                # Get the batch
+                inputs, targets = SiameseAnalyzer._get_batch(data, use_cuda)
+                
+                # Execute Model
+                output = model(inputs)
+        
+                loss = loss_function(output, targets).cpu()
+               
+                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
+                
+                # Run hook
+                if after_eval_hook is not None:
+                    ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
+                
+                
+        evaluation_dict["training_accuracy"] = 0.0        
+        evaluation_dict["accuracy"] = 0.0
+        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["loss"] = loss_average
+        evaluation_dict["detailed_loss"] = ctx
+        
+        return evaluation_dict
+    
 if __name__ == "__main__":
     pass           
         

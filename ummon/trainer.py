@@ -210,15 +210,9 @@ class MetaTrainer:
         *time_dict (dict)                   : Dictionary that is used for profiling executing time.
         
         """
-        if type(output) != tuple and type(output) != list and targets is not None:
-            if targets.is_cuda or output.is_cuda:
-                output, targets = output.cuda(), targets.cuda()
-        
-        if (type(output) == tuple or type(output) == list) and targets is not None:
-            if output[0].is_cuda or output[1].is_cuda:
-                output = uu.tensor_tuple_to_cuda
-                if type(targets) == tuple or type(targets) == list:
-                    targets = uu.tensor_tuple_to_cuda
+        if type(output) != tuple and type(output) != list and targets is not None and type(targets) != list and type(targets) != tuple:
+                if targets.is_cuda or output.is_cuda:
+                    output, targets = output.cuda(), targets.cuda()
         
         loss = self.criterion(output, targets)
         
@@ -544,6 +538,13 @@ class MetaTrainer:
         return inputs, targets
     
     
+    def _get_output_for_buffer(self, output, targets, batch):
+        """
+        Prepares the output tuple for buffering and later evaluation.
+        """
+        return (output.data.clone(), targets.data.clone(), batch)
+        
+    
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
         """
         Fits a model with given training and validation dataset
@@ -614,7 +615,7 @@ class MetaTrainer:
                     dataloader_training.batch_size, time_dict)
                 
                 # Save output for later evaluation
-                output_buffer.append((output.data.clone(), targets.data.clone(), batch))
+                output_buffer.append(self._get_output_for_buffer(output, targets, batch))
             
             # Evaluate
             self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  

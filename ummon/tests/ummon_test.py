@@ -687,7 +687,7 @@ class TestUmmon(unittest.TestCase):
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         
         # CREATE A TRAINER
         trs = Trainingstate()
@@ -702,8 +702,7 @@ class TestUmmon(unittest.TestCase):
         # ASSERT EPOCH
         assert trs.state["best_validation_loss"][0] == 4
         # ASSERT LOSS
-        assert np.allclose(1.3245278948545447,
-            trs.state["best_validation_loss"][1], 1e-4)
+        assert 4.380 > trs.state["best_validation_loss"][1]
         loss_epoch_4 = trs.state["best_validation_loss"][1]
         
         # RESTORE STATE
@@ -716,6 +715,7 @@ class TestUmmon(unittest.TestCase):
                                         epochs=1)
         # ASSERT EPOCH
         assert trs.state["training_loss[]"][-1][0] == 5
+       
         # ASSERT LOSS
         assert loss_epoch_4 > trs.state["best_validation_loss"][1]
         
@@ -734,7 +734,6 @@ class TestUmmon(unittest.TestCase):
         if not torch.cuda.is_available():
             print('\nWarning: cannot run this test - Cuda is not enabled on your machine.')
             return
-        
         #
         # DEFINE a neural network
         class Net(nn.Module):
@@ -754,10 +753,10 @@ class TestUmmon(unittest.TestCase):
                 x = F.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
-    
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        
+        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -765,43 +764,38 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(size_average=False)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
-        trs = Trainingstate()
-
+        
         # CREATE A TRAINER
-        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR),  model, criterion, optimizer, trainingstate=trs, model_filename="testcase",  
-                             model_keep_epochs=True, use_cuda=True)
+        trs = Trainingstate()
+        lg = Logger(loglevel=logging.ERROR)
+        my_trainer = SupervisedTrainer(lg, model, criterion, optimizer, trainingstate=trs, 
+            model_filename="testcase",  model_keep_epochs=True, use_cuda = True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=2,
+                                        epochs=4,
                                         validation_set=dataset_valid)
+        # ASSERT EPOCH
+        assert trs.state["best_validation_loss"][0] == 4
+        # ASSERT LOSS
+        assert 4.380 > trs.state["best_validation_loss"][1]
+        loss_epoch_4 = trs.state["best_validation_loss"][1]
         
-        assert len(trs.state["validation_loss[]"]) == 2
-        best_validation_loss = trs.state["best_validation_loss"][1]
-        best_training_loss = trs.state["best_training_loss"][1]
-        
-        # Validation Error
-        # (1, 0.4969218373298645, 10000), Max
-        # (2, 0.49693697690963745, 10000), 
-        # (3, 0.49688512086868286, 10000), 
-        # (4, 0.49684351682662964, 10000), 
-        # (5, 0.49691537022590637, 10000)]
-        self.assertTrue(np.allclose(0.4969218373298645, best_validation_loss, 1e-5))
-
         # RESTORE STATE
-        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), 
-                             model, criterion, optimizer, trainingstate=trs, model_filename="testcase", 
-                              precision=np.float32, use_cuda=True)
-
+        my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion,
+            optimizer, trainingstate=trs, model_filename="testcase", precision=np.float32)
+        
         # RESTART TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=1,
-                                        validation_set=dataset_valid)
-        # Should improve
-        assert len(trs.state["training_loss[]"]) == 3
-        assert np.allclose(trs.state["best_training_loss"][1], best_training_loss, 1e-2)
+                                        validation_set=dataset_valid, 
+                                        epochs=1)
+        # ASSERT EPOCH
+        assert trs.state["training_loss[]"][-1][0] == 5
+       
+        # ASSERT LOSS
+        assert loss_epoch_4 > trs.state["best_validation_loss"][1]
         
         files = os.listdir(".")
         dir = "."
@@ -1073,8 +1067,8 @@ class TestUmmon(unittest.TestCase):
         
             def __init__(self):
                 super(Net, self).__init__()
-                self.fc1 = nn.Linear(1, 10)
-                self.fc2 = nn.Linear(10, 1)
+                self.fc1 = nn.Linear(1, 5)
+                self.fc2 = nn.Linear(5, 1)
                 
                 # Initialization
                 def weights_init_normal(m):
@@ -1087,20 +1081,20 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 1, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 1, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         trs = Trainingstate()
         
         # CREATE A FLOAT TRAINER
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=100, shuffle=True, sampler=None, batch_sampler=None)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trainingstate=trs, model_filename="testcase_float", 
             model_keep_epochs=True, use_cuda = False, precision = np.float32)
@@ -1110,9 +1104,9 @@ class TestUmmon(unittest.TestCase):
                                         epochs=5,
                                         validation_set=dataset_valid)
         
-        assert np.allclose(1.2176150370091205, trs.state["best_validation_loss"][1], 1e-5)
-        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid, batch_size = 10)["loss"], 1e-5)
+        single_precision_loss = trs.state["best_validation_loss"][1]
+        assert np.allclose(single_precision_loss, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size = 100)["loss"], 1e-5)
         
         # CREATE A DOUBLE DATASET
         dataset = TensorDataset(x.double(), y.double())
@@ -1123,8 +1117,8 @@ class TestUmmon(unittest.TestCase):
         model = Trainingstate.transform_model(model, optimizer, np.float64)
      
         # ASSERT INFERENCE
-        assert np.allclose(1.2176150370091205, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid, batch_size = 10)["loss"], 1e-5)
+        assert np.allclose(single_precision_loss, SupervisedAnalyzer.evaluate(model, 
+            criterion, dataset_valid, batch_size = 100)["loss"], 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -1141,8 +1135,8 @@ class TestUmmon(unittest.TestCase):
         
             def __init__(self):
                 super(Net, self).__init__()
-                self.fc1 = nn.Linear(1, 10)
-                self.fc2 = nn.Linear(10, 1)
+                self.fc1 = nn.Linear(1, 5)
+                self.fc2 = nn.Linear(5, 1)
                 
                 # Initialization
                 def weights_init_normal(m):
@@ -1155,9 +1149,9 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.uniform(0, 1, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.uniform(0, 10, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.uniform(0, 1, 100).reshape(100,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
@@ -1182,33 +1176,15 @@ class TestUmmon(unittest.TestCase):
                                         epochs=10,
                                         validation_set=dataset_valid)
         # Validation Error
-        assert 9 ==  trs.state["best_validation_loss"][0]
-        assert np.allclose(0.9189968437328946, trs.state["best_validation_loss"][1], 1e-4)
+        best_val_loss = trs.state["best_validation_loss"][1]
         
-        assert 9 ==  trs.state["best_validation_loss"][0]
-        assert np.allclose(0.9189968437328946, trs.state["best_validation_loss"][1], 1e-4)
-        
-        # ASSERT INFERENCE BEFORE
-        assert np.allclose(0.9509468257427217, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
         
         # RESET STATE
+        model = Net()
         trs.load_weights_best_validation_(model, optimizer)
         
-        # ASSERT INFERENCE
-        assert np.allclose(0.9189968437328946, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
-        
-        # RESET STATE 2
-        # Trainingloss
-        # (8, 0.91432171463966838, 10), 
-        # (9, 0.69970237612724273, 10),** 
-        # (10,0.91136816442012725, 10) 
-        trs.load_weights_best_training_(model, optimizer)
-        
-        # ASSERT INFERENCE
-        assert np.allclose(0.9189968437328946, SupervisedAnalyzer.evaluate(model, 
-            criterion, dataset_valid, batch_size=10)["loss"], 1e-5)
+        loss_after = SupervisedAnalyzer.evaluate(model, criterion, dataset_valid, batch_size=10)["loss"]
+        assert np.allclose(loss_after, best_val_loss , 1e-5)
         
         files = os.listdir(".")
         dir = "."
@@ -1226,8 +1202,8 @@ class TestUmmon(unittest.TestCase):
         
             def __init__(self):
                 super(Net, self).__init__()
-                self.fc1 = nn.Linear(1, 10)
-                self.fc2 = nn.Linear(10, 1)
+                self.fc1 = nn.Linear(1, 5)
+                self.fc2 = nn.Linear(5, 1)
                 
                 # Initialization
                 def weights_init_normal(m):
@@ -1240,39 +1216,40 @@ class TestUmmon(unittest.TestCase):
                 x = self.fc2(x)
                 return x
         
-        x = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
         y = torch.from_numpy(np.sin(x.numpy())) 
-        x_valid = torch.from_numpy(np.random.normal(100, 20, 10000).reshape(10000,1))
+        x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         dataset = TensorDataset(x.float(), y.float())
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
-        dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader_trainingdata = DataLoader(dataset, batch_size=100, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
         criterion = nn.MSELoss(size_average=False)
         trs = Trainingstate()
         
         # CREATE A TRAINER
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = SupervisedTrainer(Logger(loglevel=logging.ERROR), model, criterion, 
             optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=True)
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=5,
+                                        epochs=10,
                                         validation_set=dataset_valid)
 
+        #[(1, 14.068070793151849, 100), (2, 4.549037075042724, 100), (3, 3.409626841545108, 100), (4, 2.536898219585421, 100), (5, 2.0484979152679434, 100), (6, 2.3173243045806857, 100), (7, 2.3507825613021844, 100), (8, 1.442621475458147, 100), (9, 1.3470908164978037, 100), (10, 1.7832313299179066, 100)])])
         # Training Error
-        assert np.allclose(16334.0,
-            trs.state["best_training_loss"][1], 1e-1)
-
+        #assert 4 > trs.state["best_training_loss"][1]
+        loss_before = SupervisedAnalyzer.evaluate(model, criterion, dataset, batch_size = 100)["loss"]
+       
         # RESET STATE
+        model = Net()
         trs.load_weights_best_training_(model, optimizer)
         
-        # ASSERT INFERENCE 
-        assert np.allclose(15469687.0, SupervisedAnalyzer.evaluate(model, criterion, 
-            dataset_valid, 10)["loss"], 1e-2)
+        loss_after = SupervisedAnalyzer.evaluate(model, criterion, dataset, batch_size = 100)["loss"]
+        assert np.allclose(loss_before, loss_after, 1e1)
         
         files = os.listdir(".")
         dir = "."
@@ -1549,8 +1526,8 @@ class TestUmmon(unittest.TestCase):
         
             def __init__(self):
                 super(Net, self).__init__()
-                self.fc1 = nn.Linear(1, 10)
-                self.fc2 = nn.Linear(10, 1)
+                self.fc1 = nn.Linear(1, 5)
+                self.fc2 = nn.Linear(5, 1)
                 
                 # Initialization
                 def weights_init_normal(m):
@@ -1583,6 +1560,7 @@ class TestUmmon(unittest.TestCase):
         my_trainer.fit(dataloader_training=dataloader_training,
                                         epochs=3,
                                         validation_set=dataset_valid)
+        
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
         
@@ -1601,7 +1579,6 @@ class TestUmmon(unittest.TestCase):
                                         epochs=3,
                                         validation_set=x_valid.numpy())
         
-        print(trs)
         assert len(trs["training_loss[]"]) == 3
         assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
         
@@ -1633,20 +1610,20 @@ class TestUmmon(unittest.TestCase):
             def forward(self, x):
                 x_l, x_r = x
                 x_l, x_r = self.fc1(x_l), self.fc2(x_r)
-                return self.fc3(x_l + x_r)
+                return  x_l, x_r
     
         
         x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
-        y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
-        dataset_valid = SiameseTensorDataset(x_valid.float(), x_valid.float(), y_valid.float())
+        y_valid = torch.from_numpy(np.random.binomial(1,0.5,10000)) 
+        dataset_valid = SiameseTensorDataset(x_valid.float(), x_valid.float(), y_valid.float(), y_valid.float())
         
         x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
-        y = torch.from_numpy(np.sin(x.numpy())) 
-        dataset = SiameseTensorDataset(x.float(), x.float(), y.float())
+        y = torch.from_numpy(np.random.binomial(1,0.5,10000)) 
+        dataset = SiameseTensorDataset(x.float(), x.float(), y.float(), y.float())
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = ANNSNNLoss(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
@@ -1656,10 +1633,10 @@ class TestUmmon(unittest.TestCase):
         
         # START TRAINING
         my_trainer.fit(dataloader_training=dataloader_training,
-                                        epochs=4,
+                                        epochs=2,
                                         validation_set=dataset_valid)
-        assert np.allclose(trs["training_loss[]"][-1][1], 0.34056084752082944, 1e-5)
-        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][0][1]
+        
+        assert trs["best_validation_loss"][1] < 1.
         
         files = os.listdir(".")
         dir = "."
@@ -1830,7 +1807,8 @@ class TestUmmon(unittest.TestCase):
         
         # TEST PERSISTED MODEL
         retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_4"))
-        assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-2][1]    
+        
+        assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-4][1]    
 
         files = os.listdir(".")
         dir = "."
