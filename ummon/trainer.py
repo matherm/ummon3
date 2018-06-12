@@ -214,6 +214,12 @@ class MetaTrainer:
             if targets.is_cuda or output.is_cuda:
                 output, targets = output.cuda(), targets.cuda()
         
+        if (type(output) == tuple or type(output) == list) and targets is not None:
+            if output[0].is_cuda or output[1].is_cuda:
+                output = uu.tensor_tuple_to_cuda
+                if type(targets) == tuple or type(targets) == list:
+                    targets = uu.tensor_tuple_to_cuda
+        
         loss = self.criterion(output, targets)
         
         # time loss

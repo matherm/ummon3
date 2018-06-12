@@ -183,6 +183,22 @@ class SupervisedAnalyzer(MetaAnalyzer):
 
         return dataloader
     
+    @staticmethod
+    def _get_batch(data):
+        # Get the inputs
+        inputs, targets = data
+        
+        # Handle cuda
+        if use_cuda:
+            inputs = inputs.cuda()
+            targets = targets.cuda()
+        
+        # Compute Loss
+        targets = Variable(targets)
+        return inputs, targets
+    
+    
+    
     @staticmethod    
     def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
         output_buffer=None):
@@ -223,19 +239,13 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 # Take time
                 t = time.time()
 
-                # Get the inputs
-                inputs, targets = data
-                
-                # Handle cuda
-                if use_cuda:
-                    inputs = inputs.cuda()
-                    targets = targets.cuda()
+                # Get the batch
+                output, targets = SupervisedAnalyzer._get_batch(data)
                 
                 # Execute Model
                 output = model(Variable(inputs))
+        
                 
-                # Compute Loss
-                targets = Variable(targets)
                 loss = loss_function(output, targets).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
@@ -508,47 +518,17 @@ class SiameseTrainer(SupervisedTrainer):
         self.analyzer = SiameseAnalyzer
     
     
-    def _data_validation(self, dataloader_training, validation_set):
-        """
-        Does input data validation for training and validation data.
-        
-        Arguments
-        ---------
-        *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
-        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
-        
-        Return
-        ------
-        *dataloader_training (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
-        *validation_set (torch.utils.data.Dataset) : Same as input or corrected versions from input.
-        *batches (int) : Computed total number of training batches.
-        """
-        assert isinstance(dataloader_training, torch.utils.data.DataLoader)
-        assert uu.check_precision(dataloader_training.dataset, self.model, self.precision)
-        if validation_set is not None:
-            assert isinstance(validation_set, torch.utils.data.Dataset)
-            assert uu.check_precision(validation_set, self.model, self.precision)
-            
-        # COMPUTE BATCHES PER EPOCH
-        batches = int(np.ceil(len(dataloader_training.dataset) / dataloader_training.batch_size))
-       
-        return dataloader_training, validation_set, batches
-    
-    
-    # prepares one batch for processing
+    # prepares one batch for processing (can be overwritten by sibling)
     def _get_batch(self, data):
         
         # Get the inputs
-        inputs, targets = data[0], data[1]
-        
-        # Unfold siamese data
-        input_l, input_r, targets = Variable(inputs[0]), Variable(inputs[1]), Variable(targets)
+        inputs, targets = uu.tensor_tuple_to_variables(data[0]),  uu.tensor_tuple_to_variables(data[1])
         
         # Handle cuda
         if self.use_cuda:
-            input_l, input_r, targets = input_l.cuda(), input_r.cuda(), targets.cuda()
+            inputs, targets = uu.tensor_tuple_to_cuda(inputs), uu.tensor_tuple_to_cuda(targets)
         
-        return (input_l, input_r), targets
+        return inputs, targets
 
 
 class SiameseAnalyzer(SupervisedAnalyzer):
@@ -567,80 +547,19 @@ class SiameseAnalyzer(SupervisedAnalyzer):
     def __init__(self):
         self.name = "ummon.SiameseAnalyzer"
             
-            
-    @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, 
-        batch_size=-1, output_buffer=None):
-        """
-        Evaluates a model with given validation dataset
         
-        Arguments
-        ---------
-        model           : nn.module
-                          The model
-        loss_function   : nn.module
-                          The loss function to evaluate
-        dataset         : torch.utils.data.Dataset
-                          Dataset to evaluate
-        logger          : ummon.Logger (Optional)
-                          The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(ctx, output.data, targets.data, loss.data)
-                          A hook that gets called after forward pass
-        batch_size      : int
-                          batch size used for evaluation (default: -1 == ALL)
+    # prepares one batch for processing (can be overwritten by sibling)
+    @staticmethod
+    def _get_batch(data):
         
-        Return
-        ------
-        Dictionary
-        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
-        """
-        assert isinstance(dataset, torch.utils.data.Dataset)
-        assert isinstance(loss_function, nn.Module)
-        assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataset, model)
+        # Get the inputs
+        inputs, targets = uu.tensor_tuple_to_variables(data[0]),  uu.tensor_tuple_to_variables(data[1])
         
-        use_cuda = next(model.parameters()).is_cuda
-        evaluation_dict = {}
-        ctx = {"__repr__(loss)" : repr(loss_function)}
-        loss_average = 0.
-        bs = len(dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)
-        model.eval() # switch to evaluation mode
-        for i, data in enumerate(dataloader, 0):
-                
-                # Take time
-                t = time.time()
-
-                # Get the inputs
-                inputs, targets = data[0], data[1]
-                
-                # Unfold siamese data
-                input_l, input_r, targets = Variable(inputs[0]), Variable(inputs[1]), Variable(targets)
+        # Handle cuda
+        if self.use_cuda:
+            inputs, targets = uu.tensor_tuple_to_cuda(inputs), uu.tensor_tuple_to_cuda(targets)
         
-                 # Handle cuda
-                if use_cuda:
-                    input_l, input_r, targets = input_l.cuda(), input_r.cuda(), targets.cuda()
-                
-                # Execute Model
-                output = model((input_l, input_r))
-                
-                # Compute Loss
-                loss = loss_function(output, targets).cpu()
-               
-                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
-                
-                # Run hook
-                if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
-                
-                
-        evaluation_dict["training_accuracy"] = 0.0        
-        evaluation_dict["accuracy"] = 0.0
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
-        evaluation_dict["loss"] = loss_average
-        evaluation_dict["detailed_loss"] = ctx
-        
-        return evaluation_dict
+        return inputs, targets
 
        
 if __name__ == "__main__":

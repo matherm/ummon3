@@ -70,16 +70,24 @@ class Predictor:
         use_cuda = next(model.parameters()).is_cuda
         outbuf = []
         for i, data in enumerate(dataloader, 0):
-
+            
                 # Get the inputs
                 inputs = data
                 
                  # Handle cuda
                 if use_cuda:
-                    inputs = inputs.cuda()
+                    if type(inputs) == tuple or type(inputs) == list:
+                        inputs = uu.tensor_tuple_to_cuda(inputs)
+                    else:
+                        inputs = inputs.cuda()
                 
                 # Execute Model
-                output = model(Variable(inputs))
+                if type(inputs) == tuple or type(inputs) == list:
+                    inputs = uu.tensor_tuple_to_variables(inputs)
+                else:
+                    inputs = Variable(inputs)
+                
+                output = model(inputs)
                 
                 # Apply output transforms
                 if output_transform is not None:

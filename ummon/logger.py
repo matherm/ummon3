@@ -262,23 +262,6 @@ class Logger(logging.getLoggerClass()):
             uu.get_size_information(dataset_test), 
             uu.get_shape_information(dataset_test), 
             uu.get_type_information(dataset_test)))
-   
-        self.debug(' ')
-        self.debug("[Preflight 1-sample]")
-        memory_baseline = uu.get_proc_memory_info()["mem"]
-        testpilot = next(iter(dataloader_train))[0]
-        use_cuda = next(model.parameters()).is_cuda
-        if type(testpilot) == tuple or type(testpilot) == list:
-            testpilot = uu.tensor_tuple_to_variables(testpilot)
-            if use_cuda:
-                testpilot = uu.tensor_tuple_to_cuda(testpilot)
-        else:
-            testpilot = Variable(testpilot)
-            testpilot = testpilot.cuda() if use_cuda else testpilot
-        _ = model(testpilot)
-        self.debug('{0:25}{1}'.format("Memory model (MB)", np.round(memory_baseline * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory activations (MB)", np.round((uu.get_proc_memory_info()["mem"] - memory_baseline) * 1000, 1)))
-        self.debug('{0:25}{1}'.format("Memory cuda total (MB)", uu.get_cuda_memory_info()))
       
         self.debug(' ')
         self.debug('[Parameters]')

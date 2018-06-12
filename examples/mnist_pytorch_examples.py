@@ -136,7 +136,7 @@ def example(argv = DefaultValues()):
                                 trainingstate = ts)
             
             # START TRAINING
-            trainingsstate = my_trainer.fit(dataloader_training=dataloader_trainingdata,
+            my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=argv.epochs,
                                         validation_set=mnist_data_test)
 
