@@ -51,6 +51,8 @@ class MetaTrainer:
                             A hook that gets called after backward pass during training (default None)
     after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
                             A hook that gets called after forward pass during evaluation (default None)
+    after_epoch_hook    : OPTIONAL function()
+                            A hook that gets called after epoch (default None)
     
     Methods
     -------
@@ -86,6 +88,7 @@ class MetaTrainer:
         self.profile = False
         self.after_eval_hook = None
         self.after_backward_hook = None
+        self.after_epoch_hook = None
         
         # optional arguments
         for key in kwargs:
@@ -120,6 +123,8 @@ class MetaTrainer:
                 self.after_backward_hook = kwargs[key]
             elif key == 'after_eval_hook':
                 self.after_eval_hook = kwargs[key]
+            elif key == 'after_epoch_hook':
+                self.after_epoch_hook = kwargs[key]
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
@@ -640,6 +645,10 @@ class MetaTrainer:
             # Evaluate
             self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  
                 validation_set, avg_training_loss, dataloader_training, eval_batch_size, output_buffer)
+            
+            # EPOCH HOOK
+            if self.after_epoch_hook is not None:
+                self.after_epoch_hook()
             
             # SAVE MODEL
             self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
