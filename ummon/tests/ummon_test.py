@@ -1435,23 +1435,42 @@ class TestUmmon(unittest.TestCase):
         criterion = nn.MSELoss(size_average=False)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         
-        # CREATE A TRAINER
-        def backward(output, targets, loss):
+        
+        backward_called = False
+        eval_called = False
+        
+        def eval_hook(ctx, output, targets, loss):
             assert isinstance(loss, torch.Tensor)
-            
-        def eval(ctx, output, targets, loss):
-            assert isinstance(loss, torch.Tensor)
+            import intentionally_wrong_import
         
         my_trainer = SupervisedTrainer(Logger(), model, criterion, 
             optimizer, model_filename="testcase",  model_keep_epochs=True,
-                                        after_backward_hook=backward, 
-                                        after_eval_hook=eval)
-        
-            
-        # START TRAINING
-        my_trainer.fit(dataloader_training=dataloader_trainingdata,
-                                        epochs=5,
+                                        after_eval_hook=eval_hook)
+        try:
+            my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        epochs=1,
                                         validation_set=dataset_valid)
+        except ModuleNotFoundError:
+            eval_called = True
+        
+        def backward(output, targets, loss):
+            assert isinstance(loss, torch.Tensor)
+            import intentionally_wrong_import
+            
+        my_trainer = SupervisedTrainer(Logger(), model, criterion, 
+            optimizer, model_filename="testcase",  model_keep_epochs=True,
+                                        after_backward_hook=backward)
+        try:
+            my_trainer.fit(dataloader_training=dataloader_trainingdata,
+                                        epochs=1,
+                                        validation_set=dataset_valid)
+        except ModuleNotFoundError:
+            backward_called = True
+        
+        
+        assert backward_called == True == eval_called
+        
+        
     def test_classification(self):
         np.random.seed(17)
         torch.manual_seed(17)

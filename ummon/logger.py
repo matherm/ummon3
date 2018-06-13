@@ -213,7 +213,7 @@ class Logger(logging.getLoggerClass()):
                     int((batches * batchsize/(time_dict["total"])))))
             
             # Detailed loss information comming from either __repr__(loss) or after_eval_hook()
-            if re.match(".*\d.*", str(evaluation_dict["detailed_loss"])):
+            if evaluation_dict is not None and re.match(".*\d.*", str(evaluation_dict["detailed_loss"])):
                 if type(evaluation_dict["detailed_loss"]) == dict:
                     for k, v in evaluation_dict["detailed_loss"].items():
                         if type(v) == str:

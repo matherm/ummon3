@@ -117,9 +117,9 @@ class MetaTrainer:
             elif key == 'profile':
                 self.profile = bool(kwargs[key])
             elif key == 'after_backward_hook':
-                self.profile = bool(kwargs[key])
+                self.after_backward_hook = kwargs[key]
             elif key == 'after_eval_hook':
-                self.profile = bool(kwargs[key])
+                self.after_eval_hook = kwargs[key]
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
@@ -450,6 +450,9 @@ class MetaTrainer:
                                         combined_retraining = self.combined_training_epochs)
                                 
         else: # no validation set
+            
+            evaluation_dict = None
+            
             self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                 training_loss = avg_training_loss, 
                 training_batchsize = dataloader_training.batch_size,

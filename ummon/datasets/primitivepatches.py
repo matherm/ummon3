@@ -10,6 +10,8 @@ import paramiko
 import getpass
 import zipfile
 
+__all__ = ["PrimPatchVoxel"]
+
 class PrimPatchVoxel(Dataset):
     """
     VoxelDateset: used to load the voxel primitives patches. Around 50k data.
@@ -66,6 +68,7 @@ class PrimPatchVoxel(Dataset):
                 if x == 5:
                     self.statarray[5] = self.statarray[5] + 1
         return {
+            "name"  : "PrimPatchVoxel",                
             "cone": self.statarray[0],
             "cylinder": self.statarray[1],
             "ellipsoid": self.statarray[2],
@@ -73,6 +76,10 @@ class PrimPatchVoxel(Dataset):
             "torus": self.statarray[4],
             "plane": self.statarray[5],
             }
+    
+    def __repr__(self):
+        str(self.stats())
+    
     
     def compute_input_statistics(self, x):
         

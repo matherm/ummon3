@@ -9,6 +9,8 @@ import paramiko
 import getpass
 import tarfile
 
+__all__ = ["CuretVGG19grams"]
+
 class CuretVGG19grams(Dataset):
     """
     Processed Curet dataset.
@@ -41,11 +43,16 @@ class CuretVGG19grams(Dataset):
     
     def stats(self):
         return {
+            "name"  : "CURET Dataset (VGG19-grams)",
             "data samples": len(self.files),
             "data shape" : self.__getitem__(0)[0].shape,
             "data dtype" : self.__getitem__(0)[0].dtype,
             "data label example" : self.__getitem__(0)[1]
             }
+    
+    def __repr__(self):
+        str(self.stats())
+    
     
     def download_file(self, path):
         """
