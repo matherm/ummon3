@@ -78,7 +78,7 @@ class PrimPatchVoxel(Dataset):
             }
     
     def __repr__(self):
-        str(self.stats())
+        return str(self.stats())
     
     
     def compute_input_statistics(self, x):

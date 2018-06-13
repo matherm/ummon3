@@ -51,7 +51,7 @@ class CuretVGG19grams(Dataset):
             }
     
     def __repr__(self):
-        str(self.stats())
+        return str(self.stats())
     
     
     def download_file(self, path):
