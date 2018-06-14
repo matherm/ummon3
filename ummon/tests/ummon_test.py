@@ -1905,7 +1905,23 @@ class TestUmmon(unittest.TestCase):
         for file in files:
             if file.endswith(trs.extension):
                 os.remove(os.path.join(dir,file))
-                
+
+
+    def test_vgg19_gram_features(self):
+
+        # PREPARE DATA
+        x = torch.zeros(3*32*32).reshape(3,32,32)
+        
+        # TEST EXTRACTOR
+        y = VGG19Features()(x)        
+        
+        assert y.size(0) == 512
+        
+        # TEST Gram
+        y = VGG19Features(gram=True)(x)        
+        
+        assert y.size(0) == 512 == y.size(1)
+              
 
 if __name__ == '__main__':
     import argparse
