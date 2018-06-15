@@ -103,7 +103,7 @@ class WeightedPair(Dataset):
 
 
 from torchvision import transforms
-from scipy import misc
+from imageio import imread
 class ImagePatches(Dataset):
     """
     Dataset for generating data from a single given image. It used a window-scheme, hence the name ImageTiles.
@@ -124,7 +124,7 @@ class ImagePatches(Dataset):
                  stride_x=16, stride_y=16, window_size=32):
 
         self.filename = file
-        self.img = misc.imread(file)
+        self.img = imread(file)
         self.train = train
         self.train_percentage = train_percentage
         self.stride_x = stride_x

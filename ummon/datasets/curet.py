@@ -5,11 +5,11 @@ from torch.utils.data.dataset import Dataset
 import numpy as np
 import os
 from pathlib import Path
+from imageio import imread
 import paramiko
 from stat import S_ISDIR
 import getpass
 import tarfile
-from scipy import misc
 
 __all__ = ["CuretVGG19grams"]
 
@@ -159,7 +159,7 @@ class CuretGrey(Dataset):
     
     def stats(self):
         return {
-            "name"  : "CURET Dataset (VGG19-grams)",
+            "name"  : "CURET Dataset (Michael's Grey)",
             "data split" : self.train_percentage,
             "data set" : "train" if self.train else "test",
             "data samples": len(self.files),
@@ -222,7 +222,7 @@ class CuretGrey(Dataset):
              index = index + int(np.ceil(len(self.files) * self.train_percentage))
         
         index = self.shuffled_idx[index]
-        data = misc.imread(self.files[index])
+        data = imread(self.files[index])
         label = int(str(self.files[index]).split("/")[-1].split("-")[0])
         assert label > 0 and label < 61
         if self.onehot:
