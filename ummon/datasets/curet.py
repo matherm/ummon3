@@ -21,7 +21,7 @@ class CuretVGG19grams(Dataset):
     Author: M. Hermann
     """
     
-    def __init__(self, download=True, path="/ext/data/curet_vgg19_grams", features="pool4", onehot=False):
+    def __init__(self, download=True, train=True, path="/ext/data/curet_vgg19_grams", features="pool4", onehot=False):
      
         available_features = ['pool4', 'pool1', 'pool2', 'relu1_1', 'pool3', 'relu1_2']
         assert features in available_features
@@ -35,15 +35,24 @@ class CuretVGG19grams(Dataset):
         self.download = download
         self.onehot = onehot
         self.features = features
+        self.train = train
+        
+        self.train_percentage = 0.95
         
         if download and not os.path.exists(self.full_path):
             self.download_file(self.base_path)
         
         self.files = sorted(Path(self.full_path).glob('**/*.npz'))
+        
+        np.random.seed(44)
+        self.shuffled_idx = np.random.permutation(len(self.files))
+        
     
     def stats(self):
         return {
             "name"  : "CURET Dataset (VGG19-grams)",
+            "data split" : self.train_percentage,
+            "data set" : "train" if self.train else "test",
             "data samples": len(self.files),
             "data shape" : self.__getitem__(0)[0].shape,
             "data dtype" : self.__getitem__(0)[0].dtype,
@@ -85,7 +94,10 @@ class CuretVGG19grams(Dataset):
         os.remove(path + "/dl.tar.gz")
     
     def __getitem__(self, index):
+        if self.train == False:
+             index = index + int(np.ceil(len(self.files) * self.train_percentage))
         
+        index = self.shuffled_idx[index]
         data = np.load(self.files[index])[self.features]
         label = int(str(self.files[index]).split("/")[-1].split("-")[0])
         assert label > 0 and label < 61

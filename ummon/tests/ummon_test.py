@@ -17,6 +17,7 @@ from math import log
 from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
+from torchvision import transforms
 import ummon.utils as uu
 from ummon import *
 
@@ -1913,14 +1914,29 @@ class TestUmmon(unittest.TestCase):
         x = torch.zeros(3*32*32).reshape(3,32,32)
         
         # TEST EXTRACTOR
-        y = VGG19Features()(x)        
+        y = VGG19Features(cachedir="./")(x)        
+        y = VGG19Features(cachedir="./", clearcache=False)(x)        
+        VGG19Features(cachedir="./")
         
         assert y.size(0) == 512
         
         # TEST Gram
-        y = VGG19Features(gram=True)(x)        
+        y = VGG19Features(cachedir="./", gram=True)(x)        
+        y = VGG19Features(cachedir="./", gram=True, clearcache=False)(x)        
+        VGG19Features(cachedir="./", gram=True)
         
         assert y.size(0) == 512 == y.size(1)
+        
+        
+    def test_image_patches_data_set(self):
+        
+        my_transforms = transforms.Compose([transforms.ToTensor(),SquareAnomaly(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+        y = test_set[0][0]
+        
+        assert y.size(0) == 3 and y.dim() == 3
               
 
 if __name__ == '__main__':

@@ -19,7 +19,6 @@ from torch.utils.data import DataLoader
 import ummon.utils as uu
 from ummon.schedulers import *
 from ummon.trainingstate import *
-from ummon.data import *
 from ummon.trainer import *
 from ummon.unsupervised import *
 from ummon.supervised import *

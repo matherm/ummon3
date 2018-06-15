@@ -51,7 +51,6 @@ def system_info():
 
 from .schedulers import *
 from .trainingstate import *
-from .data import *
 from .trainer import *
 from .unsupervised import *
 from .supervised import *
@@ -71,3 +70,7 @@ from .modules.vgg19 import *
 from .modules.gram import *
 from .gridsearch import *
 from ummon.preprocessing.imagetransforms import *
+from ummon.preprocessing.vgg19features import *
+from ummon.preprocessing.anomaly import *
+from .datasets.generic import *
+

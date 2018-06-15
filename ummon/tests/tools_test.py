@@ -20,7 +20,6 @@ import ummon.utils as uu
 import ummon.tools.stateviewer
 from ummon.schedulers import *
 from ummon.trainingstate import *
-from ummon.data import *
 from ummon.trainer import *
 from ummon.unsupervised import *
 from ummon.supervised import *

@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "TripletTensorDataset"]
+__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "ImagePatches", "TripletTensorDataset"]
 
 class UnsupTensorDataset(Dataset):
     """Dataset wrapping tensors for unsupervised trainings.
@@ -54,6 +54,17 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 class WeightedPair(Dataset):
+    """
+    Dataset for training with deep metric networks (Siamese).
+    
+    It takes a dataset like cifar10 and ensures that balanced tuples are returnd.
+    Balanced means that there are same number of same lables and different labels.
+    
+    Arguments:
+        *dataset (torch.dataset) : The underlying dataset
+        *class_ration :     The ratio of matching and unmatching labels
+    
+    """
     def __init__(self, dataset, class_ratio=0.5):
         self.dataset = dataset
         self.class_ratio = float(class_ratio)
@@ -89,6 +100,90 @@ class WeightedPair(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+
+from torchvision import transforms
+from scipy import misc
+class ImagePatches(Dataset):
+    """
+    Dataset for generating data from a single given image. It used a window-scheme, hence the name ImageTiles.
+    
+    Arguments:
+        * file (str) : The image filename
+        * mode (str) : The processing mode 'bgr' or 'gray' (default="bgr")
+        * train (bool) : train or test set
+        * train_percentage (float) : percentage of train patches compared to all patches
+        * transform (torchvision.transforms) : Image Transformations (default transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+        * stride_x : The overlap in x direction
+        * stride_y : The overlap in y direction
+        * window_size (int) : square size of the resulting patches
+    
+    """
+    
+    def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
+                 stride_x=16, stride_y=16, window_size=32):
+
+        self.filename = file
+        self.img = misc.imread(file)
+        self.train = train
+        self.train_percentage = train_percentage
+        self.stride_x = stride_x
+        self.stride_y = stride_y
+        self.window_size = window_size
+        self.transform = transform
+        self.dataset_size = int(((self.img.shape[0] - self.window_size) / self.stride_y) + 1) * int(((self.img.shape[1] - self.window_size) / self.stride_x) + 1)
+
+        if mode == 'bgr':
+            self.__rgb_to_bgr__()
+        elif mode == 'gray':
+            self.__rgb_to_gray__()
+
+    def __rgb_to_bgr__(self):
+        r = np.expand_dims(self.img[:, :, 0], axis=2)
+        g = np.expand_dims(self.img[:, :, 1], axis=2)
+        b = np.expand_dims(self.img[:, :, 2], axis=2)
+        self.img = np.concatenate((b,g,r), axis=2)
+
+    def __rgb_to_gray__(self):
+        r = np.expand_dims(self.img[:, :, 0], axis=2)
+        g = np.expand_dims(self.img[:, :, 1], axis=2)
+        b = np.expand_dims(self.img[:, :, 2], axis=2)
+        
+    def stats(self):
+        return {
+            "name"  : "ImagePatches",
+            "filepath" : self.filename,
+            "data split" : self.train_percentage,
+            "data set" : "train" if self.train else "test",
+            "data samples": len(self),
+            "data shape" : self.__getitem__(0)[0].shape,
+            "data dtype" : self.__getitem__(0)[0].dtype,
+            "data label example" : self.__getitem__(0)[1]
+            }
+    
+    def __repr__(self):
+        return str(self.stats())
+        
+    def __len__(self):
+        if self.train:
+            return int(self.train_percentage * self.dataset_size)
+        else:
+            return int((1 - self.train_percentage) * self.dataset_size)
+
+    def __getitem__(self, idx):
+        y = idx // (((self.img.shape[0] - self.window_size) // self.stride_y) + 1)
+        x = idx % (((self.img.shape[1] - self.window_size) // self.stride_x) + 1)
+
+        topleft_y = y * self.stride_y
+        bottomright_y = y * self.stride_y + self.window_size
+        topleft_x = x * self.stride_x
+        bottomright_x = x * self.stride_x + self.window_size
+
+        patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :]
+
+        if self.transform:
+            return self.transform(patch), np.array([1])
+        return patch, 1
     
     
 class TripletTensorDataset(Dataset):
