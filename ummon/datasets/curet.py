@@ -11,7 +11,7 @@ from stat import S_ISDIR
 import getpass
 import tarfile
 
-__all__ = ["CuretVGG19grams"]
+__all__ = ["CuretVGG19grams", "CuretGrey"]
 
 class CuretVGG19grams(Dataset):
     """

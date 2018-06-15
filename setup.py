@@ -13,7 +13,6 @@ import torch
 import torchvision
 import shutil
 
-
 # VERSION DEPENDENCIES
 if "0.4" not in torch.__version__: 
     exit("Sorry, PyTorch version " + torch.__version__ + " is not supported yet! Please use version 0.4.x")
@@ -107,4 +106,13 @@ except:
 try:
     import paramiko
 except:
-    print("\nWARNING: Package <<paramiko>> not found. You won't be able to download datasets")
+    print("\nWARNING: Package <<paramiko>> not found. You won't be able to download NAS datasets")
+try:
+    import wget
+except:
+    print("\nWARNING: Package <<wget>> not found. You won't be able to download web datasets")
+try:
+    from PIL import Image
+except:
+    print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")
+
