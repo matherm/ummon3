@@ -52,7 +52,7 @@ class VisTexReference(Dataset):
     
     def stats(self):
         return {
-            "name"  : "VisTex Dataset",
+            "name"  : "VisTex (Reference) Dataset",
             "data split" : self.train_percentage,
             "data set" : "train" if self.train else "test",
             "data samples": len(self.files),
@@ -108,10 +108,14 @@ class VisTexReference(Dataset):
              index = index + int(np.ceil(len(self.files) * self.train_percentage))
         
         index = self.shuffled_idx[index]
-        data = np.asarray(Image.open(self.files[index])) # shape is Y x X x C
+        data = np.asarray(Image.open(self.files[index]), dtype=np.float32) # shape is Y x X x C
+        
+        # Bring channel to front
         data = np.transpose(data, (2,0,1))
         
-
+        # Normalize
+        data = data / 255.
+        
         label_text = str(self.files[index]).split("/")[-1].split(".")[0]
         for i, l in enumerate(self.LABELS):
             if l == label_text:

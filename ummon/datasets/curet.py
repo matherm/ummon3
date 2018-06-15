@@ -223,10 +223,12 @@ class CuretGrey(Dataset):
         
         index = self.shuffled_idx[index]
         data = imread(self.files[index])
-        label = int(str(self.files[index]).split("/")[-1].split("-")[0])
-        assert label > 0 and label < 61
+        
+        #subtract -1 because labeling starts with 1
+        label = int(str(self.files[index]).split("/")[-1].split("-")[0]) - 1
+        assert label >= 0 and label < 60
         if self.onehot:
-            return (torch.from_numpy(data).unsqueeze(0), self.one_hot(label - 1, 60))
+            return (torch.from_numpy(data).unsqueeze(0), self.one_hot(label, 60))
         else:
             return (torch.from_numpy(data).unsqueeze(0), label)
     
