@@ -108,10 +108,6 @@ try:
 except:
     print("\nWARNING: Package <<paramiko>> not found. You won't be able to download NAS datasets")
 try:
-    import wget
-except:
-    print("\nWARNING: Package <<wget>> not found. You won't be able to download web datasets")
-try:
     from PIL import Image
 except:
     print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")

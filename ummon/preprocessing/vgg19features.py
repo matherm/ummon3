@@ -24,6 +24,14 @@ class VGG19Features():
     ======
             transform = VGG(features="pool4")
             transform(tensor)
+            
+            OR
+            
+            vgg = VGG19Features(features="pool4")
+            my_transforms = transforms.Compose([transforms.ToTensor(), vgg])
+            test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
     
     Input
     ======

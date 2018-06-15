@@ -1935,7 +1935,15 @@ class TestUmmon(unittest.TestCase):
                                 train=False, \
                                 transform=my_transforms) 
         y = test_set[0][0]
+    
+        assert y.size(0) == 3 and y.dim() == 3
         
+        test_set = AnomalyImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+        
+        y = test_set[0][0]
+    
         assert y.size(0) == 3 and y.dim() == 3
               
 

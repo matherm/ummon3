@@ -20,7 +20,7 @@ class PrimPatchVoxel(Dataset):
     Author: P. Fiur
     """
     
-    def __init__(self, train=True, download=False, path="./primpatchvoxel", debug=False, onehot=False):
+    def __init__(self, train=True, download=True, path="/ext/data/primpatchvoxel", debug=False, onehot=False):
         # Central download path, host id and port
         self.DOWNLOAD_PATH = '/3D/3d-data/primitives/normVoxel64.zip'
         self.host = "iosds02.ios.htwg-konstanz.de" # iosds02
@@ -41,8 +41,6 @@ class PrimPatchVoxel(Dataset):
         self.statarray = np.zeros(6, dtype=np.int32)
         self.classes = 6
         self.train_percentage = 0.95
-        
-        print("Anzahl Dateien: ", len(self))
     
     def stats(self):
         """
@@ -67,14 +65,22 @@ class PrimPatchVoxel(Dataset):
                     self.statarray[4] = self.statarray[4] + 1
                 if x == 5:
                     self.statarray[5] = self.statarray[5] + 1
+
         return {
-            "name"  : "PrimPatchVoxel",                
-            "cone": self.statarray[0],
-            "cylinder": self.statarray[1],
-            "ellipsoid": self.statarray[2],
-            "sphere": self.statarray[3],
-            "torus": self.statarray[4],
-            "plane": self.statarray[5],
+                "name"  : "Primitive Patches Dataset (Voxel)",
+                "data split" : self.train_percentage,
+                "data set" : "train" if self.train else "test",
+                "data samples": len(self),
+                "total samples" : len(self.files),
+                "data shape" : self.__getitem__(0)[0].shape,
+                "data dtype" : self.__getitem__(0)[0].dtype,
+                "data label example" : self.__getitem__(0)[1],
+                "cone": self.statarray[0],
+                "cylinder": self.statarray[1],
+                "ellipsoid": self.statarray[2],
+                "sphere": self.statarray[3],
+                "torus": self.statarray[4],
+                "plane": self.statarray[5],
             }
     
     def __repr__(self):

@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "ImagePatches", "TripletTensorDataset"]
+__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "ImagePatches", "AnomalyImagePatches", "TripletTensorDataset"]
 
 class UnsupTensorDataset(Dataset):
     """Dataset wrapping tensors for unsupervised trainings.
@@ -170,7 +170,7 @@ class ImagePatches(Dataset):
         else:
             return int((1 - self.train_percentage) * self.dataset_size)
 
-    def __getitem__(self, idx):
+    def _get_patch(self, idx):
         y = idx // (((self.img.shape[0] - self.window_size) // self.stride_y) + 1)
         x = idx % (((self.img.shape[1] - self.window_size) // self.stride_x) + 1)
 
@@ -180,10 +180,74 @@ class ImagePatches(Dataset):
         bottomright_x = x * self.stride_x + self.window_size
 
         patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :]
+        
+        # normalize
+        patch = patch.astype(np.float32)
+        if patch.max() > 1:
+            patch = patch / 255.
+            
+        return patch
+
+    def __getitem__(self, idx):
+        
+        patch = self._get_patch(idx)
 
         if self.transform:
-            return self.transform(patch), np.array([1])
+            return self.transform(patch), 1
         return patch, 1
+    
+from ummon.preprocessing.anomaly import *
+class AnomalyImagePatches(ImagePatches):
+     """
+     
+     Dataset for generating data and anomaly from a single given image. It used a window-scheme, hence the name ImageTiles.
+     
+     Note
+     ====
+     Compared to ImagePatches all anomaly patches have label -1 whereas non-anomaly patches have 1
+    
+     Arguments:
+        * file (str) : The image filename
+        * mode (str) : The processing mode 'bgr' or 'gray' (default="bgr")
+        * train (bool) : train or test set
+        * train_percentage (float) : percentage of train patches compared to all patches
+        * transform (torchvision.transforms) : Image Transformations (default transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+        * stride_x : The overlap in x direction
+        * stride_y : The overlap in y direction
+        * window_size (int) : square size of the resulting patches
+        * anomaly (torchvision.transformation)
+        * propability (float) : propability of a anomaly
+    
+     """
+     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
+                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2):
+        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size)
+
+        self.anomaly = anomaly
+        self.propability = propability
+
+     def __getitem__(self, idx):
+        
+        # Get the patch
+        patch = self._get_patch(idx)
+        
+        # Add anomaly with propability given by self.propability and label -1 respectivly
+        if np.random.rand() < self.propability:
+            # swap channel to front
+            if patch.ndim == 3 and patch.shape[0] > patch.shape[2]:
+                patch = np.transpose(patch, (2,0,1))
+            patch = torch.from_numpy(patch)
+            patch = self.anomaly(patch)
+            patch = patch.numpy()
+            label = -1
+        else:
+            label = 1
+
+        # Apply transformations
+        if self.transform:
+            return self.transform(patch), label
+        return patch, label
+    
     
     
 class TripletTensorDataset(Dataset):

@@ -55,7 +55,8 @@ class CuretVGG19grams(Dataset):
             "name"  : "CURET Dataset (VGG19-grams)",
             "data split" : self.train_percentage,
             "data set" : "train" if self.train else "test",
-            "data samples": len(self.files),
+            "data samples": len(self),
+            "total samples" : len(self.files),
             "data shape" : self.__getitem__(0)[0].shape,
             "data dtype" : self.__getitem__(0)[0].dtype,
             "data label example" : self.__getitem__(0)[1]
@@ -101,10 +102,12 @@ class CuretVGG19grams(Dataset):
         
         index = self.shuffled_idx[index]
         data = np.load(self.files[index])[self.features]
-        label = int(str(self.files[index]).split("/")[-1].split("-")[0])
+        
+        #subtract -1 because labeling starts with 1
+        label = int(str(self.files[index]).split("/")[-1].split("-")[0]) - 1
         assert label > 0 and label < 61
         if self.onehot:
-            return (torch.from_numpy(data).unsqueeze(0), self.one_hot(label - 1, 60))
+            return (torch.from_numpy(data).unsqueeze(0), self.one_hot(label, 60))
         else:
             return (torch.from_numpy(data).unsqueeze(0), label)
     
@@ -162,7 +165,8 @@ class CuretGrey(Dataset):
             "name"  : "CURET Dataset (Michael's Grey)",
             "data split" : self.train_percentage,
             "data set" : "train" if self.train else "test",
-            "data samples": len(self.files),
+            "data samples": len(self),
+            "total samples" : len(self.files),
             "data shape" : self.__getitem__(0)[0].shape,
             "data dtype" : self.__getitem__(0)[0].dtype,
             "data label example" : self.__getitem__(0)[1]
