@@ -1930,7 +1930,7 @@ class TestUmmon(unittest.TestCase):
         
     def test_image_patches_data_set(self):
         
-        my_transforms = transforms.Compose([transforms.ToTensor(),SquareAnomaly(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        my_transforms = transforms.Compose([transforms.ToTensor(), SquareAnomaly(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
                                 train=False, \
                                 transform=my_transforms) 
