@@ -242,6 +242,8 @@ class AnomalyImagePatches(ImagePatches):
             patch = self.anomaly(patch)
             patch = patch.numpy()
             label = -1
+            if patch.ndim == 3 and patch.shape[0] < patch.shape[2]:
+                patch = np.transpose(patch, (1,2,0))
         else:
             label = 1
 
