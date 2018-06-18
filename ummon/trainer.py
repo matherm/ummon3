@@ -225,7 +225,10 @@ class MetaTrainer:
                 if type(targets) == tuple or type(targets) == list:
                     targets = uu.tensor_tuple_to_cuda(targets)
         
-        loss = self.criterion(output, targets)
+        try:
+            loss = self.criterion(output, targets)
+        except ValueError:
+            loss = self.criterion(output)
         
         # time loss
         if self.profile and self.use_cuda: torch.cuda.synchronize()
