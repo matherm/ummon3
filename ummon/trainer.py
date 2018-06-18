@@ -227,7 +227,7 @@ class MetaTrainer:
         
         try:
             loss = self.criterion(output, targets)
-        except ValueError:
+        except (ValueError, TypeError):
             loss = self.criterion(output)
         
         # time loss
