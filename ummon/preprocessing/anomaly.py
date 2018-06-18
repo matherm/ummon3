@@ -32,7 +32,6 @@ class SquareAnomaly():
     
     def __call__(self, x):
         assert np.max(x.numpy()) <= 1 and np.min(x.numpy()) >= 0
-        print(x.size())
         assert x.size(0) < x.size(1) and x.size(0) < x.size(2)
         if x.dim() == 3:
             _y = np.random.randint(0, x.size(1) - self.anom_size)

@@ -101,6 +101,9 @@ class SupervisedTrainer(MetaTrainer):
                 self.logger.error('Training data must be provided as a tuple (X, y, batch) or as PyTorch DataLoader.',TypeError)
             if isinstance(data[0], np.ndarray) or uu.istensor(data[0]):
                 torch_dataset = uu.construct_dataset_from_tuple(self.logger, data, train=True)
+                
+            if isinstance(data[0], torch.utils.data.Dataset):
+                torch_dataset = data[0]
 
         if isinstance(dataloader_training, torch.utils.data.Dataset):
                 batch_size = -1
