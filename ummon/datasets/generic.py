@@ -143,13 +143,13 @@ class ImagePatches(Dataset):
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
         self.img = np.concatenate((b,g,r), axis=2)
+        
 
     def __rgb_to_gray__(self):
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
         self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
-        self.img = np.expand_dims(self.img, axis=0)
         
     def stats(self):
         return {
