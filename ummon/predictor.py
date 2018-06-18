@@ -29,7 +29,7 @@ class Predictor:
     """
 
     @staticmethod
-    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger()):
+    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False):
         """
         Computes the output of a model for a given dataset
         
@@ -46,6 +46,8 @@ class Predictor:
                           combined loss like CrossEntropy was used during training.
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
+        supress_tuple   : boolean
+                          When dataset returns tuples everything except the first is ignored.
         
         Return
         ------
@@ -73,6 +75,10 @@ class Predictor:
             
                 # Get the inputs
                 inputs = data
+                
+                # Supress tuples in case we want to predict labeled data
+                if type(inputs) == tuple and supress_tuple:
+                    inputs = data[0]
                 
                  # Handle cuda
                 if use_cuda:

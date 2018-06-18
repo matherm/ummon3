@@ -114,8 +114,11 @@ class VGG19Features():
             if name in self.features:
                 if len(self.features) == 1:
                     result = y.cpu()[0]
+                    break;
                 else:
                     result.append(y.view(-1))
+                    if len(result) == len(self.features):
+                        break;
         
         if len(self.features) == 1:
             if self.cache:
