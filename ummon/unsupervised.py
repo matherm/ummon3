@@ -261,7 +261,10 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 output = model(inputs)
                 
                 # Compute Loss
-                loss = loss_function(output, inputs).cpu()
+                try:
+                    loss = loss_function(output, inputs).cpu()
+                except (ValueError, TypeError):
+                    loss = loss_function(output).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 

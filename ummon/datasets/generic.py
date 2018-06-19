@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "ImagePatches", "AnomalyImagePatches", "TripletTensorDataset"]
+__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "ImagePatches", "AnomalyImagePatches", "TripletTensorDataset", "NumpyDataset"]
 
 class UnsupTensorDataset(Dataset):
     """Dataset wrapping tensors for unsupervised trainings.
@@ -253,7 +253,6 @@ class AnomalyImagePatches(ImagePatches):
         return patch, label
     
     
-    
 class TripletTensorDataset(Dataset):
     """Dataset wrapping tensors for triplet networks.
 
@@ -279,3 +278,25 @@ class TripletTensorDataset(Dataset):
     def __len__(self):
         assert self.data_tensor_l.size(0) == self.data_tensor_m.size(0) == self.data_tensor_r.size(0) == self.target_tensor.size(0)
         return self.data_tensor_l.size(0)
+    
+    
+class NumpyDataset(Dataset):
+    """
+    Small dataset used to wrap a existing dataset.
+    
+    Usage
+        *NumpyDataset(MNIST(..)).labels => [Labels]
+        *NumpyDataset(MNIST(..)).data => [Samples, Features]
+    """
+    def __init__(self, dataset):
+        assert isinstance(dataset, torch.utils.data.Dataset)
+        self.dataset = dataset
+        self.data, self.labels = zip(*[(d[0], d[1]) if type(d[1]) == int else (d[0], d[1].item()) for d in dataset])
+        self.data = torch.cat(self.data).reshape(len(self),-1).numpy()
+        self.labels = np.asarray(self.labels, dtype=np.float32)
+    
+    def __getitem__(self, index):
+        return self.dataset[index]
+
+    def __len__(self):
+        return len(self.dataset)
