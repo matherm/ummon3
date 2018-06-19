@@ -1630,7 +1630,7 @@ class TestUmmon(unittest.TestCase):
             def forward(self, x):
                 x_l, x_r = x
                 x_l, x_r = self.fc1(x_l), self.fc2(x_r)
-                return  x_l, x_r
+                return  F.pairwise_distance(x_l, x_r)
     
         
         x_valid = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
@@ -1643,7 +1643,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = ANNSNNLoss(size_average=False)
+        criterion = Contrastive(size_average=False)
         trs = Trainingstate()
 
         # CREATE A TRAINER
