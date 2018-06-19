@@ -292,7 +292,7 @@ class NumpyDataset(Dataset):
         assert isinstance(dataset, torch.utils.data.Dataset)
         self.dataset = dataset
         self.data, self.labels = zip(*[(d[0], d[1]) if type(d[1]) == int else (d[0], d[1].item()) for d in dataset])
-        self.data = torch.cat(self.data).reshape(len(self),-1).numpy()
+        self.data = torch.cat(self.data).reshape(len(dataset),-1).numpy()
         self.labels = np.asarray(self.labels, dtype=np.float32)
     
     def __getitem__(self, index):
