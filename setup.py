@@ -36,17 +36,24 @@ class Installation(install):
     """
     def run(self):
         cwd = os.getcwd()
-        
+
+        # Install IpLibrary
         try:
-            # IpLibrary
-            print("\n Installing IpLibrary..")
-            os.chdir("./lib/iplibrary/py")
-            subprocess.call(
-                    "python setup.py install", shell=True
-            )
-            os.chdir(cwd)
-        except:
-            print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive`?")
+            import impy
+        except ImportError:
+            try:
+                print("\n Installing IpLibrary..")
+                os.chdir("./lib/iplibrary/py")
+            except:
+                print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive`?")
+            try:
+                subprocess.call(
+                        "python setup.py install", shell=True
+                )
+            except:
+                pass
+            
+        os.chdir(cwd)
         
         install.run(self)
         print("")
@@ -124,4 +131,7 @@ try:
     from PIL import Image
 except:
     print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")
-
+try:
+    import impy
+except:
+    print("\nWARNING: Package <<lib/iplibrary>> not installed. You cannot use e.g. Portilla and Simoncelli features.")
