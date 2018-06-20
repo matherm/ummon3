@@ -6,6 +6,7 @@ import ummon.utils as uu
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import ConcatDataset
+from torch.utils.data.dataset import Subset
 from .logger import Logger
 from .schedulers import *
 from .trainingstate import *
@@ -409,8 +410,7 @@ class MetaTrainer:
                   validation_set, 
                   avg_training_loss,
                   dataloader_training,
-                  eval_batch_size,
-                  output_buffer):
+                  eval_batch_size):
         """
         Evaluates the current training state against agiven analyzer
         
@@ -429,6 +429,16 @@ class MetaTrainer:
         
         """
         
+        # EVALUATE ON TRAINING SET
+        n_training_samples = np.min([len(dataloader_training.dataset), 200])
+        rbatch_train = Subset(dataloader_training.dataset, np.random.permutation(n_training_samples))
+        evaluation_dict_train = Analyzer.evaluate(self.model, 
+                                                self.criterion, 
+                                                rbatch_train,
+                                                self.logger, 
+                                                self.after_eval_hook,
+                                                eval_batch_size)
+        
         # Log epoch
         if validation_set is not None:
             
@@ -438,13 +448,12 @@ class MetaTrainer:
                                                     validation_set, 
                                                     self.logger, 
                                                     self.after_eval_hook,
-                                                    eval_batch_size,
-                                                    output_buffer)
+                                                    eval_batch_size)
                 
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                                         training_loss = avg_training_loss, 
-                                        training_accuracy = evaluation_dict["training_accuracy"],
+                                        training_accuracy = evaluation_dict_train["accuracy"],
                                         training_batchsize = dataloader_training.batch_size,
                                         training_dataset = dataloader_training.dataset,
                                         trainer_instance = type(self),
@@ -463,6 +472,7 @@ class MetaTrainer:
             
             self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                 training_loss = avg_training_loss, 
+                training_accuracy = evaluation_dict_train["accuracy"],
                 training_batchsize = dataloader_training.batch_size,
                 training_dataset = dataloader_training.dataset,
                 trainer_instance = type(self),
@@ -642,12 +652,9 @@ class MetaTrainer:
                 time_dict = self._finish_one_batch(batch, batches, epoch, avg_training_loss,
                     dataloader_training.batch_size, time_dict)
                 
-                # Save output for later evaluation
-                output_buffer.append(self._get_output_for_buffer(output, targets, batch))
-            
             # Evaluate
             self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  
-                validation_set, avg_training_loss, dataloader_training, eval_batch_size, output_buffer)
+                validation_set, avg_training_loss, dataloader_training, eval_batch_size)
             
             # EPOCH HOOK
             if self.after_epoch_hook is not None:

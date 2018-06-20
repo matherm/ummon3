@@ -204,8 +204,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
     
     
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
-        output_buffer=None):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -258,7 +257,6 @@ class SupervisedAnalyzer(MetaAnalyzer):
                     ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
                 
                 
-        evaluation_dict["training_accuracy"] = 0.0        
         evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
@@ -353,8 +351,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
     """
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1, 
-        output_buffer=None):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -384,16 +381,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         
         # Compute Running average training accuracy
         model.eval() # switch to evaluation mode
-        if output_buffer is not None and len(output_buffer) > 0:
-            avg_training_acc = 0.
-            for saved_output, saved_targets, batch in output_buffer:
-                classes = Predictor.classify(saved_output.cpu(), loss_function, logger)
-                acc = Predictor.compute_accuracy(classes, saved_targets.cpu())
-                avg_training_acc = MetaAnalyzer._online_average(acc, batch + 1, 
-                    avg_training_acc)
-        else:
-            avg_training_acc = None
-        
+
         # evaluate on validation set
         use_cuda = next(model.parameters()).is_cuda
         evaluation_dict = {}
@@ -437,7 +425,6 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
             acc_average = ClassificationAnalyzer._online_average(acc, batch + 1, acc_average)
         
         # save results in dict
-        evaluation_dict["training_accuracy"] = avg_training_acc
         evaluation_dict["accuracy"] = acc_average
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
@@ -566,8 +553,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
 
     
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
-        output_buffer=None):
+    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -620,7 +606,6 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                     ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
                 
                 
-        evaluation_dict["training_accuracy"] = 0.0        
         evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average

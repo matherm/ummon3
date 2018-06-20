@@ -204,7 +204,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
             
     @staticmethod    
     def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, 
-        batch_size=-1, output_buffer=None):
+        batch_size=-1):
         """
         Evaluates a model with given validation dataset
         
@@ -273,7 +273,6 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                     ctx = after_eval_hook(ctx, output.data, targets, loss.data)
                 
                 
-        evaluation_dict["training_accuracy"] = 0.0        
         evaluation_dict["accuracy"] = 0.0
         evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
         evaluation_dict["loss"] = loss_average
