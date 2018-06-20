@@ -44,14 +44,14 @@ class Installation(install):
             try:
                 print("\n Installing IpLibrary..")
                 os.chdir("./lib/iplibrary/py")
+                try:
+                    subprocess.call(
+                            "python setup.py install", shell=True
+                    )
+                except:
+                    pass
             except:
                 print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive`?")
-            try:
-                subprocess.call(
-                        "python setup.py install", shell=True
-                )
-            except:
-                pass
             
         os.chdir(cwd)
         
