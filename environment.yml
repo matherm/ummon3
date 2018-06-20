@@ -1,4 +1,4 @@
-name: pytorch436
+name: ummon3
 channels:
 - pytorch
 - defaults
