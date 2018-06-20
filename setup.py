@@ -51,7 +51,7 @@ class Installation(install):
                 except:
                     pass
             except:
-                print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive`?")
+                print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive` or pull with `git submodule update --init --recursive`?")
             
         os.chdir(cwd)
         
@@ -134,4 +134,4 @@ except:
 try:
     import impy
 except:
-    print("\nWARNING: Package <<lib/iplibrary>> not installed. You cannot use e.g. Portilla and Simoncelli features.")
+    print("\nWARNING: Package <<lib/iplibrary>> not installed or just installed and not reloaded modules (run `python setup install` again). You cannot use e.g. Portilla and Simoncelli features.")
