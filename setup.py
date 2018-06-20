@@ -35,6 +35,19 @@ class Installation(install):
     Installs needed local packages and runs some pre-installation procedures
     """
     def run(self):
+        cwd = os.getcwd()
+        
+        try:
+            # IpLibrary
+            print("\n Installing IpLibrary..")
+            os.chdir("./lib/iplibrary/py")
+            subprocess.call(
+                    "python setup.py install", shell=True
+            )
+            os.chdir(cwd)
+        except:
+            print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive`?")
+        
         install.run(self)
         print("")
         print("########################")

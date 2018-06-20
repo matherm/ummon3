@@ -42,7 +42,7 @@ class VGG19Features():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, features = "pool4", gram = False, triangular=False, cachedir = None, clearcache = True, cuda = False):
+    def __init__(self, features = "pool4", gram = False, triangular=False, cachedir = None, clearcache = True, cuda = False, pretrained = True):
         """
         Parameters
         ----------
@@ -52,6 +52,7 @@ class VGG19Features():
             *cachedir (str) : an directory for caching computed matrices
             *clearcache (bool) : deletes cache on object construction
             *cuda (bool) : compute with cuda
+            *pretrained (bool) : use pretrained vgg19 net
         
         """
         self.features = features
@@ -60,9 +61,10 @@ class VGG19Features():
         self.gram = gram
         self.cuda = cuda
         self.triangular = triangular
+        self.pretrained = pretrained
         
         # Original PyTorch VGG19
-        self.model = vgg19(pretrained=True).features
+        self.model = vgg19(pretrained=self.pretrained).features
         
         # Custom VGG19 with better Layer naming convention
         self.vgg19 = VGG19()

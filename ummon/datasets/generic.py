@@ -215,7 +215,7 @@ class AnomalyImagePatches(ImagePatches):
      
      Note
      ====
-     Compared to ImagePatches all anomaly patches have label -1 whereas non-anomaly patches have 1
+     Compared to ImagePatches all anomaly patches have label -1 (or as specified with anomaly_label) whereas non-anomaly patches have 1
     
      Arguments:
         * file (str) : The image filename
@@ -228,14 +228,18 @@ class AnomalyImagePatches(ImagePatches):
         * window_size (int) : square size of the resulting patches
         * anomaly (torchvision.transformation)
         * propability (float) : propability of a anomaly
+        * anomaly_label (int) : the label for anomaly data (normal data is 0)
     
      """
      def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
-                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2):
+                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2, anomaly_label = -1):
         super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size)
+
+        assert anomaly_label == 0 or anomaly_label == -1
 
         self.anomaly = anomaly
         self.propability = propability
+        self.anomaly_label = anomaly_label
 
      def __getitem__(self, idx):
         
@@ -250,7 +254,7 @@ class AnomalyImagePatches(ImagePatches):
             patch = torch.from_numpy(patch)
             patch = self.anomaly(patch)
             patch = patch.numpy()
-            label = -1
+            label = self.anomaly_label
             if patch.ndim == 3 and patch.shape[0] < patch.shape[2]:
                 patch = np.transpose(patch, (1,2,0))
         else:

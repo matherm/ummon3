@@ -21,8 +21,7 @@ class EmbeddInEmpty():
         -------
         New Image as [Channels, (final_size)]
         '''
-        assert type(image) == torch.FloatTensor
-        assert image.max() <= 1
+        assert isinstance(image, torch.Tensor)
         assert image.numpy().ndim == 3
         final_size = self.final_size
     

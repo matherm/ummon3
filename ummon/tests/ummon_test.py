@@ -1946,6 +1946,16 @@ class TestUmmon(unittest.TestCase):
         y = test_set[0][0]
     
         assert y.size(0) == 3 and y.dim() == 3
+        
+    def test_portilla_simoncelli_features(self):
+
+        from ummon.preprocessing.portillasimoncelli import PortillaSimoncelli
+        # PREPARE DATA
+        x = torch.from_numpy(np.random.uniform(0, 1, 32*32).reshape(32,32))
+
+        # TEST EXTRACTOR
+        y = PortillaSimoncelli()(x)        
+        print(y)        
               
 
 if __name__ == '__main__':
