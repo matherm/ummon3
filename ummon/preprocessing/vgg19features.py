@@ -104,6 +104,9 @@ class VGG19Features():
             path = str(self.cachedir + "/" + fname + ".npy")
             if Path(path).exists():
                 return torch.from_numpy(np.load(path))
+
+        if self.cuda and torch.cuda.is_available():
+            x = x.cuda()
             
         result = []
         for name, layer in self.vgg19._modules.items():
