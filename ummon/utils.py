@@ -212,17 +212,26 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
         
     Return:
         * dataset :  torch.utils.data.Datase
-
+    
     """
-    if train == True and len(data_tuple) != 3 and len(data_tuple) != 2:
+    if train == True:
+        if data_tuple.__class__.__name__ != 'tuple':
             logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
                 TypeError)
-    if train == False and len(data_tuple) != 2 and type(data_tuple) != 1 and type(data_tuple) != np.ndarray and not istensor(data_tuple):
-                logger.error('Validation data must be provided as a tuple (X,(y)) or as PyTorch DataLoader.',
-                    TypeError)          
- 
+        if len(data_tuple) != 3 and len(data_tuple) != 2:
+            logger.error('Training data must be provided as a tuple (X,(y),batch) or as PyTorch DataLoader.',
+                TypeError)
+    if train == False: # prediction mode
+        if type(data_tuple) != np.ndarray and not istensor(data_tuple) and data_tuple.__class__.__name__ != 'tuple':
+            logger.error('Validation data must be provided as a tuple (X,(y)) or as PyTorch DataLoader.',
+                TypeError)          
+        if data_tuple.__class__.__name__ == 'tuple' and len(data_tuple) != 2 and len(data_tuple) != 1:
+            logger.error('Validation data must be provided as a tuple (X,(y)) or as PyTorch DataLoader.',
+                TypeError)         
+    
     # SUPERVISED
-    if (len(data_tuple) == 2 and train == False) or (len(data_tuple) == 3 and train == True):
+    if data_tuple.__class__.__name__ == 'tuple' and ((len(data_tuple) == 2 and 
+        train == False) or (len(data_tuple) == 3 and train == True)):
         # extract training data
         Xtr = data_tuple[0]
         ytr = data_tuple[1]
@@ -249,7 +258,7 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
                 dataset = TensorDataset(x.double(), y.double())
         else:
             logger.error(str('Precision: ' + precision + ' is not supported yet.'))
-        return dataset
+    
     # UNSUPERVISED
     else:
         if type(data_tuple) != np.ndarray and not istensor(data_tuple):
@@ -268,8 +277,10 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
             dataset = UnsupTensorDataset(x.double())
         else:
             logger.error(str('Precision: ' + precision + ' is not supported yet.'))
-        return dataset
-        
+    
+    return dataset
+
+
 def istensor(t):
     return type(t) ==  torch.Tensor \
             or type(t) ==  torch.FloatTensor      \

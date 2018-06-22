@@ -65,7 +65,7 @@ class Conv(nn.Conv2d):
     '''
     # constructor
     def __init__(self, insize, fsize, stride=1, padding=0, dilation=1, groups=1, 
-        bias=True, init='xavier_normal'):
+        bias=True, init='xavier_normal_'):
         
         # check layer parameters
         self.insize = list(insize)
@@ -137,16 +137,16 @@ class Conv(nn.Conv2d):
         '''
         Returns the input block that feeds into the specified output block.
         '''
-        y0 = outp[1]*self.stride[0] - self.padding
+        y0 = outp[1]*self._stride[0] - self._padding
         if y0 < 0:
             y0 = 0
-        x0 = outp[2]*self.stride[1] - self.padding
+        x0 = outp[2]*self._stride[1] - self._padding
         if x0 < 0: 
             x0 = 0
-        y1 = outp[4]*self.stride[0] + self.padding
+        y1 = outp[4]*self._stride[0] + self.filtsize[1] - 1 - self._padding
         if y1 >= self.insize[1]:
             y1 = self.insize[1] - 1
-        x1 = outp[5]*self.stride[1] + self.padding
+        x1 = outp[5]*self._stride[1] + self.filtsize[2] - 1 - self._padding
         if x1 >= self.insize[2]: 
             x1 = self.insize[2] - 1
         
