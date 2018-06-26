@@ -43,7 +43,7 @@ class Visualizer:
     
     
     # Find the n inputs that maximally activate the units in a feature map
-    def _get_max_units(self, fm, n, model, dataset, batch_size = -1, supress_tuple=False):
+    def _get_max_units(self, fm, n, model, dataloader):
         '''
         Internal function: Finds the 'n' inputs that maximally activate the units in a 
         feature map.
@@ -54,47 +54,35 @@ class Visualizer:
         * n: number of inputs desired.
         * model: a network with only one branch, either of type ummon.Sequential or
           nn.Sequential
-        * Xte: flattened input data (matrix size number_of_datapoints x input_dimension).
+        * dataloader for test data (comes from get_max_inputs())
         
         Output: a list of lists, each entry is a list of the format [ y-position of unit,
         x-position, index of maximally activating input image, activation ]. The list is
         sorted in descending order, starting from the maximum.
         '''
-        # simple interface: training and test data given as numpy arrays
-        assert isinstance(model, nn.Module)
-        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
-            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
-        if isinstance(dataset, torch.utils.data.Dataset):
-            torch_dataset = dataset
-        if isinstance(dataset, torch.utils.data.DataLoader):
-            dataloader = dataset
-            torch_dataset = dataloader.dataset
-        else:
-            bs = len(torch_dataset) if batch_size == -1 else batch_size
-            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, 
-                sampler=None, batch_sampler=None)  
-        assert uu.check_precision(torch_dataset, model)
-        
         # init unit activity list
         ua = [[-1, -1, -1, -math.inf] for i in range(n)]
         
         model.eval() # switch to evaluation mode
+        use_cuda = next(model.parameters()).is_cuda
         for i, data in enumerate(dataloader, 0):
             
             # Get input mini batch
             mini_batch = data
-                
-            # Suppress tuples in case we want to predict labeled data
-            if type(mini_batch) == tuple and supress_tuple:
-                mini_batch = data[0]
+            
+            # Handle cuda
+            if use_cuda:
+                if type(mini_batch) == tuple or type(mini_batch) == list:
+                    mini_batch = uu.tensor_tuple_to_cuda(mini_batch)
+                else:
+                    mini_batch = mini_batch.cuda()
             
             # forward pass through the network
             if type(mini_batch) == tuple or type(mini_batch) == list:
                 mini_batch = uu.tensor_tuple_to_variables(mini_batch)
             else:
                 mini_batch = Variable(mini_batch)
-            outp = model(mini_batch)
-            outp = outp.data.numpy()
+            outp = model(mini_batch).data.numpy()
             
             # go through all mini batch entries
             for j in range(0, outp.shape[0]):
@@ -166,7 +154,7 @@ class Visualizer:
     
     
     # Get the n input regions that activate a feature map most
-    def get_max_inputs(self, layer, fm, n, model, dataset):
+    def get_max_inputs(self, layer, fm, n, model, dataset, batch_size = -1):
         '''
         Finds the n input regions that activate a feature map 'fm' most::
         
@@ -175,8 +163,7 @@ class Visualizer:
         This method finds the 'n' input regions that maximally activate a specified
         feature map 'fm' in a given network layer for a test set of inputs 'X_test'. The 
         method works only for networks with an 'Unflatten' layer as input and a single branch, e.g. a
-        convolutional network. The test input must be a flattened m x D numpy array. 
-        The input size must fit the input size of the network. 
+        convolutional network. The test input must be a flattened and fit the input size of the network. 
         The result comes in the form of a 4-tensor where the first dimension 
         is n, the second the number of input channels that feed into the feature map, and 
         the last dimensions are the size of the input regions. The tensor contains the 
@@ -184,10 +171,18 @@ class Visualizer:
         '''
         if type(model) != Sequential and not isinstance(model, nn.Sequential):
             raise TypeError('Network must consist of only one branch for this method to work.')
-        if not isinstance(dataset, np.ndarray):
-            raise TypeError('Test data must be a numpy array.')
-        if dataset.ndim != 2:
-            raise TypeError('Test data must be a 2D array.')
+        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
+            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
+        if isinstance(dataset, torch.utils.data.Dataset):
+            torch_dataset = dataset
+        if isinstance(dataset, torch.utils.data.DataLoader):
+            dataloader = dataset
+            torch_dataset = dataloader.dataset
+        else:
+            bs = len(torch_dataset) if batch_size == -1 else batch_size
+            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, 
+                sampler=None, batch_sampler=None)  
+        assert uu.check_precision(torch_dataset, model)
         
         # build network from input to desired output layer
         layers = []
@@ -217,7 +212,7 @@ class Visualizer:
             raise ValueError('Number of input regions must be > 0.')
         
         # Find the n inputs that maximally activate the units in the feature map
-        ua = self._get_max_units(fm, n, testnet, dataset)
+        ua = self._get_max_units(fm, n, testnet, dataloader)
         
         # find input block for all maxima
         blocks,dz,dy,dx = self._find_input_block(fm, ua, testnet)
@@ -226,9 +221,9 @@ class Visualizer:
         outp = np.zeros((len(blocks), dz, dy, dx), dtype=np.float32)
         for i in range(0, len(blocks)):
             
-            # unflatten associated input image
-            img = dataset[ua[i][2],:] # flattened image
-            img = np.reshape(img, insize)
+            # get image and unflatten it
+            img_flat = (dataloader.dataset[ua[i][2]]).data.numpy()
+            img = np.reshape(img_flat, insize)
             
             # copy image block into output tensor
             bl = blocks[i]

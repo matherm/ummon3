@@ -691,12 +691,12 @@ class TestUmmon(unittest.TestCase):
         print('Available nonlinearities:')
         print(vis._act_funcs)
         
-        print('Maximal 2 activations in featuremap:')
-        ua = vis._get_max_units(fmap, 3, cnet, x0)
-        print(ua)
-        print('Associated input blocks and maximum block size:')
-        blocks,dz,dy,dx = vis._find_input_block(fmap, ua, cnet)
-        print(blocks,dz,dy,dx)
+#         print('Maximal 2 activations in featuremap:')
+#         ua = vis._get_max_units(fmap, 3, cnet, x0)
+#         print(ua)
+#         print('Associated input blocks and maximum block size:')
+#         blocks,dz,dy,dx = vis._find_input_block(fmap, ua, cnet)
+#         print(blocks,dz,dy,dx)
         y = vis.get_max_inputs('conv0', fmap, 3, cnet, x0)
         print('Method output:')
         print(y)
@@ -1500,7 +1500,7 @@ class TestUmmon(unittest.TestCase):
             my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid)
-        except ImportError:
+        except ModuleNotFoundError:
             eval_called = True
         
         def backward(output, targets, loss):
@@ -1514,7 +1514,7 @@ class TestUmmon(unittest.TestCase):
             my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid)
-        except ImportError:
+        except ModuleNotFoundError:
             backward_called = True
         
         
@@ -1975,20 +1975,6 @@ class TestUmmon(unittest.TestCase):
         VGG19Features(cachedir="./", gram=True)
         
         assert y.size(0) == 512 == y.size(1)
-        
-        # TEST Gram Diagonals
-        y = VGG19Features(cachedir="./", gram_diagonal=True)(x)        
-        y = VGG19Features(cachedir="./", gram_diagonal=True, clearcache=False)(x)        
-        VGG19Features(cachedir="./", gram_diagonal=True)
-        
-        assert y.size(0) == 512
-        
-        # TEST Gram Diagonals
-        y = VGG19Features(cachedir="./", features = ["pool4", "pool2"], gram_diagonal=True)(x)        
-        y = VGG19Features(cachedir="./", features = ["pool4", "pool2"], gram_diagonal=True, clearcache=False)(x)        
-        VGG19Features(cachedir="./", gram_diagonal=True)
-        
-        assert y.size(0) == (512 + 128)
         
         
     def test_image_patches_data_set(self):
