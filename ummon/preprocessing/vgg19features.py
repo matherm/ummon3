@@ -112,23 +112,23 @@ class VGG19Features():
         result = []
         for name, layer in self.vgg19._modules.items():
             x = layer(x)
-            y = x
-            if self.gram:
-                y = GramMatrix()(y)
-                if self.triangular:
-                    y = y[:, np.triu_indices(x.shape[1])[0], np.triu_indices(x.shape[1])[1]]
-            if self.gram_diagonal:
-                y = y.view(y.size(0), y.size(1), 1, y.size(2) * y.size(3))
-                gram_diag = None
-                for b in range(y.size(0)):
-                    z = torch.bmm(y[b], y[b].transpose(2, 1))
-                    if isinstance(gram_diag, torch.Tensor):
-                        gram_diag = torch.cat(gram_diag, z)
-                    else:
-                        gram_diag = z
-                y = torch.squeeze(gram_diag)
-                y = torch.unsqueeze(y, 0)
             if name in self.features:
+                y = x
+                if self.gram:
+                    y = GramMatrix()(y)
+                    if self.triangular:
+                        y = y[:, np.triu_indices(x.shape[1])[0], np.triu_indices(x.shape[1])[1]]
+                if self.gram_diagonal:
+                    y = y.view(y.size(0), y.size(1), 1, y.size(2) * y.size(3))
+                    gram_diag = None
+                    for b in range(y.size(0)):
+                        z = torch.bmm(y[b], y[b].transpose(2, 1))
+                        if isinstance(gram_diag, torch.Tensor):
+                            gram_diag = torch.cat(gram_diag, z)
+                        else:
+                            gram_diag = z
+                    y = torch.squeeze(gram_diag)
+                    y = torch.unsqueeze(y, 0)
                 if len(self.features) == 1:
                     result = y.cpu()[0]
                     break;
