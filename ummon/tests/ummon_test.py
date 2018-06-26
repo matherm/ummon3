@@ -651,7 +651,56 @@ class TestUmmon(unittest.TestCase):
         print('Output testing:')
         print(y2)
         assert np.allclose(y2, x0, 0, 1e-5)
+    
+    
+    # test get_max_inputs
+    def test_get_max_inputs(self):
+        print('\n')
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3])),
+            ('relu0', nn.ReLU())
+        )
+        print(cnet)    
         
+        # test input
+        x0 = np.random.randn(2,25).astype('float32')
+        x1 = np.reshape(x0, (2,1,5,5))
+        fmap = 1
+        print('Unflattened input:')
+        print(x1)
+        
+        # predict and find max activation
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y0 = cnet(x2)
+        y0 = y0.data.numpy()
+        print('Feature maps:')
+        fmap = 1
+        y0 = y0[:,fmap,:,:]
+        print(y0)
+        idx = np.argmax(y0, axis=None)
+        multi_idx = np.unravel_index(idx, y0.shape)
+        print('Maximum: ', y0.max(), ' at z=', multi_idx)
+        
+        # get associated unflattened input
+        inp = x1[multi_idx[0],0,multi_idx[1]:multi_idx[1]+3,multi_idx[2]:multi_idx[2]+3]
+        print('Maximally activating patch:')
+        print(inp)
+        
+        vis = Visualizer()
+        print('Available nonlinearities:')
+        print(vis._act_funcs)
+        
+        print('Maximal 2 activations in featuremap:')
+        ua = vis._get_max_units(fmap, 3, cnet, x0)
+        print(ua)
+        print('Associated input blocks and maximum block size:')
+        blocks,dz,dy,dx = vis._find_input_block(fmap, ua, cnet)
+        print(blocks,dz,dy,dx)
+        y = vis.get_max_inputs('conv0', fmap, 3, cnet, x0)
+        print('Method output:')
+        print(y)
+        assert np.allclose(y[0,0,:,:], inp, 0, 1e-5)
     
     
     def test_Trainer(self):
