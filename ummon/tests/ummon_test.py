@@ -1500,7 +1500,7 @@ class TestUmmon(unittest.TestCase):
             my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid)
-        except ModuleNotFoundError:
+        except ImportError:
             eval_called = True
         
         def backward(output, targets, loss):
@@ -1514,7 +1514,7 @@ class TestUmmon(unittest.TestCase):
             my_trainer.fit(dataloader_training=dataloader_trainingdata,
                                         epochs=1,
                                         validation_set=dataset_valid)
-        except ModuleNotFoundError:
+        except ImportError:
             backward_called = True
         
         
@@ -1975,6 +1975,20 @@ class TestUmmon(unittest.TestCase):
         VGG19Features(cachedir="./", gram=True)
         
         assert y.size(0) == 512 == y.size(1)
+        
+        # TEST Gram Diagonals
+        y = VGG19Features(cachedir="./", gram_diagonal=True)(x)        
+        y = VGG19Features(cachedir="./", gram_diagonal=True, clearcache=False)(x)        
+        VGG19Features(cachedir="./", gram_diagonal=True)
+        
+        assert y.size(0) == 512
+        
+        # TEST Gram Diagonals
+        y = VGG19Features(cachedir="./", features = ["pool4", "pool2"], gram_diagonal=True)(x)        
+        y = VGG19Features(cachedir="./", features = ["pool4", "pool2"], gram_diagonal=True, clearcache=False)(x)        
+        VGG19Features(cachedir="./", gram_diagonal=True)
+        
+        assert y.size(0) == (512 + 128)
         
         
     def test_image_patches_data_set(self):
