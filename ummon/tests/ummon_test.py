@@ -691,12 +691,6 @@ class TestUmmon(unittest.TestCase):
         print('Available nonlinearities:')
         print(vis._act_funcs)
         
-#         print('Maximal 2 activations in featuremap:')
-#         ua = vis._get_max_units(fmap, 3, cnet, x0)
-#         print(ua)
-#         print('Associated input blocks and maximum block size:')
-#         blocks,dz,dy,dx = vis._find_input_block(fmap, ua, cnet)
-#         print(blocks,dz,dy,dx)
         y = vis.get_max_inputs('conv0', fmap, 3, cnet, x0)
         print('Method output:')
         print(y)

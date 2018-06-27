@@ -86,23 +86,23 @@ class MaxPool(nn.MaxPool2d):
         '''
         Returns the input block that feeds into the specified output block.
         '''
-        if xstride == xsize and ystride == ysize: # valid pooling
-            y0 = outp[1]*self.ystride
-            x0 = outp[2]*self.xstride
-            y1 = outp[4]*self.ystride + self.ysize - 1
-            x1 = outp[5]*self.xstride + self.xsize - 1
+        if self._xstride == self._xsize and self._ystride == self._ysize: # valid pooling
+            y0 = outp[1]*self._ystride
+            x0 = outp[2]*self._xstride
+            y1 = outp[4]*self._ystride + self._ysize - 1
+            x1 = outp[5]*self._xstride + self._xsize - 1
             
         else: 
-            y0 = outp[1]*self.ystride - self.ysize//2
+            y0 = outp[1]*self._ystride - self._ysize//2
             if y0 < 0:
                 y0 = 0
-            x0 = outp[2]*self.xstride - self.xsize//2
+            x0 = outp[2]*self._xstride - self._xsize//2
             if x0 < 0: 
                 x0 = 0
-            y1 = outp[4]*self.ystride + self.ysize//2
+            y1 = outp[4]*self._ystride + self._ysize//2
             if y1 >= self.insize[1]:
                 y1 = self.insize[1] - 1
-            x1 = outp[5]*self.xstride + self.xsize//2
+            x1 = outp[5]*self._xstride + self._xsize//2
             if x1 >= self.insize[2]: 
                 x1 = self.insize[2] - 1
         

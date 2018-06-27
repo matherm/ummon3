@@ -10,3 +10,4 @@ local*
 *.log
 examples/MNIST
 .DS_Store
+.ipynb_checkpoints
