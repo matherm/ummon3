@@ -109,7 +109,7 @@ def example(argv = DefaultValues()):
         criterion = nn.CrossEntropyLoss(size_average = False)
           
         # INSTANTIATE OPTIMIZER
-        optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate / argv.batch_size)
+        optimizer = torch.optim.Adam(model.parameters())#, lr=argv.lrate / argv.batch_size)
         
         # LOAD TRAINING STATE
         try:
