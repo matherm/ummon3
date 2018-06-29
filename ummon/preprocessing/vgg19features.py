@@ -42,12 +42,14 @@ class VGG19Features():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, features = "pool4", gram = False, triangular=False, cachedir = None, clearcache = True, cuda = False, pretrained = True, gram_diagonal = False):
+    def __init__(self, features = "pool4", gram = False, triangular=False, cachedir = None, clearcache = True, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False):
         """
         Parameters
         ----------
             *features (list or str):  Features: ['pool4', 'pool1', 'pool2', 'relu1_1', 'pool3', 'relu1_2']
             *gram (bool) : compute gram
+            *gram_diagonal (bool) : compute only gram diagonal i.e. the scalar product of a feature map
+            *gram_diagonal_squared (bool) : compute only the squared gram diagonal i.e. the l4 norm of a feature map
             *triangular (bool) : triangular matrix 
             *cachedir (str) : an directory for caching computed matrices
             *clearcache (bool) : deletes cache on object construction
@@ -63,6 +65,7 @@ class VGG19Features():
         self.triangular = triangular
         self.pretrained = pretrained
         self.gram_diagonal = gram_diagonal
+        self.gram_diagonal_squared = gram_diagonal_squared
         
         # Original PyTorch VGG19
         self.model = vgg19(pretrained=self.pretrained).features
@@ -118,11 +121,14 @@ class VGG19Features():
                     y = GramMatrix()(y)
                     if self.triangular:
                         y = y[:, np.triu_indices(x.shape[1])[0], np.triu_indices(x.shape[1])[1]]
-                if self.gram_diagonal:
+                if self.gram_diagonal or self.gram_diagonal_squared:
                     y = y.view(y.size(0), y.size(1), 1, y.size(2) * y.size(3))
                     gram_diag = None
                     for b in range(y.size(0)):
-                        z = torch.bmm(y[b], y[b].transpose(2, 1))
+                        if self.gram_diagonal_squared:
+                            z = torch.bmm(y[b]*y[b], (y[b]*y[b]).transpose(2, 1))
+                        else:
+                            z = torch.bmm(y[b], y[b].transpose(2, 1))
                         if isinstance(gram_diag, torch.Tensor):
                             gram_diag = torch.cat(gram_diag, z)
                         else:
