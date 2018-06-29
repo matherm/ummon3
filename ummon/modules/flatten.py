@@ -36,6 +36,7 @@ class Flatten(nn.Module):
             s = int(s)
             if s < 1:
                 raise ValueError('Input size must be > 0.')
+        self.outsize = [1,1,self.insize[0]*self.insize[1]*self.insize[2]]
     
     
     # return printable representation
@@ -62,9 +63,9 @@ class Flatten(nn.Module):
         '''
         # single unit
         if outp[2] == outp[5]:
-            z0 = outp[2]//(self.insize[2] * self.insize[3])
-            y0 = (outp[2] - z0 * self.insize[2] * self.insize[3]) // self.insize[3]
-            x0 = outp[2] - z0 * self.insize[2] * self.insize[3] - y0 * self.insize[3]
+            z0 = outp[2]//(self.insize[1] * self.insize[2])
+            y0 = (outp[2] - z0 * self.insize[1] * self.insize[2]) // self.insize[2]
+            x0 = outp[2] - z0 * self.insize[1] * self.insize[2] - y0 * self.insize[2]
             z1 = z0
             y1 = y0
             x1 = x0
@@ -74,9 +75,9 @@ class Flatten(nn.Module):
             z0 = 0
             y0 = 0
             x0 = 0
-            z1 = self.insize[1] - 1
-            y1 = self.insize[2] - 1
-            x1 = self.insize[3] - 1
+            z1 = self.insize[0] - 1
+            y1 = self.insize[1] - 1
+            x1 = self.insize[2] - 1
         
         return [z0, y0, x0, z1, y1, x1]
 
@@ -119,12 +120,13 @@ class Unflatten(nn.Module):
                 raise ValueError('Output size must be > 0.')        
         if self.insize != self.outsize[0] * self.outsize[1] * self.outsize[2]:
             raise ValueError('Input size must be the product of the input sizes.')
+        self.insize = [1,1,self.insize]
     
     
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[1,1,bs,{}]->[bs,{},{},{}])'.format(self.insize, self.outsize[0], \
+            + '[1,1,bs,{}]->[bs,{},{},{}])'.format(self.insize[2], self.outsize[0], \
                 self.outsize[1], self.outsize[2]) 
     
     # Forward path

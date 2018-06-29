@@ -48,6 +48,8 @@ class Linear(nn.Linear):
         # initialize weights
         init = str(init)
         nn.init.__dict__[init](self.weight)
+        self.insize = [1,1,self.in_features]
+        self.outsize = [1,1,self.out_features]
         self.num_weights = self.in_features*self.out_features
         if self.bias is not None:
             nn.init.constant_(self.bias,0.0)
