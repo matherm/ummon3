@@ -29,8 +29,11 @@ class Visualizer:
     * Finding the n input regions that activate a feature map 'fm' most: get_max_inputs()
     
     '''
-    def __init__(self):
+    def __init__(self, model):
+        
+        # init internal variables
         self.name = "ummon.Visualizer"
+        self._gradient = None
         
         # get names of available activation functions (needed by _find_input_block())
         act_funcs = dir(torch.nn.modules.activation)
@@ -40,11 +43,54 @@ class Visualizer:
                 self._act_funcs.remove(af)
             if af == 'warnings' or af == 'torch':
                 self._act_funcs.remove(af)
-        self.gradient = None
+        
+        # check network structure
+        if type(model) != Sequential and not isinstance(model, nn.Sequential):
+            raise TypeError('Network must consist of only one branch for this method to work.')
+        self.model = model
+    
+    
+    # internal function: prepare dataset and check it
+    def _prepare_dataset(self, dataset, batch_size):
+        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
+            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
+        if isinstance(dataset, torch.utils.data.Dataset):
+            torch_dataset = dataset
+        if isinstance(dataset, torch.utils.data.DataLoader):
+            dataloader = dataset
+            torch_dataset = dataloader.dataset
+        else:
+            bs = len(torch_dataset) if batch_size == -1 else batch_size
+            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, 
+                sampler=None, batch_sampler=None)  
+        assert uu.check_precision(torch_dataset, self.model)
+        return dataloader
+    
+    
+    # internal function: build subnet to desired layer and get input and output size
+    def _build_subnet(self, layer):
+        layers = []
+        first = True
+        found = False
+        for key, module in self.model._modules.items():
+            if first:
+                if module.__class__.__name__ != 'Unflatten': 
+                    raise ValueError('Method works only when first layer is Unflatten.')
+                self._insize = module.outsize
+                first = False
+            layers.append((key, module))
+            if module.__class__.__name__ not in self._act_funcs:
+                self._outsize = module.outsize
+            if key == layer:
+                found = True
+                break
+        if not found:
+            raise ValueError('Layer {} does not exist in network.'.format(layer))
+        self._testnet = Sequential(*layers)
     
     
     # Find the n inputs that maximally activate the units in a feature map
-    def _get_max_units(self, fm, n, model, dataloader):
+    def _get_max_units(self, fm, n, dataloader):
         '''
         Internal function: Finds the 'n' inputs that maximally activate the units in a 
         feature map.
@@ -64,8 +110,8 @@ class Visualizer:
         # init unit activity list
         ua = [[-1, -1, -1, -math.inf] for i in range(n)]
         
-        model.eval() # switch to evaluation mode
-        use_cuda = next(model.parameters()).is_cuda
+        self._testnet.eval() # switch to evaluation mode
+        use_cuda = next(self._testnet.parameters()).is_cuda
         for i, data in enumerate(dataloader, 0):
             
             # Get input mini batch
@@ -83,7 +129,7 @@ class Visualizer:
                 mini_batch = uu.tensor_tuple_to_variables(mini_batch)
             else:
                 mini_batch = Variable(mini_batch)
-            outp = model(mini_batch).data.numpy()
+            outp = (self._testnet(mini_batch)).data.numpy()
             
             # go through all mini batch entries
             for j in range(0, outp.shape[0]):
@@ -104,7 +150,7 @@ class Visualizer:
     
     
     # find input block for all maxima
-    def _find_input_block(self, fm, ua, model):
+    def _find_input_block(self, fm, ua):
         '''
         Internal function: finds the input block for all maxima.
         
@@ -128,7 +174,7 @@ class Visualizer:
             bl = [fm, ua[i][0], ua[i][1], fm, ua[i][0], ua[i][1]] 
             
             # go back through path to unflattened input and get block size
-            for key, module in reversed(model._modules.items()):
+            for key, module in reversed(self._testnet._modules.items()):
                 
                 # stop if the layer is Unflatten
                 if module.__class__.__name__ == 'Unflatten': 
@@ -155,11 +201,11 @@ class Visualizer:
      
     
     # Get the n input regions that activate a feature map most
-    def get_max_inputs(self, layer, fm, n, model, dataset, batch_size = -1):
+    def get_max_inputs(self, layer, fm, n, dataset, batch_size = -1):
         '''
         Finds the n input regions that activate a feature map 'fm' most::
         
-            max_inps = vis.get_max_inputs('Name of layer', fm, n, model, X_test)
+            max_inps = vis.get_max_inputs('Name of layer', fm, n, X_test)
         
         This method finds the 'n' input regions that maximally activate a specified
         feature map 'fm' in a given network layer for a test set of inputs 'X_test'. The 
@@ -170,54 +216,21 @@ class Visualizer:
         the last dimensions are the size of the input regions. The tensor contains the 
         desired n image patches.
         '''
-        if type(model) != Sequential and not isinstance(model, nn.Sequential):
-            raise TypeError('Network must consist of only one branch for this method to work.')
-        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
-            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
-        if isinstance(dataset, torch.utils.data.Dataset):
-            torch_dataset = dataset
-        if isinstance(dataset, torch.utils.data.DataLoader):
-            dataloader = dataset
-            torch_dataset = dataloader.dataset
-        else:
-            bs = len(torch_dataset) if batch_size == -1 else batch_size
-            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, 
-                sampler=None, batch_sampler=None)  
-        assert uu.check_precision(torch_dataset, model)
-        
-        # build network from input to desired output layer
-        layers = []
-        first = True
-        found = False
-        for key, module in model._modules.items():
-            if first:
-                if module.__class__.__name__ != 'Unflatten': 
-                    raise ValueError('Method works only when first layer is Unflatten.')
-                insize = module.outsize
-                first = False
-            layers.append((key, module))
-            if module.__class__.__name__ not in self._act_funcs:
-                outsize = module.outsize
-            if key == layer:
-                found = True
-                break
-        if not found:
-            raise ValueError('Layer {} does not exist in network.'.format(layer))
-        testnet = Sequential(*layers)
-        
         # check parameters
+        self._build_subnet(layer)
+        dataloader = self._prepare_dataset(dataset, batch_size)
         fm = int(fm)
-        if outsize[0] <= fm:
+        if self._outsize[0] <= fm:
             raise ValueError('Feature map index exceeds limits.')
         n = int(n)
         if n < 1:
             raise ValueError('Number of input regions must be > 0.')
         
         # Find the n inputs that maximally activate the units in the feature map
-        ua = self._get_max_units(fm, n, testnet, dataloader)
+        ua = self._get_max_units(fm, n, dataloader)
         
         # find input block for all maxima
-        blocks,dz,dy,dx = self._find_input_block(fm, ua, testnet)
+        blocks,dz,dy,dx = self._find_input_block(fm, ua)
         
         # output array
         outp = np.zeros((len(blocks), dz, dy, dx), dtype=np.float32)
@@ -225,7 +238,7 @@ class Visualizer:
             
             # get image and unflatten it
             img_flat = (dataloader.dataset[ua[i][2]]).data.numpy()
-            img = np.reshape(img_flat, insize)
+            img = np.reshape(img_flat, self._insize)
             
             # copy image block into output tensor
             bl = blocks[i]
@@ -236,7 +249,7 @@ class Visualizer:
     
     
     # saliency map
-    def saliency_map(self, layer, fm, n, model, dataset, batch_size = -1, 
+    def saliency_map(self, layer, fm, n, dataset, batch_size = -1, 
         guided_backprop=True):
         '''
         Get the error signal for activating the n most active feature map units::
@@ -264,61 +277,27 @@ class Visualizer:
         
         # backward hook to be registered at first layer: saves the gradient
         def hook_function(module, grad_in, grad_out):
-            self.gradient = grad_out[0]
-        
-        # check and process dataset
-        if type(model) != Sequential and not isinstance(model, nn.Sequential):
-            raise TypeError('Network must consist of only one branch for this method to work.')
-        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
-            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
-        if isinstance(dataset, torch.utils.data.Dataset):
-            torch_dataset = dataset
-        if isinstance(dataset, torch.utils.data.DataLoader):
-            dataloader = dataset
-            torch_dataset = dataloader.dataset
-        else:
-            bs = len(torch_dataset) if batch_size == -1 else batch_size
-            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, 
-                sampler=None, batch_sampler=None)  
-        assert uu.check_precision(torch_dataset, model)
-        
-        # build network from input to desired output layer
-        layers = []
-        first = True
-        found = False
-        for key, module in model._modules.items():
-            if first:
-                if module.__class__.__name__ != 'Unflatten': 
-                    raise ValueError('Method works only when first layer is Unflatten.')
-                insize = module.outsize
-                first = False
-            layers.append((key, module))
-            if module.__class__.__name__ not in self._act_funcs:
-                outsize = module.outsize
-            if key == layer:
-                found = True
-                break
-        if not found:
-            raise ValueError('Layer {} does not exist in network.'.format(layer))
-        testnet = Sequential(*layers)
-        testnet.eval()
-        
-        # register backward hook at first layer
-        testnet[0].register_backward_hook(hook_function)
+            self._gradient = grad_out[0]
         
         # check parameters
+        self._build_subnet(layer)
+        dataloader = self._prepare_dataset(dataset, batch_size)
         fm = int(fm)
-        if outsize[0] <= fm:
+        if self._outsize[0] <= fm:
             raise ValueError('Feature map index exceeds limits.')
         n = int(n)
         if n < 1:
             raise ValueError('Number of input regions must be > 0.')
         
+        # register backward hook at first layer
+        (self._testnet)[0].register_backward_hook(hook_function)
+        
         # Find the n inputs that maximally activate the units in the feature map
-        ua = self._get_max_units(fm, n, testnet, dataloader)
+        ua = self._get_max_units(fm, n, dataloader)
         
         # alloc output tensor (n x same size as unflattened input)
-        outp = np.zeros((len(ua), insize[0], insize[1], insize[2]), dtype=np.float32)
+        outp = np.zeros((len(ua), self._insize[0], self._insize[1], self._insize[2]), 
+            dtype=np.float32)
         
         # fill it with saliency maps
         for i in range(0, len(ua)):
@@ -336,20 +315,21 @@ class Visualizer:
             img_flat = Variable(dataloader.dataset[img_ndx], requires_grad=True)
             
             # generate an empty image the size of the network output and set max to 1
-            if outsize[0] == 1 and outsize[1] == 1: # flattened output layer
-                one_hot_output = torch.FloatTensor(1, outsize[2]).zero_()
+            if self._outsize[0] == 1 and self._outsize[1] == 1: # flattened output layer
+                one_hot_output = torch.FloatTensor(1, self._outsize[2]).zero_()
                 one_hot_output[0][xpos] = 1.0
             else: # unflattened output layer
-                one_hot_output = torch.FloatTensor(1, outsize[0], outsize[1], outsize[2]).zero_()
+                one_hot_output = torch.FloatTensor(1, self._outsize[0], self._outsize[1], 
+                    self._outsize[2]).zero_()
                 one_hot_output[0][fm][ypos][xpos] = 1.0
             
             # compute model output for provided image
-            model_output = testnet(img_flat)
+            model_output = self._testnet(img_flat)
             
             # backward pass
-            testnet.zero_grad()
+            self._testnet.zero_grad()
             model_output.backward(gradient=one_hot_output)
-            np_gradient = self.gradient.data.numpy()[0]
+            np_gradient = self._gradient.data.numpy()[0]
             
             # copy gradient into output image
             outp[i,:,:,:] = np_gradient

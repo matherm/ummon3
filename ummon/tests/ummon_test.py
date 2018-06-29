@@ -687,11 +687,11 @@ class TestUmmon(unittest.TestCase):
         print('Maximally activating patch:')
         print(inp)
         
-        vis = Visualizer()
+        vis = Visualizer(cnet)
         print('Available nonlinearities:')
         print(vis._act_funcs)
         
-        y = vis.get_max_inputs('conv0', fmap, 3, cnet, x0)
+        y = vis.get_max_inputs('conv0', fmap, 3, x0)
         print('Method output:')
         print(y)
         assert np.allclose(y[0,0,:,:], inp, 0, 1e-5)
@@ -726,8 +726,8 @@ class TestUmmon(unittest.TestCase):
         print('Maximum: ', y0.max(), ' at z=', multi_idx)
         
         # get maximally activating patches
-        vis = Visualizer()
-        y = vis.saliency_map('relu0', fmap, 3, cnet, x0)
+        vis = Visualizer(cnet)
+        y = vis.saliency_map('relu0', fmap, 3, x0)
         print('Saliency map (gradient) for first maximum:')
         print(y[0,:,:,:])
         
