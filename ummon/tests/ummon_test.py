@@ -697,6 +697,50 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y[0,0,:,:], inp, 0, 1e-5)
     
     
+    def test_saliency(self):
+        print('\n')
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3])),
+            ('relu0', nn.ReLU())
+        )
+        print(cnet)    
+        
+        # test input
+        x0 = np.random.randn(2,25).astype('float32')
+        x1 = np.reshape(x0, (2,1,5,5))
+        fmap = 1
+        print('Unflattened input:')
+        print(x1)
+        
+        # predict and find max activation
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y0 = cnet(x2)
+        y0 = y0.data.numpy()
+        print('Feature maps:')
+        fmap = 1
+        y0 = y0[:,fmap,:,:]
+        print(y0)
+        idx = np.argmax(y0, axis=None)
+        multi_idx = np.unravel_index(idx, y0.shape)
+        print('Maximum: ', y0.max(), ' at z=', multi_idx)
+        
+        # get maximally activating patches
+        vis = Visualizer()
+        y = vis.saliency_map('relu0', fmap, 3, cnet, x0)
+        print('Saliency map (gradient) for first maximum:')
+        print(y[0,:,:,:])
+        
+        # read out patch from input image
+        y1 = y[0,0,multi_idx[1]:multi_idx[1]+3, multi_idx[2]:multi_idx[2]+3]
+        
+        # gradient must be one of the weight matrices of the conv layer
+        w = cnet.conv0.w
+        print('Weight matrix:')
+        print(w)
+        assert (np.allclose(y1, w[0,0,:,:], 0, 1e-5) or np.allclose(y1, w[1,0,:,:], 0, 1e-5))
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
