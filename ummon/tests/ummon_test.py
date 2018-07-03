@@ -727,7 +727,7 @@ class TestUmmon(unittest.TestCase):
         
         # get maximally activating patches
         vis = Visualizer(cnet)
-        y = vis.saliency_map('relu0', fmap, 3, x0)
+        y = vis.saliency('relu0', fmap, 3, x0)
         print('Saliency map (gradient) for first maximum:')
         print(y[0,:,:,:])
         
@@ -739,6 +739,12 @@ class TestUmmon(unittest.TestCase):
         print('Weight matrix:')
         print(w)
         assert (np.allclose(y1, w[0,0,:,:], 0, 1e-5) or np.allclose(y1, w[1,0,:,:], 0, 1e-5))
+        
+        y2, y3 = vis.signed_saliency(y[0,:,:,:])
+        print("Positive saliency:")
+        print(y2)
+        print("Negative saliency:")
+        print(y3)
     
     
     def test_Trainer(self):

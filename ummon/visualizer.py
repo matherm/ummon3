@@ -12,6 +12,7 @@ import torch.utils.data
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torch.nn.modules.activation
+from torch.nn import ReLU
 from .logger import Logger
 import ummon.utils as uu
 from .modules.container import Sequential
@@ -22,11 +23,19 @@ class Visualizer:
     '''
     This object is used for visualizing what a neural network has learned. Currently,
     only one-branch networks consisting of ummon layers and pytorch activation functions
-    are supported.
+    are supported. Created by::
+    
+        vis = Visualizer(model)
+    
+    where model is a pyTorch network where the properties of single neurons are to be
+    visualized. The network with only one branch, either of type ummon.Sequential or
+    nn.Sequential.
     
     Visualization methods:
     
     * Finding the n input regions that activate a feature map 'fm' most: get_max_inputs()
+    * Saliency map: gradient of the network w.r.t. the input
+    * Saliency map: gradient computed by guided back propagation
     
     '''
     def __init__(self, model):
@@ -99,8 +108,6 @@ class Visualizer:
         
         * fm: feature map index of interest in the current output layer.
         * n: number of inputs desired.
-        * model: a network with only one branch, either of type ummon.Sequential or
-          nn.Sequential
         * dataloader for test data (comes from get_max_inputs())
         
         Output: a list of lists, each entry is a list of the format [ y-position of unit,
@@ -198,7 +205,21 @@ class Visualizer:
             blocks.append(bl)
         
         return blocks, dz, dy, dx
-     
+    
+    
+    # replace ReLU for guided backprop
+    def _replace_relus(self):
+        
+        # set negative part to 0
+        def relu_hook(module, grad_in, grad_out):
+            if isinstance(module, ReLU):
+                return (torch.clamp(grad_in[0], min=0.0),)
+        
+        # If layer is ReLU, do hookup clamping as postprocessing step
+        for key, module in self._testnet._modules.items():
+            if isinstance(module, ReLU):
+                module.register_backward_hook(relu_hook)
+    
     
     # Get the n input regions that activate a feature map most
     def get_max_inputs(self, layer, fm, n, dataset, batch_size = -1):
@@ -249,26 +270,24 @@ class Visualizer:
     
     
     # saliency map
-    def saliency_map(self, layer, fm, n, dataset, batch_size = -1, 
-        guided_backprop=True):
+    def saliency(self, layer, fm, n, dataset, batch_size = -1, guided_backprop=True):
         '''
         Get the error signal for activating the n most active feature map units::
         
-            saliency_maps = vis.saliency_map(X_test, 'Name of node', fm, n, False)
+            sal = vis.saliency(name_of_layer, fm, n, dataset, batch_size, False)
         
-        This method finds the error signal for the n input regions that maximally 
-        activate a specified feature map 'fm' in a given network node for a test set of 
-        inputs 'X_test'. The method is described in Simonyan et al. (2013). If the flag
+        This method finds the error signal for the 'n' input regions that maximally 
+        activate a specified feature map 'fm' in a given network layer for a test set of 
+        inputs 'dataset'. The method is described in Simonyan et al. (2013). If the flag
         'guided_backprop' is set to True (default) then only the positive error signal is
         backpropagated through the ReLU layers in the network. This method is called
         "Guided Backpropagation" (Springenberg et al., 2015) and leads to much clearer
         saliency maps as the plain error signal proposed by Simonyan et al. (2013) which
-        you get by setting 'guided_backprop' to False.
+        you get by setting 'guided_backprop' to False. If desired, you can specify a batch 
+        size for evaluating the test set.
         
         The method works only for networks with an 'Unflatten' layer as input, e.g. a
-        convolutional network. The test input must be a m x D vector array. This can 
-        only done for an entry node that accepts a series of flattened tensors in the form 
-        of a matrix. The input size must fit the input size of the default entry node. 
+        convolutional network. The test input must be a flattened and fit the input size of the network. 
         The result comes in the form of a 4-tensor where the first dimension 
         is n, the second the number of input channels that feed into the feature map, and 
         the last dimensions are the size of the unflattened input images. The tensor contains the 
@@ -291,6 +310,10 @@ class Visualizer:
         
         # register backward hook at first layer
         (self._testnet)[0].register_backward_hook(hook_function)
+        
+        # register modified ReLus for guided backprop
+        if guided_backprop:
+            self._replace_relus()
         
         # Find the n inputs that maximally activate the units in the feature map
         ua = self._get_max_units(fm, n, dataloader)
@@ -335,6 +358,20 @@ class Visualizer:
             outp[i,:,:,:] = np_gradient
             
         return outp
+    
+    
+    # get positive and negative saliency
+    def signed_saliency(self, gradient):
+        '''
+        Decomposes a saliency map into a positive and a negative saliency::
+        
+            pos_saliency, neg_saliency = vis.signed_saliency(saliency)
+        
+        '''
+        pos_saliency = (np.maximum(0, gradient) / gradient.max())
+        neg_saliency = (np.maximum(0, -gradient) / -gradient.min())
+        
+        return pos_saliency, neg_saliency
 
 
 if __name__ == "__main__":
