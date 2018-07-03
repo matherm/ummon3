@@ -67,13 +67,14 @@ class Logger(logging.getLoggerClass()):
     start_logfile() and stopped by stop_logfile(). The logfile records all
     levels, independently of what is set for console output.
     '''
-    def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', 
+    def __init__(self, name='ummon.Logger', loglevel=logging.DEBUG, logdir='', filename='ummon',
         log_batch_interval=500, log_epoch_interval=1):
         self.name = str(name)
         self.loglevel = int(loglevel)
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
+        self.filename = str(filename)
         log_batch_interval = int(log_batch_interval,)
         self.log_epoch_interval= int(log_epoch_interval) if log_epoch_interval > 0 else 1
         self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500
@@ -148,7 +149,7 @@ class Logger(logging.getLoggerClass()):
     # start logging to file
     def start_logfile(self):
         fname = os.path.join(self.logdir, 
-            'ummon_{}.log'.format(time.strftime("%Y%m%d-%H%M%S")))
+            str(self.filename + '_{}.log').format(time.strftime("%Y%m%d-%H%M%S")))
         file_handler = logging.FileHandler(fname)
         formatter = logging.Formatter("%(asctime)s: [%(levelname)s] %(message)s")
         file_handler.setFormatter(formatter)
