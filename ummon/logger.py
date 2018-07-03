@@ -74,7 +74,7 @@ class Logger(logging.getLoggerClass()):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(self.loglevel)
         self.logdir = str(logdir)
-        self.filename = str(filename)
+        self.filename = str(filename).replace('.log', '')
         log_batch_interval = int(log_batch_interval,)
         self.log_epoch_interval= int(log_epoch_interval) if log_epoch_interval > 0 else 1
         self.log_batch_interval = log_batch_interval if log_batch_interval > 0 else 500

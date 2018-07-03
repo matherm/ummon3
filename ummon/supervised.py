@@ -237,10 +237,11 @@ class SupervisedAnalyzer(MetaAnalyzer):
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         model.eval() # switch to evaluation mode
+
+        # Take time
+        t = time.time()
         for i, data in enumerate(dataloader, 0):
                 
-                # Take time
-                t = time.time()
 
                 # Get the batch
                 inputs, targets = SupervisedAnalyzer._get_batch(data, use_cuda)
@@ -258,7 +259,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 
                 
         evaluation_dict["accuracy"] = 0.0
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = ctx
         
@@ -388,10 +389,11 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average, acc_average = 0.,0.
         outbuf = []
+
+        # Take time
+        t = time.time()
         for i, data in enumerate(dataloader, 0):
                 
-                # Take time
-                t = time.time()
 
                 # Get the inputs
                 inputs, targets = data
@@ -426,7 +428,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         
         # save results in dict
         evaluation_dict["accuracy"] = acc_average
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = ctx
         evaluation_dict["args[]"] = {}
@@ -586,10 +588,11 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         model.eval() # switch to evaluation mode
+
+        # Take time
+        t = time.time()
         for i, data in enumerate(dataloader, 0):
                 
-                # Take time
-                t = time.time()
 
                 # Get the batch
                 inputs, targets = SiameseAnalyzer._get_batch(data, use_cuda)
@@ -607,7 +610,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 
                 
         evaluation_dict["accuracy"] = 0.0
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = ctx
         

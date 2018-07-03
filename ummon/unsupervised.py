@@ -241,10 +241,11 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
         ctx = {"__repr__(loss)" : repr(loss_function)}
         loss_average = 0.
         model.eval() # switch to evaluation mode
+
+        # Take time
+        t = time.time()
         for i, data in enumerate(dataloader, 0):
                 
-                # Take time
-                t = time.time()
 
                 # Get the inputs
                 if type(data) == tuple or type(data) == list:
@@ -274,7 +275,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 
                 
         evaluation_dict["accuracy"] = 0.0
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = ctx
         

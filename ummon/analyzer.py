@@ -60,10 +60,12 @@ class MetaAnalyzer:
         evaluation_dict = {}
         ctx = {}
         loss_average = 0.
+
+        # Take time
+        t = time.time()
+        
         for i, data in enumerate(dataloader, 0):
                 
-                # Take time
-                t = time.time()
 
                 # Get the inputs
                 inputs, targets = data
@@ -89,7 +91,7 @@ class MetaAnalyzer:
                 
         evaluation_dict["training_accuracy"] = 0.0        
         evaluation_dict["accuracy"] = 0.0
-        evaluation_dict["samples_per_second"] = dataloader.batch_size / (time.time() - t)
+        evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = repr(loss_function)
         

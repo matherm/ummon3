@@ -195,7 +195,7 @@ class MetaTrainer:
         output = self.model(inputs)
         
         # time model
-        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        if self.use_cuda: torch.cuda.synchronize()
         time_dict["model"] = time_dict["model"] + (time.time() - time_dict["t"])
        
         return output, time_dict
@@ -232,7 +232,7 @@ class MetaTrainer:
             loss = self.criterion(output)
         
         # time loss
-        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        if self.use_cuda: torch.cuda.synchronize()
         time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
         return loss, time_dict
       
@@ -259,7 +259,7 @@ class MetaTrainer:
         loss.backward()
         
         # time backprop
-        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        if self.use_cuda: torch.cuda.synchronize()
         time_dict["backprop"] = time_dict["backprop"] + (time.time() - time_dict["t"])
         
         # Run hooks
@@ -267,7 +267,7 @@ class MetaTrainer:
             self.after_backward_hook(output.data, targets.data, loss.cpu().data)
         
         # time hooks
-        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        if self.use_cuda: torch.cuda.synchronize()
         time_dict["hooks"] = time_dict["hooks"] + (time.time() - time_dict["t"])
         
         # Take gradient descent
@@ -294,7 +294,7 @@ class MetaTrainer:
         
         """
         # total time
-        if self.profile and self.use_cuda: torch.cuda.synchronize()
+        if self.use_cuda: torch.cuda.synchronize()
         time_dict["total"] = time_dict["total"] + (time.time() - time_dict["t"])
         
         # Log status
@@ -619,9 +619,6 @@ class MetaTrainer:
             # Moving average
             n, avg_training_loss = 5, None
             training_loss_buffer= np.zeros(n, dtype=np.float32)
-            
-            # Buffer for asynchronous model evaluation
-            output_buffer = []
             
             # COMPUTE ONE EPOCH                
             for batch, data in enumerate(dataloader_training, 0):
