@@ -2,6 +2,7 @@
 import unittest
 import torch
 import numpy as np
+import torchvision
 
 class TestSystem(unittest.TestCase):
 
@@ -13,6 +14,9 @@ class TestSystem(unittest.TestCase):
         developer_tested_numpy_versions =  ["1.13.3", "1.14.0", "1.14.3"]
         assert np.version.version in developer_tested_numpy_versions
 
+        developer_tested_torchvision_versions =  ['0.2.1']
+        assert torchvision.__version__ in developer_tested_torchvision_versions
+        
         
     def test_cuda_system_environment(self):
 
@@ -25,6 +29,7 @@ class TestSystem(unittest.TestCase):
         
         developer_tested_cudnn_versions = [7005,7102]
         assert torch.backends.cudnn.version() in developer_tested_cudnn_versions
+
 
 if __name__ == '__main__':
     unittest.main()
