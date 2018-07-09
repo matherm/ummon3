@@ -133,7 +133,7 @@ class ImagePatches(Dataset):
         self.transform = transform
         self.dataset_size = int(((self.img.shape[0] - self.window_size) / self.stride_y) + 1) * int(((self.img.shape[1] - self.window_size) / self.stride_x) + 1)
 
-        # Normalize patch to (W, H, C) with [0, 255] float32
+        # Normalize patch to (W, H, C) with [0, 1] float32
         assert self.img.min() >= 0
         self.img = self.img.astype(np.float32)
         if self.img.max() > 1. :
@@ -206,9 +206,10 @@ class ImagePatches(Dataset):
 
     def __getitem__(self, idx):
         patch = self._get_patch(idx)
+        label = 1
         if self.transform:
-            return self.transform(patch), 1
-        return patch, 1
+            patch = self.transform(patch)
+        return patch, label
     
 from ummon.preprocessing.anomaly import *
 class AnomalyImagePatches(ImagePatches):
