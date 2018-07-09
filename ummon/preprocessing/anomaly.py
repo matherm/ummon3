@@ -100,21 +100,19 @@ class GaussianNoiseAnomaly():
             x = torch.from_numpy(x)
         else:
             was_numpy = False
-        x = x.clone()
             
         assert np.min(x.numpy()) >= 0
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         
         size = self.anom_size if self.anom_size != -1 else x.shape[0]
-        noise = np.random.normal(self.mean, self.std, (size, size))
             
+        _y = np.random.randint(0, x.size(0) - size) if size < x.size(0) else 0
+        _x = np.random.randint(0, x.size(1) - size) if size < x.size(1) else 0
         if x.dim() == 3:
-            _y = np.random.randint(0, x.size(0) - size)
-            _x = np.random.randint(0, x.size(1) - size)
-            x[_y : _y + self.anom_size, _x : _x + size, :] += noise
+            noise = torch.from_numpy(np.random.normal(self.mean, self.std, (size, size, 3)).astype(np.float32))
+            x[_y : _y + size, _x : _x + size, :] += noise
         else:
-            _y = np.random.randint(0, x.size(0) - size)
-            _x = np.random.randint(0, x.size(1) - size)
+            noise = torch.from_numpy(np.random.normal(self.mean, self.std, (size, size)).astype(np.float32))
             x[_y : _y + self.anom_size, _x : _x + size] += noise
             
         if was_numpy:
