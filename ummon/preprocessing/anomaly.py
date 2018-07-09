@@ -100,6 +100,7 @@ class GaussianNoiseAnomaly():
             x = torch.from_numpy(x)
         else:
             was_numpy = False
+        x = x.clone()
             
         assert np.min(x.numpy()) >= 0
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
