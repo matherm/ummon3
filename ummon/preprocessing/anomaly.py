@@ -14,7 +14,7 @@ class SquareAnomaly():
     
     Limitations
     ===========
-        Supported shapes are ( 3, y, x) or (y, x).
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
     
     Note
     =====
@@ -22,7 +22,7 @@ class SquareAnomaly():
     
     Usage
     =====
-        my_transforms = transforms.Compose([transforms.ToTensor(), SquareAnomaly(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        my_transforms = transforms.Compose([SquareAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
                                 train=False, \
                                 transform=my_transforms) 
@@ -33,10 +33,16 @@ class SquareAnomaly():
          self.color = color
     
     def __call__(self, x):
-        assert np.max(x.numpy()) <= 1 and np.min(x.numpy()) >= 0
-        assert x.size(0) < x.size(1) and x.size(0) < x.size(2)
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(x)
+        else:
+            was_numpy = False
+            
+        assert np.min(x.numpy()) >= 0
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         if x.dtype == torch.float and x.max() > 1.:
-            # Data is float and we have a range greater than 1
+            # Data is float and we have a range greater [0, 255]
             if self.color <= 1:
                 # color is defined in range [0, 1]
                 self.color = self.color * 255
@@ -48,12 +54,15 @@ class SquareAnomaly():
                 self.color = self.color / 255
             
         if x.dim() == 3:
-            _y = np.random.randint(0, x.size(1) - self.anom_size)
-            _x = np.random.randint(0, x.size(2) - self.anom_size)
-            x[:, _y : _y + self.anom_size, _x : _x + self.anom_size] = self.color
+            _y = np.random.randint(0, x.size(0) - self.anom_size)
+            _x = np.random.randint(0, x.size(1) - self.anom_size)
+            x[_y : _y + self.anom_size, _x : _x + self.anom_size, :] = self.color
         else:
             _y = np.random.randint(0, x.size(0) - self.anom_size)
             _x = np.random.randint(0, x.size(1) - self.anom_size)
             x[_y : _y + self.anom_size, _x : _x + self.anom_size] = self.color
-        return x
             
+        if was_numpy:
+            return x.numpy()
+        else:
+            return x

@@ -110,7 +110,7 @@ class ImagePatches(Dataset):
     
     Arguments:
         * file (str) : The image filename
-        * mode (str) : The processing mode 'bgr' or 'gray' (default="bgr")
+        * mode (str) : The processing mode 'bgr' or 'gray' or 'rgb' or 'gray3channel' (default="bgr")
         * train (bool) : train or test set
         * train_percentage (float) : percentage of train patches compared to all patches
         * transform (torchvision.transforms) : Image Transformations (default transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
@@ -133,6 +133,16 @@ class ImagePatches(Dataset):
         self.transform = transform
         self.dataset_size = int(((self.img.shape[0] - self.window_size) / self.stride_y) + 1) * int(((self.img.shape[1] - self.window_size) / self.stride_x) + 1)
 
+        # Normalize patch to (W, H, C) with [0, 255] float32
+        assert self.img.min() >= 0
+        self.img = self.img.astype(np.float32)
+        if self.img.max() > 1. :
+            self.img = self.img / 255
+        if self.img.ndim == 3 and self.img.shape[0] < self.img.shape[2] and self.img.shape[0] < self.img.shape[1]:
+            # bring channel to back
+            self.img = np.transpose(self.img, (1,2,0))
+        assert self.img.min() >= 0 and self.img.max() <= 1
+        
         if mode == 'bgr':
             self.__rgb_to_bgr__()
         elif mode == 'gray':
@@ -192,17 +202,10 @@ class ImagePatches(Dataset):
 
         patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :]
         
-        # normalize
-        patch = patch.astype(np.float32)
-        if patch.max() > 1:
-            patch = patch / 255.
-            
         return patch
 
     def __getitem__(self, idx):
-        
         patch = self._get_patch(idx)
-
         if self.transform:
             return self.transform(patch), 1
         return patch, 1
@@ -219,8 +222,8 @@ class AnomalyImagePatches(ImagePatches):
     
      Arguments:
         * file (str) : The image filename
-        * mode (str) : The processing mode 'bgr' or 'gray' (default="bgr")
-        * train (bool) : train or test set
+        * mode (str) : The processing mode 'bgr' or 'gray' or 'rgb' or 'gray3channel' (default="bgr")
+         * train (bool) : train or test set
         * train_percentage (float) : percentage of train patches compared to all patches
         * transform (torchvision.transforms) : Image Transformations (default transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
         * stride_x : The overlap in x direction
@@ -248,15 +251,10 @@ class AnomalyImagePatches(ImagePatches):
         
         # Add anomaly with propability given by self.propability and label -1 respectivly
         if np.random.rand() < self.propability:
-            # swap channel to front
-            if patch.ndim == 3 and patch.shape[0] > patch.shape[2]:
-                patch = np.transpose(patch, (2,0,1))
             patch = torch.from_numpy(patch)
             patch = self.anomaly(patch)
             patch = patch.numpy()
             label = self.anomaly_label
-            if patch.ndim == 3 and patch.shape[0] < patch.shape[2]:
-                patch = np.transpose(patch, (1,2,0))
         else:
             label = 1
 
