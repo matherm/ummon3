@@ -120,3 +120,60 @@ class GaussianNoiseAnomaly():
             return x.numpy()
         else:
             return x
+        
+        
+class LineDefectAnomaly():
+    """
+    Adds a line defect tto a given patch.
+    
+    Limitations
+    ===========
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
+    
+    Note
+    =====
+        Please notice that normalization should happe nafter anomaly transformation because otherwise we end up with grey values.
+    
+    Usage
+    =====
+        my_transforms = transforms.Compose([LineDefectAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+    
+    """
+    def __init__(self, width=1, channel=[0]):
+         self.anom_size = width
+         if type(channel) == list:
+             self.channel = channel
+         else:
+             self.channel = [channel]
+    
+    def __call__(self, x):
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(x)
+        else:
+            was_numpy = False
+            
+        assert np.min(x.numpy()) >= 0
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
+        
+        # Handle different scaling
+        x = x.float()
+        if x.max > 1:
+            defect = 255.
+        else:
+            defect = 1
+        
+        if x.dim() == 3:
+            _x = np.random.randint(0, x.size(0) - self.anom_size)
+            for c in self.channel:
+                x[:, _x + self.anom_size, c] = defect
+        else:
+           x[:, _x + self.anom_size] = defect
+            
+        if was_numpy:
+            return x.numpy()
+        else:
+            return x
