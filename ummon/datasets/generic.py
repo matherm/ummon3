@@ -164,11 +164,16 @@ class ImagePatches(Dataset):
         self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
 
     def __rgb_to_gray3channel__(self):
-        r = np.expand_dims(self.img[:, :, 0], axis=2)
-        g = np.expand_dims(self.img[:, :, 1], axis=2)
-        b = np.expand_dims(self.img[:, :, 2], axis=2)
-        self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
-        self.img = np.concatenate((self.img, self.img, self.img), axis=2)
+        if self.img.ndim == 2:
+            g = np.expand_dims(self.img, axis=2)
+            self.img = np.concatenate((g, g, g), axis=2)   
+        if self.img.ndim == 3:
+            r = np.expand_dims(self.img[:, :, 0], axis=2)
+            g = np.expand_dims(self.img[:, :, 1], axis=2)
+            b = np.expand_dims(self.img[:, :, 2], axis=2)
+            self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
+            self.img = np.concatenate((self.img, self.img, self.img), axis=2)   
+        
         
     def stats(self):
         return {
@@ -200,7 +205,7 @@ class ImagePatches(Dataset):
         topleft_x = x * self.stride_x
         bottomright_x = x * self.stride_x + self.window_size
 
-        patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :]
+        patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :].copy()
         
         return patch
 
