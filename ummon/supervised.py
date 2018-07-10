@@ -255,7 +255,7 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
+                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets.data, loss.data)
                 
                 
         evaluation_dict["accuracy"] = 0.0
@@ -415,7 +415,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
+                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets.data, loss.data)
                 
                 # Save output for later evaluation
                 outbuf.append((output.data.clone(), targets.data.clone(), i))
@@ -606,7 +606,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, output.data, targets.data, loss.data)
+                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets.data, loss.data)
                 
                 
         evaluation_dict["accuracy"] = 0.0

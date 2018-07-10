@@ -341,6 +341,11 @@ def tensor_tuple_to_cuda(the_tuple):
     assert type(the_tuple) == tuple or type(the_tuple) == list
     return tuple([t.cuda() for t in the_tuple])            
 
+def tensor_tuple_to_data(the_tuple):
+    if type(the_tuple) == tuple or type(the_tuple) == list:
+        return tuple([t.data for t in the_tuple])            
+    else:
+        return the_tuple
 
 def online_average(value, count, avg):
     # BACKWARD COMPATIBILITY FOR TORCH < 0.4
