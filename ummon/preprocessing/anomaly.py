@@ -178,3 +178,101 @@ class LineDefectAnomaly():
             return x.numpy()
         else:
             return x
+        
+        
+        
+class TurtleAnomaly():
+    """
+    Adds a TurtleAnomaly to a given patch.
+    A turtle moves across the patch and places for every random choosen direction a color from the bucket.
+    
+    Limitations
+    ===========
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
+    
+    Note
+    =====
+        Please notice that normalization should happe nafter anomaly transformation because otherwise we end up with grey values.
+    
+    Usage
+    =====
+        my_transforms = transforms.Compose([TurtleAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+    
+    """
+    def __init__(self, pixels=4, color_bucket=[0], thickness=1, channel = -1):
+        # SIZE
+        self.pixels = pixels
+        self.thickness = thickness
+        # CHANNEL 
+        if channel == -1:
+            self.channel = [0,1,2]
+        else:
+            if type(channel) == list:
+                self.channel = channel
+            else:
+                self.channel = [channel]
+         #COLOR
+        if type(color_bucket) == list:
+            self.color_bucket = color_bucket
+        else:
+            self.color_bucket = [color_bucket]
+    
+    def __call__(self, x):
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(x)
+        else:
+            was_numpy = False
+        x = x.clone()
+        x = x.float()
+            
+        assert np.min(x.numpy()) >= 0
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
+        
+        x_pos = np.random.randint(0,x.size(1))
+        y_pos = np.random.randint(0,x.size(0))
+        
+        for step in range(self.pixels):
+            defect = self.color_bucket[np.random.randint(0,len(self.color_bucket))]
+            # Handle different scaling
+            if x.max() > 1:
+                defect = defect * 255 if defect <= 1 else defect
+            else:
+                defect = defect / 255 if defect > defect else defect
+            
+            if x.dim() == 3:
+                for c in self.channel:
+                    x[y_pos:y_pos+self.thickness, x_pos:x_pos+self.thickness, c] = defect
+            else:
+               x[y_pos, x_pos] = defect
+               
+            # Update the turtle in one of four directions
+            while True:
+                move = np.random.randint(0,4)
+                x_pos_new, y_pos_new = np.inf, np.inf
+                if move == 0:
+                    x_pos_new = x_pos + 1 if x_pos < x.size(1) - self.thickness else np.inf
+                    y_pos_new = y_pos
+                if move == 1:
+                    x_pos_new = x_pos - 1 if x_pos > 0 + self.thickness - 1  else np.inf
+                    y_pos_new = y_pos
+                if move == 2:
+                    y_pos_new = y_pos + 1 if y_pos < x.size(0) - self.thickness else np.inf
+                    x_pos_new = x_pos
+                if move == 3:
+                    y_pos_new = y_pos - 1 if y_pos > 0 + self.thickness - 1  else np.inf
+                    x_pos_new = x_pos
+                # Break out
+                if  x_pos_new  != np.inf and y_pos_new != np.inf:
+                    x_pos, y_pos =  x_pos_new, y_pos_new 
+                    break
+            
+                
+                
+        if was_numpy:
+            return x.numpy()
+        else:
+            return x

@@ -2058,6 +2058,14 @@ class TestUmmon(unittest.TestCase):
         assert y.max() <= 10
         
         
+        my_transforms = transforms.Compose([TurtleAnomaly(pixels=4)])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                window_size=512,
+                                train=False, \
+                                transform=my_transforms) 
+        
+        assert test_set[0][0].min() == 0  
+        
         
     def test_portilla_simoncelli_features(self):
 
