@@ -241,7 +241,7 @@ class TurtleAnomaly():
             if x.max() > 1:
                 defect = defect * 255 if defect <= 1 else defect
             else:
-                defect = defect / 255 if defect > defect else defect
+                defect = defect / 255 if defect > 1 else defect
             
             if x.dim() == 3:
                 for c in self.channel:

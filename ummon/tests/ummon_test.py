@@ -2058,7 +2058,7 @@ class TestUmmon(unittest.TestCase):
         assert y.max() <= 10
         
         
-        my_transforms = transforms.Compose([TurtleAnomaly(pixels=4)])
+        my_transforms = transforms.Compose([TurtleAnomaly(pixels=16*16//8, thickness = 8, color_bucket=[0, 128, 199])])
         test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
                                 window_size=512,
                                 train=False, \
