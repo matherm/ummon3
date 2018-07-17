@@ -304,12 +304,20 @@ class NumpyDataset(Dataset):
     Usage
         *NumpyDataset(MNIST(..)).labels => [Labels]
         *NumpyDataset(MNIST(..)).data => [Samples, Features]
+        
+    Parameters
+    *dataset (torch.utils.data.Dataset) : The torch dataset to convert
+    *only_labels (bool) : A bool that specifies if only labels shall be converted
     """
-    def __init__(self, dataset):
+    def __init__(self, dataset, only_labels=False):
         assert isinstance(dataset, torch.utils.data.Dataset)
         self.dataset = dataset
-        self.data, self.labels = zip(*[(dataset[i][0], dataset[i][1]) if type(dataset[i][1]) == int else (dataset[i][0], dataset[i][1].item()) for i in range(len(dataset))])
-        self.data = torch.cat(self.data).reshape(len(dataset),-1).numpy()
+        if only_labels == True:
+            _, self.labels = zip(*[(None, dataset[i][1]) if type(dataset[i][1]) == int else (None, dataset[i][1].item()) for i in range(len(dataset))])
+        else:
+            self.data, self.labels = zip(*[(dataset[i][0], dataset[i][1]) if type(dataset[i][1]) == int else (dataset[i][0], dataset[i][1].item()) for i in range(len(dataset))])
+            self.data = torch.cat(self.data).reshape(len(dataset),-1).numpy()
+        
         self.labels = np.asarray(self.labels, dtype=np.float32)
     
     def __getitem__(self, index):
