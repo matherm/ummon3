@@ -77,8 +77,9 @@ class Predictor:
                 inputs = data
                 
                 # Supress tuples in case we want to predict labeled data
-                if type(inputs) == tuple and supress_tuple:
-                    inputs = data[0]
+                if supress_tuple == True:
+                    if type(inputs) == tuple or type(inputs) == list:
+                        inputs = data[0]
                 
                  # Handle cuda
                 if use_cuda:
@@ -150,7 +151,7 @@ class Predictor:
         # Case single output neurons (e.g. one-class-svm sign(output))
         if (targets.dim() > 1 and targets.size(1) == 1) or targets.dim() == 1:
             # Sanity check binary case
-            if not targets.max() > 1:
+            if not targets.max() > 1 and not classes.max() > 1:
                 # Transform 0,1 encoding to -1 +1
                 targets = (targets.float() - 1e-12).sign().long()
         
