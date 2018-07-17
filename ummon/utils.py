@@ -62,18 +62,18 @@ def get_shape_information(dataset):
         if type(dataset[0][0]) == tuple:
             data_shape = "["
             for di in dataset[0][0]:
-                data_shape = data_shape + str(di.numpy().shape) + " "
+                data_shape = data_shape + str(di.detach().numpy().shape) + " "
             data_shape = data_shape + "]"
         else:
-            data_shape = str(dataset[0][0].numpy().shape)
+            data_shape = str(dataset[0][0].detach().numpy().shape)
         # CASE MULTIPLE OUTPUT
         if type(dataset[0][1]) == tuple:
             target_shape = "["
             for di in dataset[0][1]:
-                target_shape = target_shape + str(di.numpy().shape if isinstance(di, torch.Tensor)  else type(di).__name__)  + " "
+                target_shape = target_shape + str(di.detach().numpy().shape if isinstance(di, torch.Tensor)  else type(di).__name__)  + " "
             target_shape = target_shape + "]"
         else:
-            target_shape = str(dataset[0][1].numpy().shape if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__ ) 
+            target_shape = str(dataset[0][1].detach().numpy().shape if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__ ) 
         return "Shape-IN:{}/TARGET:{}".format(data_shape,target_shape)
     # CASE UNSUPERVISED 
     else:
@@ -81,10 +81,10 @@ def get_shape_information(dataset):
         if type(dataset[0]) == tuple:
             data_shape = "["
             for di in dataset[0]:
-                data_shape = data_shape + str(di.numpy().shape) + " "
+                data_shape = data_shape + str(di.detach().numpy().shape) + " "
             data_shape = data_shape + "]"
         else:
-            data_shape = str(dataset[0].numpy().shape)
+            data_shape = str(dataset[0].detach().numpy().shape)
         return "Shape-IN:{}/".format(data_shape)
 
 def get_type_information(dataset):
@@ -96,18 +96,18 @@ def get_type_information(dataset):
         if type(dataset[0][0]) == tuple:
             data_type = "["
             for di in dataset[0][0]:
-                data_type = data_type + str(di.numpy().dtype) + " "
+                data_type = data_type + str(di.detach().numpy().dtype) + " "
             data_type = data_type + "]"
         else:
-            data_type = str(dataset[0][0].numpy().dtype)
+            data_type = str(dataset[0][0].detach().numpy().dtype)
         # CASE MULTIPLE OUTPUT
         if type(dataset[0][1]) == tuple:
             target_type = "["
             for di in dataset[0][1]:
-                target_type = target_type + str(di.numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
+                target_type = target_type + str(di.detach().numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
             target_type = target_type + "]"
         else:
-            target_type = str(dataset[0][1].numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
+            target_type = str(dataset[0][1].detach().numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
         return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
      # CASE UNSUPERVISED 
     else:
@@ -115,10 +115,10 @@ def get_type_information(dataset):
         if type(dataset[0]) == tuple:
             data_type = "["
             for di in dataset[0]:
-                data_type = data_type + str(di.numpy().dtype) + " "
+                data_type = data_type + str(di.detach().numpy().dtype) + " "
             data_type = data_type + "]"
         else:
-            data_type = str(dataset[0].numpy().dtype)
+            data_type = str(dataset[0].detach().numpy().dtype)
         return "Type-IN:{}/".format(data_type)
 
 
@@ -140,16 +140,16 @@ def check_precision(dataset, model, precision=None):
     # CASE MULTIPLE INPUT
     if type(dataset[0][0]) == tuple:
         for di in dataset[0][0]:
-            if not di.numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision:
+            if not di.detach().numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision:
                 return False
         return True                
     else:
         # CASE UNSUPERVISED INPUT
         if type(dataset[0]) != tuple:
-            return dataset[0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
+            return dataset[0].detach().numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
         # CASE SUPERVISED INPUT
         else:
-            return dataset[0][0].numpy().dtype == next(model.parameters()).cpu().data.numpy().dtype == precision
+            return dataset[0][0].detach().numpy().dtype == next(model.parameters()).cpu().detach().numpy().dtype == precision
 
 def check_data(logger, X, y=[]):
     '''
@@ -236,9 +236,9 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
         Xtr = data_tuple[0]
         ytr = data_tuple[1]
         if istensor(Xtr):
-            Xtr = Xtr.numpy()
+            Xtr = Xtr.detach().numpy()
         if istensor(ytr):
-            ytr = ytr.numpy()
+            ytr = ytr.detach().numpy()
         
         Xtrn, ytrn = check_data(logger, Xtr, ytr)
         
@@ -267,7 +267,7 @@ def construct_dataset_from_tuple(logger, data_tuple, train = True):
         else:
             Xtr = data_tuple
         if istensor(Xtr):
-            Xtr = Xtr.numpy()
+            Xtr = Xtr.detach().numpy()
         # construct pytorch dataloader from 2-tupel
         x = torch.from_numpy(Xtr)
         precision = Xtr.dtype

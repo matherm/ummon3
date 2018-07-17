@@ -85,10 +85,14 @@ class VGG19Features():
         if cachedir is None:
              self.cache = False
         else:
+            # create cache dir
             self.cache = True
+            if os.path.exists(self.cachedir) == False:
+                os.makedirs(self.cachedir)
 
         if clearcache == True:
-            [os.remove(f) for f in os.listdir(self.cachedir) if f.endswith(".npy")]
+            [os.remove(os.path.join(self.cachedir, f)) for f in os.listdir(self.cachedir) if f.endswith(".npy")]
+            
             
             
     def copy_weights_(self, model_source, model_dest):
@@ -105,7 +109,7 @@ class VGG19Features():
         
         if self.cache:
             fname = str(hash(str(x.detach().cpu().numpy())))
-            path = str(self.cachedir + "/" + fname + ".npy")
+            path = str(self.cachedir + "/ummon" + fname + ".npy")
             if Path(path).exists():
                 return torch.from_numpy(np.load(path))
 
