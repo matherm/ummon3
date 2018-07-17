@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
 from ummon.supervised import *
+from ummon import *
 
 #
 # SET inital seed for reproducibility
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='ummon3 - example - sinus')
     #
     # TRAINING PARAMS
-    parser.add_argument('--epochs', type=int, default=1500, metavar='',
+    parser.add_argument('--epochs', type=int, default=1, metavar='',
                         help='Amount of epochs for training (default: 1500)')
     parser.add_argument('--batch_size', type=int, default=40, metavar='',
                         help='Batch size for SGD (default: 40)')
@@ -127,7 +128,7 @@ if __name__ == "__main__":
         optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate)
 
         # LOAD TRAINING STATE
-        ts = Trainingstate
+        ts = Trainingstate()
         if argv.trainingstate:
             try:
                 ts = Trainingstate("SINUS_best_validation_loss.pth.tar")
