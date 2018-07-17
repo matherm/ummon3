@@ -120,7 +120,7 @@ class ImagePatches(Dataset):
     
     """
     
-    def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=None,
+    def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32):
 
         self.filename = file
@@ -240,7 +240,7 @@ class AnomalyImagePatches(ImagePatches):
         * anomaly_label (int) : the label for anomaly data (normal data is 0)
     
      """
-     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=None,
+     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2, anomaly_label = -1):
         super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size)
 
