@@ -121,7 +121,7 @@ class ImagePatches(Dataset):
     """
     
     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32):
+                 stride_x=16, stride_y=16, window_size=32, label=1):
 
         self.filename = file
         self.img = imread(file)
@@ -131,6 +131,7 @@ class ImagePatches(Dataset):
         self.stride_y = stride_y
         self.window_size = window_size
         self.transform = transform
+        self.label = label
         self.dataset_size = int(((self.img.shape[0] - self.window_size) / self.stride_y) + 1) * int(((self.img.shape[1] - self.window_size) / self.stride_x) + 1)
 
         # Normalize patch to (W, H, C) with [0, 1] float32
@@ -211,7 +212,7 @@ class ImagePatches(Dataset):
 
     def __getitem__(self, idx):
         patch = self._get_patch(idx)
-        label = 1
+        label = self.label
         if self.transform:
             patch = self.transform(patch)
         return patch, label
@@ -241,8 +242,8 @@ class AnomalyImagePatches(ImagePatches):
     
      """
      def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2, anomaly_label = -1):
-        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size)
+                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2, label=1, anomaly_label = -1):
+        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size, label)
 
         assert anomaly_label == 0 or anomaly_label == -1
 
@@ -262,7 +263,7 @@ class AnomalyImagePatches(ImagePatches):
             patch = patch.numpy()
             label = self.anomaly_label
         else:
-            label = 1
+            label = self.label
 
         # Apply transformations
         if self.transform:
