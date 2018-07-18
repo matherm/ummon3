@@ -2010,8 +2010,7 @@ class TestUmmon(unittest.TestCase):
         y = VGG19Features(cachedir="./")(x)        
         y = VGG19Features(cachedir="./", clearcache=False)(x)        
         VGG19Features(cachedir="./")
-        
-        assert y.size(0) == 512
+        assert y.size(0) == 512 and y.size(1) == 2 and y.size(2) == 2
         
         # TEST Gram
         y = VGG19Features(cachedir="./", gram=True)(x)        
