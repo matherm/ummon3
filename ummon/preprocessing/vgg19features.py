@@ -79,6 +79,9 @@ class VGG19Features():
         # Cuda
         self.vgg19 =  self.vgg19.cuda() if self.cuda and torch.cuda.is_available() else self.vgg19
         
+        #Eval mode
+        self.vgg19.eval()
+        
         if type(self.features) is not list:
             self.features  = [self.features]
         
@@ -140,10 +143,10 @@ class VGG19Features():
                     y = torch.squeeze(gram_diag)
                     y = torch.unsqueeze(y, 0)
                 if len(self.features) == 1:
-                    result = y.cpu()[0]
+                    result = y.cpu().view(-1).detach()
                     break;
                 else:
-                    result.append(y.view(-1))
+                    result.append(y.cpu().view(-1).detach())
                     if len(result) == len(self.features):
                         break;
         
