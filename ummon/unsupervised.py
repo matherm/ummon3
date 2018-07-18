@@ -261,11 +261,19 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 # Execute Model
                 output = model(inputs)
                 
-                # Compute Loss
                 try:
                     loss = loss_function(output, inputs).cpu()
                 except (ValueError, TypeError):
-                    loss = loss_function(output).cpu()
+                    try:
+                        # case: loss does not have targets e.g. entropy loss
+                        loss = loss_function(output)
+                    except (ValueError, TypeError):
+                            try:
+                                # case: case targets are not formatted correctly
+                                loss = loss_function(output, inputs.view_as(output)).cpu()
+                            except RuntimeError:
+                                # case: targets are not formatted correctly
+                                loss = loss_function(output, inputs.view_as(output).float()).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 

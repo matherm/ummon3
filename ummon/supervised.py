@@ -249,7 +249,20 @@ class SupervisedAnalyzer(MetaAnalyzer):
                 # Execute Model
                 output = model(inputs)
         
-                loss = loss_function(output, targets).cpu()
+                # Loss evaluation
+                try:
+                    loss = loss_function(output, targets).cpu()
+                except (ValueError, TypeError):
+                    try:
+                        # case: loss does not have targets e.g. entropy loss
+                        loss = loss_function(output)
+                    except (ValueError, TypeError):
+                            try:
+                                # case: case targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output)).cpu()
+                            except RuntimeError:
+                                # case: targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output).float()).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
@@ -409,7 +422,20 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
                 # Compute Loss
                 targets = Variable(targets)
 
-                loss = loss_function(output, targets).cpu()
+                # Loss evaluation
+                try:
+                    loss = loss_function(output, targets).cpu()
+                except (ValueError, TypeError):
+                    try:
+                        # case: loss does not have targets e.g. entropy loss
+                        loss = loss_function(output)
+                    except (ValueError, TypeError):
+                            try:
+                                # case: case targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output)).cpu()
+                            except RuntimeError:
+                                # case: targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output).float()).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 
@@ -600,7 +626,20 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 # Execute Model
                 output = model(inputs)
         
-                loss = loss_function(output, targets).cpu()
+                # Loss evaluation
+                try:
+                    loss = loss_function(output, targets).cpu()
+                except (ValueError, TypeError):
+                    try:
+                        # case: loss does not have targets e.g. entropy loss
+                        loss = loss_function(output)
+                    except (ValueError, TypeError):
+                            try:
+                                # case: case targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output)).cpu()
+                            except RuntimeError:
+                                # case: targets are not formatted correctly
+                                loss = loss_function(output, targets.view_as(output).float()).cpu()
                
                 loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
                 

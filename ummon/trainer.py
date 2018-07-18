@@ -144,7 +144,7 @@ class MetaTrainer:
         # Computational configuration
         if self.use_cuda:
             if not torch.cuda.is_available():
-                logger.error('CUDA is not available on your system.')
+                self.logger.error('CUDA is not available on your system.')
         self.model = Trainingstate.transform_model(self.model, self.optimizer, 
             self.precision, self.use_cuda)
     
@@ -229,7 +229,16 @@ class MetaTrainer:
         try:
             loss = self.criterion(output, targets)
         except (ValueError, TypeError):
-            loss = self.criterion(output)
+            try:
+                # case: loss does not have targets e.g. entropy loss
+                loss = self.criterion(output)
+            except (ValueError, TypeError):
+                    try:
+                        # case: case targets are not formatted correctly
+                        loss = self.criterion(output, targets.view_as(output))
+                    except RuntimeError:
+                        # case: targets are not formatted correctly
+                        loss = self.criterion(output, targets.view_as(output).float())
         
         # time loss
         if self.use_cuda: torch.cuda.synchronize()
