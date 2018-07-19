@@ -3,7 +3,7 @@
 """
 Created on Fri Jun 15 09:13:39 2018
 
-@author: Fabian Freiberg
+@author: Matthias Hermann
 """
 
 import numpy as np
@@ -35,12 +35,13 @@ class SquareAnomaly():
     def __call__(self, x):
         if not torch.is_tensor(x):
             was_numpy = True
-            x = torch.from_numpy(x)
+            x = torch.from_numpy(np.asarray(x)).float()
         else:
             was_numpy = False
         x = x.clone()
             
         assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         if x.dtype == torch.float and x.max() > 1.:
             # Data is float and we have a range greater [0, 255]
@@ -54,14 +55,9 @@ class SquareAnomaly():
                 # color is defined in range [0, 255]
                 self.color = self.color / 255
             
-        if x.dim() == 3:
-            _y = np.random.randint(0, x.size(0) - self.anom_size)
-            _x = np.random.randint(0, x.size(1) - self.anom_size)
-            x[_y : _y + self.anom_size, _x : _x + self.anom_size, :] = self.color
-        else:
-            _y = np.random.randint(0, x.size(0) - self.anom_size)
-            _x = np.random.randint(0, x.size(1) - self.anom_size)
-            x[_y : _y + self.anom_size, _x : _x + self.anom_size] = self.color
+        _y = np.random.randint(0, x.size(0) - self.anom_size)
+        _x = np.random.randint(0, x.size(1) - self.anom_size)
+        x[_y : _y + self.anom_size, _x : _x + self.anom_size, :] = self.color
             
         if was_numpy:
             return x.numpy()
@@ -97,24 +93,22 @@ class GaussianNoiseAnomaly():
     def __call__(self, x):
         if not torch.is_tensor(x):
             was_numpy = True
-            x = torch.from_numpy(x)
+            x = torch.from_numpy(np.asarray(x)).float()
         else:
             was_numpy = False
         x = x.clone()
-            
         assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         
         size = self.anom_size if self.anom_size != -1 else x.shape[0]
             
         _y = np.random.randint(0, x.size(0) - size) if size < x.size(0) else 0
         _x = np.random.randint(0, x.size(1) - size) if size < x.size(1) else 0
-        if x.dim() == 3:
-            noise = torch.from_numpy(np.random.normal(self.mean, self.std, (size, size, 3)).astype(np.float32))
-            x[_y : _y + size, _x : _x + size, :] += noise
-        else:
-            noise = torch.from_numpy(np.random.normal(self.mean, self.std, (size, size)).astype(np.float32))
-            x[_y : _y + self.anom_size, _x : _x + size] += noise
+        
+        noise = torch.from_numpy(np.random.normal(self.mean, self.std, (size, size, x.size(2))).astype(np.float32))
+        x[_y : _y + size, _x : _x + size, :] += noise
+        x = torch.clamp(x, 0, 1)
             
         if was_numpy:
             return x.numpy()
@@ -152,12 +146,13 @@ class LineDefectAnomaly():
     def __call__(self, x):
         if not torch.is_tensor(x):
             was_numpy = True
-            x = torch.from_numpy(x)
+            x = torch.from_numpy(np.asarray(x)).float()
         else:
             was_numpy = False
         x = x.clone()
             
         assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         
         # Handle different scaling
@@ -167,12 +162,9 @@ class LineDefectAnomaly():
         else:
             defect = 1
         
-        if x.dim() == 3:
-            _x = np.random.randint(0, x.size(0) - self.anom_size)
-            for c in self.channel:
-                x[:, _x + self.anom_size, c] = defect
-        else:
-           x[:, _x + self.anom_size] = defect
+        _x = np.random.randint(0, x.size(0) - self.anom_size)
+        for c in self.channel:
+            x[:, _x + self.anom_size, c] = defect
             
         if was_numpy:
             return x.numpy()
@@ -223,13 +215,14 @@ class TurtleAnomaly():
     def __call__(self, x):
         if not torch.is_tensor(x):
             was_numpy = True
-            x = torch.from_numpy(x)
+            x = torch.from_numpy(np.asarray(x)).float()
         else:
             was_numpy = False
         x = x.clone()
         x = x.float()
             
         assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
         assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         
         x_pos = np.random.randint(0,x.size(1))
@@ -243,11 +236,8 @@ class TurtleAnomaly():
             else:
                 defect = defect / 255 if defect > 1 else defect
             
-            if x.dim() == 3:
-                for c in self.channel:
-                    x[y_pos:y_pos+self.thickness, x_pos:x_pos+self.thickness, c] = defect
-            else:
-               x[y_pos, x_pos] = defect
+            for c in self.channel:
+                x[y_pos:y_pos+self.thickness, x_pos:x_pos+self.thickness, c] = defect
                
             # Update the turtle in one of four directions
             while True:
