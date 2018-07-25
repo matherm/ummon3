@@ -292,6 +292,10 @@ class Trainingstate():
         if self.extension not in filename:
             filename = str(filename + self.extension)
 
+        # SKIP IF /dev/null
+        if "/dev/null/" in filename:
+            return
+
         # CREATE FOLDERS
         if "/" in filename and not os.path.exists(filename[0:filename.rfind("/")]):
             os.makedirs(filename[0:filename.rfind("/")])
