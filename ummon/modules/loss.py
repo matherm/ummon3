@@ -7,7 +7,7 @@ Created on Wed Apr 18 11:21:57 2018
 """
 
 import torch.nn as nn
-import ummon.functionals.visualattention as va
+import ummon.functionals.reinforcement as reinforce
 
 
 __all__ = [ 'VisualAttentionLoss', 'Contrastive' ]
@@ -26,6 +26,10 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
     
     def __init__(self, model, gamma, size_average = False): 
         super(VisualAttentionLoss, self).__init__()
+        
+        assert hasattr(model, "policy") 
+        assert hasattr(model.policy, "saved_ln_pis")
+        assert hasattr(model.policy, "rewards")
         
         # Parameters
         self.gamma = gamma
@@ -49,7 +53,7 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
         
         Arguments
         ---------
-        output (torch.FloatTensor) : class_scores 
+        output (torch.FloatTensor) : class_scores [B]
         labels      : torch.LongTensor
                       Ground truth with shape [B]
     
@@ -57,8 +61,36 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
         ------                      
         loss    :   float
         """
-        output = (output, self.model.policy.saved_baselines, self.model.policy.saved_ln_pis, self.model.policy.rewards)
-        classification_loss, _policy_loss, _value_loss = va.visual_attention_loss(output, labels, self.gamma, self.size_average)
+        saved_baselines, saved_ln_pis, rewards = self.model.policy.saved_baselines, self.model.policy.saved_ln_pis, self.model.policy.rewards
+        
+        # ASSERTIONS
+        assert labels.dtype == torch.long
+        assert output.dtype == torch.float32
+        assert saved_baselines[0].dtype == torch.float32
+        assert saved_ln_pis[0].dtype == torch.float32
+        assert rewards[0].dtype == torch.float32
+        
+        # GOTO CPU
+        output = output.cpu()
+        labels = labels.cpu()
+        if saved_baselines[0].is_cuda:
+            saved_baselines = [sb.cpu() for sb in saved_baselines]
+        if saved_ln_pis[0].is_cuda:
+            saved_ln_pis = [ln_pi.cpu() for ln_pi in saved_ln_pis]
+        if rewards[0].is_cuda:
+            rewards = [r.cpu() for r in rewards]
+                
+        # CLASSIFIER
+        if labels.dim() > 1:
+            labels = labels.view(labels.size(0))
+        criterion = nn.CrossEntropyLoss(size_average = self.size_average)
+        classification_loss = criterion(output, labels).cpu()
+        
+        # REINFORCE LOSS
+        pred = output.data.max(1, keepdim=True)[1]
+        correct = pred.eq(labels.data.view_as(pred))
+        rewards = reinforce.decay_rewards(rewards, correct, self.gamma)
+        _policy_loss , _value_loss  = reinforce.reinforce_loss(saved_ln_pis, saved_baselines, rewards, self.size_average)
         
         # Total loss
         total_loss =  classification_loss + _policy_loss + _value_loss 
@@ -69,7 +101,6 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
         self.__value_loss = _value_loss.data
             
         return total_loss
-   
     
     
 import torch
