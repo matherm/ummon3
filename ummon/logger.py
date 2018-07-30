@@ -199,7 +199,7 @@ class Logger(logging.getLoggerClass()):
         evalstr=None, profile=False, evaluation_dict = None):
         if epoch % self.log_epoch_interval == 0:
             if profile:
-                self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] @~{} samples/s '.format(
+                self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] @{} samples/s '.format(
                     epoch, evalstr, 
                     int(time_dict["total"]),
                     int(time_dict["loader"]), 
@@ -210,7 +210,7 @@ class Logger(logging.getLoggerClass()):
                     int((batches * batchsize/(time_dict["total"])))))
                 self.info('       Memory status : RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
             else:
-                self.info('Epoch: {} - {}. [{}s] @~{} samples/s '.format(
+                self.info('Epoch: {} - {}. [{}s] @{} samples/s '.format(
                     epoch, evalstr, 
                     int(time_dict["total"]),
                     int((batches * batchsize/(time_dict["total"])))))
@@ -253,19 +253,23 @@ class Logger(logging.getLoggerClass()):
         
         self.debug(' ')
         self.debug('[Data]')
-        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Training', 
+        self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Training', 
             uu.get_size_information(dataloader_train.dataset), 
             uu.get_shape_information(dataloader_train.dataset), 
-            uu.get_type_information(dataloader_train.dataset)))
-        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
+            uu.get_type_information(dataloader_train.dataset),
+            uu.get_numerical_information(dataloader_train.dataset)))
+        self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Validation', 
             uu.get_size_information(dataset_validation), 
             uu.get_shape_information(dataset_validation), 
-            uu.get_type_information(dataset_validation)))
-        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Test', 
-            uu.get_size_information(dataset_test), 
-            uu.get_shape_information(dataset_test), 
-            uu.get_type_information(dataset_test)))
-      
+            uu.get_type_information(dataset_validation),
+            uu.get_numerical_information(dataset_validation))) 
+        if dataset_test is not None:
+            self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Test', 
+                uu.get_size_information(dataset_test), 
+                uu.get_shape_information(dataset_test), 
+                uu.get_type_information(dataset_test),
+                uu.get_numerical_information(dataset_test)))
+          
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1:.2e}'.format("lrate" , 

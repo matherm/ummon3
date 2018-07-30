@@ -70,22 +70,15 @@ def get_shape_information(dataset):
         if type(dataset[0][1]) == tuple:
             target_shape = "["
             for di in dataset[0][1]:
-                target_shape = target_shape + str(di.detach().numpy().shape if isinstance(di, torch.Tensor)  else type(di).__name__)  + " "
+                target_shape = target_shape + str(di.detach().numpy().shape if torch.is_tensor(di)  else type(di).__name__)  + ", "
             target_shape = target_shape + "]"
         else:
-            target_shape = str(dataset[0][1].detach().numpy().shape if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__ ) 
-        return "Shape-IN:{}/TARGET:{}".format(data_shape,target_shape)
+            target_shape = str(dataset[0][1].detach().numpy().shape if torch.is_tensor(dataset[0][1]) else type(dataset[0][1]).__name__ ) 
+        return "\n\t\t\tShape IN:{} / TARGET:{}".format(data_shape,target_shape)
     # CASE UNSUPERVISED 
     else:
-        # CASE MULTIPLE INPUT
-        if type(dataset[0]) == tuple:
-            data_shape = "["
-            for di in dataset[0]:
-                data_shape = data_shape + str(di.detach().numpy().shape) + " "
-            data_shape = data_shape + "]"
-        else:
-            data_shape = str(dataset[0].detach().numpy().shape)
-        return "Shape-IN:{}/".format(data_shape)
+        data_shape = str(dataset[0].detach().numpy().shape)
+        return "\n\t\t\tShape IN:{}".format(data_shape)
 
 def get_type_information(dataset):
     if dataset is None: return "---"
@@ -104,23 +97,63 @@ def get_type_information(dataset):
         if type(dataset[0][1]) == tuple:
             target_type = "["
             for di in dataset[0][1]:
-                target_type = target_type + str(di.detach().numpy().dtype if isinstance(di, torch.Tensor)  else type(dataset[0][1]).__name__)  + " "
+                target_type = target_type + str(di.detach().numpy().dtype if torch.is_tensor(di)  else type(di).__name__)  + ", "
             target_type = target_type + "]"
         else:
-            target_type = str(dataset[0][1].detach().numpy().dtype if isinstance(dataset[0][1], torch.Tensor) else type(dataset[0][1]).__name__)
-        return "Type-IN:{}/TARGET:{}".format(data_type,target_type)
+            target_type = str(dataset[0][1].detach().numpy().dtype if torch.is_tensor(dataset[0][1]) else type(dataset[0][1]).__name__)
+        return "\n\t\t\tType  IN:{} / TARGET:{}".format(data_type,target_type)
      # CASE UNSUPERVISED 
     else:
-        # CASE MULTIPLE INPUT
-        if type(dataset[0]) == tuple:
-            data_type = "["
-            for di in dataset[0]:
-                data_type = data_type + str(di.detach().numpy().dtype) + " "
-            data_type = data_type + "]"
-        else:
-            data_type = str(dataset[0].detach().numpy().dtype)
-        return "Type-IN:{}/".format(data_type)
+        data_type = str(dataset[0].detach().numpy().dtype)
+        return "\n\t\t\tType  IN:{}".format(data_type)
 
+
+def get_numerical_information(dataset):
+    if dataset is None: return "---"
+    assert isinstance(dataset, torch.utils.data.Dataset)
+    n_set = NumpyDataset(dataset, limit=50)
+    # CASE SUPERVISED
+    if type(dataset[0]) == tuple:  
+        # CASE MULTIPLE INPUT
+        if type(n_set.data) == list:
+            data_range = "["
+            for di in n_set.data:
+                data_range = data_range \
+                            + "min:"   + str(np.round(di.min(),1)) \
+                            + " max:"  + str(np.round(di.max(),1)) \
+                            + " mean:" + str(np.round(di.mean(),1)) \
+                            + " std:"  + str(np.round(di.std(),1)) \
+                            + ", "
+            data_range = data_range + "]"
+        else:
+            data_range = "min:"    + str(np.round(n_set.data.min(),1)) \
+                        + " max:"  + str(np.round(n_set.data.max(),1)) \
+                        + " mean:" + str(np.round(n_set.data.mean(),1)) \
+                        + " std:"  + str(np.round(n_set.data.std(),1)) \
+        # CASE MULTIPLE OUTPUT
+        if type(n_set.labels) == list:
+            target_range = "["
+            for di in n_set.labels:
+                  target_range = target_range \
+                            + "min:"   + str(np.round(di.min(),1)) \
+                            + " max:"  + str(np.round(di.max(),1)) \
+                            + " mean:" + str(np.round(di.mean(),1)) \
+                            + " gini:" + str(np.round(gini(di),1)) \
+                            + ", "
+            target_range = target_range + "]"
+        else:
+            target_range = "min:"  + str(np.round(n_set.labels.min(),1)) \
+                    + " max:"  + str(np.round(n_set.labels.max(),1)) \
+                    + " mean:" + str(np.round(n_set.labels.mean(),1)) \
+                    + " gini:" + str(np.round(gini(n_set.labels),1)) 
+        return "\n\t\t\tStats IN:{} / TARGET:{}".format(data_range,target_range)
+     # CASE UNSUPERVISED 
+    else:
+        data_range = "min: "   + str(np.round(n_set.data.min(),1)) \
+                   + " max: "  + str(np.round(n_set.data.max(),1)) \
+                   + " mean: " + str(np.round(n_set.data.mean(),1)) \
+                   + " std: "  + str(np.round(n_set.data.std(),1)) 
+        return "\n\t\t\tStats IN:{}".format(data_range)
 
 def get_size_information(dataset):
     if dataset is None: return "---"
@@ -132,7 +165,29 @@ def get_data_information(dataset):
     if dataset is None: return "---"
     assert isinstance(dataset, torch.utils.data.Dataset)
     
-    return (get_size_information(dataset), get_shape_information(dataset), get_type_information(dataset))
+    return (get_size_information(dataset), get_shape_information(dataset), get_type_information(dataset), get_numerical_information(dataset))
+
+def gini(array):
+    """Calculate the Gini coefficient of a numpy array."""
+    # based on bottom eq:
+    # http://www.statsdirect.com/help/generatedimages/equations/equation154.svg
+    # from:
+    # http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
+    # All values are treated equally, arrays must be 1d:
+    array = array.flatten()
+    if np.amin(array) < 0:
+        # Values cannot be negative:
+        array -= np.amin(array)
+    # Values cannot be 0:
+    array += 0.0000001
+    # Values must be sorted:
+    array = np.sort(array)
+    # Index per array element:
+    index = np.arange(1,array.shape[0]+1)
+    # Number of array elements:
+    n = array.shape[0]
+    # Gini coefficient:
+    return ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array)))
 
 def check_precision(dataset, model, precision=None):
     if precision is None:
