@@ -10,7 +10,7 @@ import torch.nn as nn
 import ummon.functionals.reinforcement as reinforce
 
 
-__all__ = [ 'VisualAttentionLoss', 'Contrastive' ]
+__all__ = [ 'VisualAttentionLoss', 'Contrastive', 'TriContrastive']
 
 class VisualAttentionLoss(nn.CrossEntropyLoss):
     """
@@ -127,8 +127,8 @@ class Contrastive(nn.Module):
         
         Parameters
         -----------
-        * pdist (<torch.Tensor>) with shape (B x B)
-        * labels (list) with len B 
+        * pdist (<torch.Tensor>) with shape B
+        * labels (2-tuple) with len 
         
         """
         assert pdist.size(0) == labels[0].size(0)
@@ -142,3 +142,44 @@ class Contrastive(nn.Module):
             return loss_contrastive                              # <float>
         else:
             return loss_contrastive / B            # <float>
+        
+        
+class TriContrastive(nn.Module):
+    """
+    This loss function can be used for training deep metric models of size 3. 
+    This means that three samples can be computed the same time like common in Triplet Nets.
+    
+    [1] https://omoindrot.github.io/triplet-loss
+    
+    """
+
+    def __init__(self, margin=2.0, size_average = False):
+        super(TriContrastive, self).__init__()
+        self.margin = margin
+        self.size_average = size_average
+
+    def forward(self, pdist, labels):
+        """
+        Computes the contrastive loss
+        
+        Parameters
+        -----------
+        * pdist (3-tuple) with len B à (o1, o2, o3)
+        * labels (3-tuple) with len B à (y1, y2, y3)
+        
+        """
+        label_anchor, label_pos, label_neg = labels[0], labels[1], labels[2] # labels ([B], [B]) => [B], [B]
+        out_anchor, out_pos, out_neg = pdist[0], pdist[1], pdist[2]
+        B = labels[0].size(0)
+        assert pdist[0].size(0) == labels[0].size(0)
+        assert label_anchor[0] == label_pos[0] and label_anchor[0] != label_neg[0]
+        
+        dist_pos = F.pairwise_distance(out_anchor, out_pos)        # B
+        dist_neg = F.pairwise_distance(out_anchor, out_neg)        # B
+        
+        loss_contrastive = torch.sum(F.relu(self.margin + dist_pos - dist_neg))    # B
+        
+        if self.size_average == False:
+            return loss_contrastive                              # <float>
+        else:
+            return loss_contrastive / B                          # <float>
