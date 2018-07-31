@@ -74,11 +74,11 @@ def get_shape_information(dataset):
             target_shape = target_shape + "]"
         else:
             target_shape = str(dataset[0][1].detach().numpy().shape if torch.is_tensor(dataset[0][1]) else type(dataset[0][1]).__name__ ) 
-        return "\n\t\t\tShape IN:{} / TARGET:{}".format(data_shape,target_shape)
+        return "\n\tShape IN:{} / TARGET:{}".format(data_shape,target_shape)
     # CASE UNSUPERVISED 
     else:
         data_shape = str(dataset[0].detach().numpy().shape)
-        return "\n\t\t\tShape IN:{}".format(data_shape)
+        return "\n\tShape IN:{}".format(data_shape)
 
 def get_type_information(dataset):
     if dataset is None: return "---"
@@ -101,11 +101,11 @@ def get_type_information(dataset):
             target_type = target_type + "]"
         else:
             target_type = str(dataset[0][1].detach().numpy().dtype if torch.is_tensor(dataset[0][1]) else type(dataset[0][1]).__name__)
-        return "\n\t\t\tType  IN:{} / TARGET:{}".format(data_type,target_type)
+        return "\n\tType  IN:{} / TARGET:{}".format(data_type,target_type)
      # CASE UNSUPERVISED 
     else:
         data_type = str(dataset[0].detach().numpy().dtype)
-        return "\n\t\t\tType  IN:{}".format(data_type)
+        return "\n\tType  IN:{}".format(data_type)
 
 
 def get_numerical_information(dataset):
@@ -146,14 +146,14 @@ def get_numerical_information(dataset):
                     + " max:"  + str(np.round(n_set.labels.max(),1)) \
                     + " mean:" + str(np.round(n_set.labels.mean(),1)) \
                     + " gini:" + str(np.round(gini(n_set.labels),1)) 
-        return "\n\t\t\tStats IN:{} / TARGET:{}".format(data_range,target_range)
+        return "\n\tStats IN:{} / TARGET:{}".format(data_range,target_range)
      # CASE UNSUPERVISED 
     else:
         data_range = "min: "   + str(np.round(n_set.data.min(),1)) \
                    + " max: "  + str(np.round(n_set.data.max(),1)) \
                    + " mean: " + str(np.round(n_set.data.mean(),1)) \
                    + " std: "  + str(np.round(n_set.data.std(),1)) 
-        return "\n\t\t\tStats IN:{}".format(data_range)
+        return "\n\tStats IN:{}".format(data_range)
 
 def get_size_information(dataset):
     if dataset is None: return "---"
