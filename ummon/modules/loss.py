@@ -244,7 +244,7 @@ class TriContrastive(nn.Module):
         return torch.sum(ratio)
     
     def _euclidean(self, dist_pos, dist_neg, alpha):
-        return torch.sum(torch.max(alpha + dist_pos - dist_neg, 0))
+        return torch.sum(F.relu(alpha + dist_pos - dist_neg))
         
         
         
