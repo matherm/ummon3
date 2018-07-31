@@ -10,7 +10,7 @@ import torch.nn as nn
 import ummon.functionals.reinforcement as reinforce
 
 
-__all__ = [ 'VisualAttentionLoss', 'Contrastive', 'TriContrastive']
+__all__ = [ 'VisualAttentionLoss', 'Contrastive' ]
 
 class VisualAttentionLoss(nn.CrossEntropyLoss):
     """
@@ -150,13 +150,29 @@ class TriContrastive(nn.Module):
     This means that three samples can be computed the same time like common in Triplet Nets.
     
     [1] https://omoindrot.github.io/triplet-loss
+    [2] https://arxiv.org/pdf/1412.6622.pdf <DEEP METRIC LEARNING USING TRIPLET NETWORK>
+    [3] https://arxiv.org/pdf/1503.03832.pdf <FaceNet: A Unified Embedding for Face Recognition and Clustering>
+    [4] https://towardsdatascience.com/lossless-triplet-loss-7e932f990b24
+    
+    L_euclidean = || dist_a - dist_p || ^ 2 - || dist_a - dist_n || ^ 2 + alpha , referes to [3]
+    L_exp = alpha * (exp_dist_p/(exp_dist_p+exp_dist_n))^2, refers to [2]
+    L_log = -log(-(dist_a-dist_p)^2/beta + 1 + eps) - log(-N-(dist_a-dist_p)^2/beta + 1 + eps), refers to [4]
+    
+    Parameters
+    -----------
+    *alpha (float) specifiying the margin/alpha to use
+    *size_average (bool): specifies wheter mini batches should be averaged
+    *mode (string) : euclidean | exp | log
     
     """
 
-    def __init__(self, margin=2.0, size_average = False):
+    def __init__(self, alpha=0.2, size_average = False, mode="euclidean"):
         super(TriContrastive, self).__init__()
-        self.margin = margin
+        assert mode in ["euclidean", "exp", "log"]
+
+        self.alpha = alpha
         self.size_average = size_average
+        self.mode = mode
 
     def forward(self, pdist, labels):
         """
@@ -171,15 +187,53 @@ class TriContrastive(nn.Module):
         label_anchor, label_pos, label_neg = labels[0], labels[1], labels[2] # labels ([B], [B]) => [B], [B]
         out_anchor, out_pos, out_neg = pdist[0], pdist[1], pdist[2]
         B = labels[0].size(0)
+        N = out_anchor.size(1)
         assert pdist[0].size(0) == labels[0].size(0)
         assert label_anchor[0] == label_pos[0] and label_anchor[0] != label_neg[0]
         
-        dist_pos = F.pairwise_distance(out_anchor, out_pos)        # B
-        dist_neg = F.pairwise_distance(out_anchor, out_neg)        # B
-        
-        loss_contrastive = torch.sum(F.relu(self.margin + dist_pos - dist_neg))    # B
+        if self.mode == "euclidean":
+            dist_pos = F.pairwise_distance(out_anchor, out_pos)           # B
+            dist_neg = F.pairwise_distance(out_anchor, out_neg)           # B
+            loss =  self._euclidean(dist_pos, dist_neg, alpha=self.alpha) # B
+            
+        if self.mode == "exp":
+            dist_pos = F.pairwise_distance(out_anchor, out_pos)             # B
+            dist_neg = F.pairwise_distance(out_anchor, out_neg)             # B
+            loss =  self._exponential(dist_pos, dist_neg)                   # B
+          
+        if self.mode == "log":
+            dist_pos = F.pairwise_distance(F.sigmoid(out_anchor), F.sigmoid(out_pos)) # B
+            dist_neg = F.pairwise_distance(F.sigmoid(out_anchor), F.sigmoid(out_neg)) # B
+            loss = self._log(dist_pos, dist_neg, N=N, beta=N)               # B
         
         if self.size_average == False:
-            return loss_contrastive                              # <float>
+            return loss                              # <float>
         else:
-            return loss_contrastive / B                          # <float>
+            return loss / B                          # <float>
+        
+        
+    def _log(self, dist_pos, dist_neg, N, beta, eps=1e-9):
+        dist_pos = torch.pow(dist_pos,2) / beta
+        dist_neg = (N-torch.pow(dist_neg, 2)) / beta
+        dist_pos = -torch.log(-dist_pos + 1 + eps)
+        dist_neg = -torch.log(-dist_neg + 1 + eps)
+        return torch.sum(dist_pos + dist_pos) 
+        
+    def _exponential(self, dist_pos, dist_neg):
+        # Prepare squared exponential losses
+        dist_pos, dist_neg = torch.exp(dist_pos), torch.exp(dist_neg)
+        total_dist = dist_pos + dist_neg
+        # Normalize losses
+        dist_pos = dist_pos / total_dist        
+        dist_neg = dist_neg / total_dist        
+        # Optimize ratio as L(d_+, d_-) -> 0 iff dist_pis/dist_neg ->
+        # || d_+, d_- -1 || ^ 2 = const * d_+^2
+        return torch.sum(torch.pow(dist_pos - dist_neg + 1, 2))
+    
+    def _euclidean(self, dist_pos, dist_neg, alpha):
+        return torch.sum(F.relu(alpha + dist_pos - dist_neg))
+        
+        
+        
+        
+        
