@@ -29,7 +29,7 @@ class Predictor:
     """
 
     @staticmethod
-    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False):
+    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False, use_cuda=True):
         """
         Computes the output of a model for a given dataset
         
@@ -48,6 +48,8 @@ class Predictor:
                           The logger to be used for output messages
         supress_tuple   : boolean
                           When dataset returns tuples everything except the first is ignored.
+        use_cuda        : boolean
+                          Uses cuda when available
         
         Return
         ------
@@ -69,6 +71,7 @@ class Predictor:
         assert uu.check_precision(torch_dataset, model)
         
         model.eval()
+        model = model.cuda() if use_cuda and torch.cuda.is_available() else model.cpu()
         use_cuda = next(model.parameters()).is_cuda
         outbuf = []
         for i, data in enumerate(dataloader, 0):
@@ -174,8 +177,3 @@ class Predictor:
         # accuracy
         accuracy = sum_correct / len(targets)
         return accuracy
-    
-    
-    
-    
-
