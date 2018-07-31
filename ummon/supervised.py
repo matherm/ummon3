@@ -645,7 +645,7 @@ class SiameseAnalyzer(SupervisedAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets.data, loss.data)
+                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), uu.tensor_tuple_to_data(targets), loss.data)
                 
                 
         evaluation_dict["accuracy"] = 0.0

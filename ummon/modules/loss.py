@@ -166,9 +166,9 @@ class TriContrastive(nn.Module):
     
     """
 
-    def __init__(self, alpha=0.2, size_average = False, mode="euclidean"):
+    def __init__(self, alpha=1.0, size_average = False, mode="euclidean"):
         super(TriContrastive, self).__init__()
-        assert mode in ["euclidean", "exp", "log"]
+        assert mode in ["euclidean", "exp", "log", "expratio"]
 
         self.alpha = alpha
         self.size_average = size_average
@@ -200,6 +200,11 @@ class TriContrastive(nn.Module):
             dist_pos = F.pairwise_distance(out_anchor, out_pos)             # B
             dist_neg = F.pairwise_distance(out_anchor, out_neg)             # B
             loss =  self._exponential(dist_pos, dist_neg)                   # B
+            
+        if self.mode == "expratio":
+            dist_pos = F.pairwise_distance(out_anchor, out_pos)             # B
+            dist_neg = F.pairwise_distance(out_anchor, out_neg)             # B
+            loss =  self._expratio(dist_pos, dist_neg)                      # B
           
         if self.mode == "log":
             dist_pos = F.pairwise_distance(F.sigmoid(out_anchor), F.sigmoid(out_pos)) # B
@@ -230,8 +235,16 @@ class TriContrastive(nn.Module):
         # || d_+, d_- -1 || ^ 2 = const * d_+^2
         return torch.sum(torch.pow(dist_pos - dist_neg + 1, 2))
     
+    def _expratio(self, dist_pos, dist_neg):
+        # Prepare squared exponential losses
+        dist_pos, dist_neg = torch.exp(-dist_pos), torch.exp(-dist_neg)
+        total_dist = dist_pos + dist_neg
+        # Normalize losses
+        ratio = -torch.log(dist_pos / total_dist)        
+        return torch.sum(ratio)
+    
     def _euclidean(self, dist_pos, dist_neg, alpha):
-        return torch.sum(F.relu(alpha + dist_pos - dist_neg))
+        return torch.sum(torch.max(alpha + dist_pos - dist_neg, 0))
         
         
         
