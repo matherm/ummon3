@@ -36,6 +36,7 @@ import ummon.tests
 import ummon.tools
 
 version = ummon.__version__.version
+__version__ = version
 
 def system_info():
         print("SYSTEM INFORMATION (", socket.gethostname(),")" )
