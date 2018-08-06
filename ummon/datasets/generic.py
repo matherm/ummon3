@@ -369,9 +369,9 @@ class NumpyDataset(Dataset):
             # NORMAL MODE
             if not (type(dataset[0][0]) == tuple or type(dataset[0][1]) == tuple): 
                 if only_labels == True:
-                    _, self.labels = zip(*[(None, dataset[i][1]) if type(dataset[i][1]) == int else (None, torch.argmax(dataset[i][1])) for i in range(self.limit)])
+                    _, self.labels = zip(*[(None, dataset[i][1]) if type(dataset[i][1]) == int or dataset[i][1].dim() == 0 else (None, torch.argmax(dataset[i][1])) for i in range(self.limit)])
                 else:
-                    self.data, self.labels = zip(*[(dataset[i][0], dataset[i][1]) if type(dataset[i][1]) == int else (dataset[i][0], torch.argmax(dataset[i][1])) for i in range(self.limit)])
+                    self.data, self.labels = zip(*[(dataset[i][0], dataset[i][1]) if type(dataset[i][1]) == int or dataset[i][1].dim() == 0  else (dataset[i][0], torch.argmax(dataset[i][1])) for i in range(self.limit)])
                     self.data = torch.cat(self.data).reshape(self.limit, -1).numpy()
                 self.labels = np.asarray(self.labels, dtype=np.float32)
             # TUPLE MODE
@@ -394,10 +394,10 @@ class NumpyDataset(Dataset):
                     self.labels = []
                     n_labels = len(dataset[0][1])
                     for l in range(n_labels):
-                        _, _l = zip(*[(None, dataset[i][1][l]) if type(dataset[i][1][l]) == int else (None, torch.argmax(dataset[i][1][l])) for i in range(self.limit)])
+                        _, _l = zip(*[(None, dataset[i][1][l]) if type(dataset[i][1][l]) == int or dataset[i][1][l].dim() == 0 else (None, torch.argmax(dataset[i][1][l])) for i in range(self.limit)])
                         self.labels.append(np.asarray(_l, dtype=np.float32))
                 else:
-                    _, _l = zip(*[(None, dataset[i][1]) if type(dataset[i][1]) == int else (None, torch.argmax(dataset[i][1])) for i in range(self.limit)])
+                    _, _l = zip(*[(None, dataset[i][1]) if type(dataset[i][1]) == int or dataset[i][1][l].dim() == 0 else (None, torch.argmax(dataset[i][1])) for i in range(self.limit)])
                     self.labels = np.asarray(_l, dtype=np.float32)
         # UNSUPERVISED
         else:
