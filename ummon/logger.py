@@ -306,10 +306,11 @@ class Logger(logging.getLoggerClass()):
         
         self.debug(' ')
         self.debug('[Data]')
-        self.debug('{0:18}{1:8}    {2:18} {3}'.format('Validation', 
+        self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Validation', 
             uu.get_size_information(dataset_validation), 
             uu.get_shape_information(dataset_validation), 
-            uu.get_type_information(dataset_validation)))
+            uu.get_type_information(dataset_validation)),
+            uu.get_numerical_information(dataset_validation))
        
         self.debug(' ')
         self.debug('[Parameters]')
