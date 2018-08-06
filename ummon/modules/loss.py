@@ -10,7 +10,7 @@ import torch.nn as nn
 import ummon.functionals.reinforcement as reinforce
 
 
-__all__ = [ 'VisualAttentionLoss', 'Contrastive' ]
+__all__ = [ 'VisualAttentionLoss', 'Contrastive', 'TriContrastive']
 
 class VisualAttentionLoss(nn.CrossEntropyLoss):
     """

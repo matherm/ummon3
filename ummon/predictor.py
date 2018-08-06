@@ -29,7 +29,7 @@ class Predictor:
     """
 
     @staticmethod
-    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False, use_cuda=True):
+    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False, use_cuda=False):
         """
         Computes the output of a model for a given dataset
         

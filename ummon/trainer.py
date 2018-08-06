@@ -80,7 +80,7 @@ class MetaTrainer:
         self.trainingstate = Trainingstate()
         self.scheduler = None
         self.analyzer = None # needs to be implemented by subclass
-        self.model_filename = "model.pth.tar"
+        self.model_filename = "/dev/null/model.pth.tar"
         self.model_keep_epochs = False
         self.precision = np.float32
         self.convergence_eps = np.finfo(np.float32).min
@@ -115,6 +115,8 @@ class MetaTrainer:
             elif key == 'convergence_eps':
                 self.convergence_eps = float(kwargs[key])
             elif key == 'combined_training_epochs':
+                if "/dev/null" in self.model_filename:
+                    raise ValueError('Combined retraining needs a model_filename to load the best model after training. (you provided None).')
                 self.combined_training_epochs = int(kwargs[key])
             elif key == 'use_cuda':
                 self.use_cuda = bool(kwargs[key])
@@ -477,7 +479,7 @@ class MetaTrainer:
                                 
         else: # no validation set
             
-            evaluation_dict = None
+            evaluation_dict = evaluation_dict_train
             
             self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
                 training_loss = avg_training_loss, 
