@@ -36,22 +36,6 @@ class Installation(install):
     """
     def run(self):
         cwd = os.getcwd()
-
-        # Install IpLibrary
-        try:
-            import impy
-        except ImportError:
-            try:
-                print("\n Installing IpLibrary..")
-                os.chdir("./lib/iplibrary/py")
-                try:
-                    subprocess.call(
-                            "python setup.py install", shell=True
-                    )
-                except:
-                    pass
-            except:
-                print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive` or pull with `git submodule update --init --recursive`?")
             
         os.chdir(cwd)
         
