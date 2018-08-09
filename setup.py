@@ -131,7 +131,3 @@ try:
     from PIL import Image
 except:
     print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")
-try:
-    import impy
-except:
-    print("\nWARNING: Package <<lib/iplibrary>> not installed or just installed and not reloaded modules (run `python setup install` again). You cannot use e.g. Portilla and Simoncelli features.")

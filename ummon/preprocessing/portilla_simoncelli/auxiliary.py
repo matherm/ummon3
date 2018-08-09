@@ -1,11 +1,10 @@
 from __future__ import division
 
-import impy as ip
 import numpy as np
 from numpy.polynomial.polynomial import polyval
 from scipy.io import loadmat
 
-from .config import PLOT_CORR, FULLY_COVERED
+from .config import  FULLY_COVERED
 
 
 def forceAutoCorr(img, autoCorro, p=1):
@@ -23,10 +22,6 @@ def forceAutoCorr(img, autoCorro, p=1):
     [Ny, Nx] = img.shape
     Nc = len(autoCorro)  # normally Nc<<Nx
 
-    if PLOT_CORR:
-        path_name = "result/Cy.png"
-        ip.save_img(autoCorro, path_name)
-
     imgFft = np.fft.fft2(img.copy())
     imgFft2 = np.absolute(imgFft) ** 2
     # autoCorr of input image
@@ -34,10 +29,6 @@ def forceAutoCorr(img, autoCorro, p=1):
     # ac = np.fft.fftshift(np.real(np.fft.ifft2(np.absolute(np.fft.fft2(lpResidual))**2)))/(len(real[-1][0])**2)
 
     autoCorro = autoCorro * img.size  # Unnormalize the previously normalized correlation
-
-    if PLOT_CORR:
-        path_name = "result/corrBefore.png"
-        ip.save_img(ip.binarize(ip.scale_vals(corrBefore, 0,1),0.5), path_name)
 
     # center of img
     cy = Ny / 2 + 1
@@ -79,10 +70,6 @@ def forceAutoCorr(img, autoCorro, p=1):
         ccx[Lc, Lc] = np.divide(ccx[Lc, Lc], 2)
         ccx = ccx.conj().T.flatten(order='F')
         Tcx[nm-1,:] = ccx[0:M]#.conj().T
-
-    if PLOT_CORR:
-        path_name = "result/Tcx.png"
-        ip.save_img(Tcx, path_name)
 
     # Rearrange autoCorr indices and solve the equation
     autoCorr1 = autoCorro.conj().T.flatten(order='F')
