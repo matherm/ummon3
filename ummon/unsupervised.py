@@ -279,7 +279,7 @@ class UnsupervisedAnalyzer(MetaAnalyzer):
                 
                 # Run hook
                 if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets, loss.data)
+                    after_eval_hook(ctx, uu.tensor_tuple_to_data(output), targets, loss.data)
                 
                 
         evaluation_dict["accuracy"] = 0.0
