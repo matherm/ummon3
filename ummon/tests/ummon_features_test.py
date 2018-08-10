@@ -108,12 +108,12 @@ class TestUmmonFeatures(unittest.TestCase):
         
     def test_portilla_simoncelli_features(self):
 
-        from ummon.preprocessing.portillasimoncelli import PortillaSimoncelli
+        from ummon.preprocessing.psTMfeatures import PSTMfeatures
         # PREPARE DATA
         x = torch.from_numpy(np.random.uniform(0, 1, 32*32).reshape(32,32))
 
         # TEST EXTRACTOR
-        y = PortillaSimoncelli()(x)        
+        y = PSTMfeatures()(x)
         print(y)
 
     def test_swEVM_features(self):
