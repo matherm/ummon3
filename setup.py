@@ -36,22 +36,6 @@ class Installation(install):
     """
     def run(self):
         cwd = os.getcwd()
-
-        # Install IpLibrary
-        try:
-            import impy
-        except ImportError:
-            try:
-                print("\n Installing IpLibrary..")
-                os.chdir("./lib/iplibrary/py")
-                try:
-                    subprocess.call(
-                            "python setup.py install", shell=True
-                    )
-                except:
-                    pass
-            except:
-                print("\nWARNING: Package <<lib/iplibrary>> not found. Did you clone with `git clone --recursive` or pull with `git submodule update --init --recursive`?")
             
         os.chdir(cwd)
         
@@ -113,7 +97,7 @@ setup(
         'scipy',
         ],
       test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.tests', 'ummon.datasets', 'ummon.tools'],
+      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing', 'ummon.preprocessing.schuett_wichmann_evm', 'ummon.tests', 'ummon.datasets', 'ummon.tools'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )
@@ -131,7 +115,3 @@ try:
     from PIL import Image
 except:
     print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")
-try:
-    import impy
-except:
-    print("\nWARNING: Package <<lib/iplibrary>> not installed or just installed and not reloaded modules (run `python setup install` again). You cannot use e.g. Portilla and Simoncelli features.")

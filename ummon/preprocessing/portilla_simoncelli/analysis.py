@@ -1,6 +1,5 @@
 from __future__ import division
 
-import impy as ip
 import numpy as np
 from scipy.io import savemat
 
@@ -64,7 +63,7 @@ class Analysis:
         if FULLY_COVERED:
             self.img = norm(img)
         else:
-            self.img = ip.scale_vals(img, 0, 1)
+            self.img = (self.img - np.min(self.img))/(np.max(self.img)-np.min(self.img))
 
         if Na == 0:
             self.Na = NA
@@ -199,18 +198,6 @@ class Analysis:
         # cut off the edges (32x32 --> 9x9)
         ac = ac[int(cy-le-1):int(cy+le),int(cx-le-1):int(cx+le)]
 
-        ## to view autocorrelation stages save single computation steps
-        #ip.save_img(self.im.copy(),'a_in.png')
-        #ip.save_img(acabs.copy(),'acabs.png')
-        #ip.save_img(acfft.copy(),'acfft.png')
-        #ip.save_img(acifft.copy(),'acifft.png')
-        #ip.save_img(acshift.copy(),'acshift.png')
-        #ip.save_img(ac.copy(),'ac.png')
-
-        if PLOT_CORR:
-            path_name = "result/autoCorrReal-" + str(self.Nsc) + ".png"
-            ip.save_img(ac.copy(), path_name)
-
         # save in autoCorrReal matrix for the last lp residual image
         self.autoCorrReal[int(la-le):int(la+le+1),int(la-le):int(la+le+1),self.Nsc] = ac.copy()
         
@@ -252,18 +239,6 @@ class Analysis:
                 # cut off the edges (example: 32x32 --> 9x9)
                 ac = ac[int(cy-le-1):int(cy+le),int(cx-le-1):int(cx+le)]
 
-                ## to view autocorrelation stages save single computation steps
-                #ip.save_img(self.im.copy(),'a_in.png')
-                #ip.save_img(acabs.copy(),'acabs.png')
-                #ip.save_img(acfft.copy(),'acfft.png')
-                #ip.save_img(acifft.copy(),'acifft.png')
-                #ip.save_img(acshift.copy(),'acshift.png')
-                #ip.save_img(ac.copy(),'ac.png')
-
-                if PLOT_CORR:
-                    path_name = "result/autoCorrMag-" + str(nsc) +"-" + str(nor) + ".png"
-                    ip.save_img(ac.copy(), path_name)
-
                 self.autoCorrMag[:,:, nsc, nor] = ac.copy()
 
             #### Make fake pyramid, containing dummy hp, orientations and dummy lp
@@ -287,10 +262,6 @@ class Analysis:
             ac = np.fft.fftshift(np.real(np.fft.ifft2(np.absolute(np.fft.fft2(self.im.copy()))**2)))
             ac = ac/(self.LPresidual.size)
             ac = ac[int(cy-le-1):int(cy+le),int(cx-le-1):int(cx+le)]
-
-            if PLOT_CORR:
-                path_name = "result/autoCorrReal-" + str(nsc) + ".png"
-                ip.save_img(ac.copy(), path_name)
 
             self.autoCorrReal[int(la-le):int(la+le+1),int(la-le):int(la+le+1),nsc] = ac.copy()
 
@@ -341,43 +312,21 @@ class Analysis:
             nparents = parents.shape[1] if parents.ndim > 1 else 0
             self.corrMag[:nc,:nc,nsc] = np.dot(cousins.conj().T,cousins)/bandsize
 
-            if PLOT_CORR:
-                path_name = "result/oriCorrMag-" + str(nsc) + ".png"
-                ip.save_img(expand(self.corrMag[:nc,:nc,nsc],8).copy(), path_name)
-
             if nparents > 0:
                 self.xCorrMag[:nc,:nparents,nsc] = np.dot(cousins.conj().T,parents)/bandsize
                 if nsc == self.Nsc-1: # no possible case ! (because nparents is smaller)
                     self.corrMag[:nparents,:nparents,self.Nsc] = np.dot(parents.conj().T,parents)/(bandsize/4)
-
-                    if PLOT_CORR:
-                        path_name = "result/oriCorrMag-" + str(self.Nsc) + ".png"
-                        ip.save_img(expand(self.corrMag[:nparents,:nparents,self.Nsc],8).copy(), path_name)
 
             cousins = np.reshape(self.coeff[level].real.copy(), (self.Nor, bandsize)).T
             nrc = cousins.shape[1]
             nrp = rparents.shape[1]
             self.corrReal[:nrc,:nrc,nsc] = np.dot(cousins.T,cousins)/bandsize
 
-            if PLOT_CORR:
-                path_name = "result/oriCorrReal-" + str(nsc) + ".png"
-                ip.save_img(expand(self.corrReal[:nrc,:nrc,nsc],8).copy(), path_name)
-
             if nrp > 0:
                 self.xCorrReal[:nrc,:nrp,nsc] = np.dot(cousins.T,rparents)/bandsize
                 if nsc == self.Nsc-1: 
                     self.corrReal[:nrp,:nrp,self.Nsc] = np.dot(rparents.T,rparents)/(bandsize/4)
 
-                    if PLOT_CORR:
-                        path_name = "result/oriCorrReal-" + str(nsc) + ".png"
-                        ip.save_img(expand(self.corrReal[:nrp,:nrp,self.Nsc],8).copy(), path_name)
-
-            if PLOT_CORR:
-                path_name = "result/xCorrMag-" + str(nsc) + ".png"
-                ip.save_img(expand(self.xCorrMag[:,:,nsc],8).copy(), path_name)
-                path_name = "result/xCorrReal-" + str(nsc) + ".png"
-                ip.save_img(expand(self.xCorrReal[:,:,nsc],8).copy(), path_name)
-                
 
     def computeFeatures(self):
         """

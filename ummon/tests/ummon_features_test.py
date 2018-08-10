@@ -114,7 +114,32 @@ class TestUmmonFeatures(unittest.TestCase):
 
         # TEST EXTRACTOR
         y = PortillaSimoncelli()(x)        
-        print(y)        
+        print(y)
+
+    def test_swEVM_features(self):
+
+        from ummon.preprocessing.swEVMfeatures import swEVMfeatures
+
+        # Load test data from ML implementation
+        import scipy.io as sio
+
+        filename = 'wood-0035_p1_gray'
+        object_name = 'input'
+        sw_mat = sio.loadmat(str('ummon/datasets/testdata/' + filename))
+        img = sw_mat[object_name]
+
+        ## Test extractor
+        # decomp Gabor
+        pyr = swEVMfeatures(normalized=False, meanFreqOutput=False)(img)
+
+        ## Load reference output from ML implementation
+        filename = 'evm_decomp_gabor_output_wood-0035_p1_gray'
+        object_name = 'output'
+        ml_obj_pyr = sio.loadmat(str('ummon/datasets/testdata/' + filename + '.mat'))
+        ml_pyr = np.abs(ml_obj_pyr[object_name]).astype('float32').flatten()
+
+        assert (np.allclose(pyr.data.numpy(), ml_pyr, rtol=1e-05, atol=1e-5))
+
               
 
 if __name__ == '__main__':

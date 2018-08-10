@@ -1,7 +1,12 @@
 import torch
 import numpy as np
 
-__all__ = [ 'Binarize', 'EmbeddInEmpty']
+__all__ = [ 'Binarize', 'EmbeddInEmpty' , 'FlattenTransform']
+
+class FlattenTransform():
+
+    def __call__(self, tensor):
+        return tensor.contiguous().view(-1).clone()
 
 
 class EmbeddInEmpty():

@@ -73,6 +73,7 @@ from .modules.vgg19 import *
 from .modules.gram import *
 from .gridsearch import *
 from ummon.preprocessing.imagetransforms import *
+from ummon.preprocessing.swEVMfeatures import *
 from ummon.preprocessing.vgg19features import *
 from ummon.preprocessing.anomaly import *
 from .datasets.generic import *
