@@ -43,7 +43,7 @@ class PortillaSimoncelli():
         assert image.dim() == 2
         
         # Analysis
-        a = Analysis(image.numpy(), self.scales) # img,nsc # number of bandpasses (scales)
+        a = Analysis(image.numpy(), nsc=self.scales) # img,nsc # number of bandpasses (scales)
         a.computeFeatures()
         params = a.getFeatures().get_dic()
         return torch.cat([torch.from_numpy(params[stat]).float().view(-1) for stat in self.list_stats])
