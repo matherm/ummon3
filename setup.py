@@ -102,16 +102,3 @@ setup(
                  'performance' : TestPerformance}
   )
 
-# OPTIONAL PACKAGES
-try:
-    from imageio import imread
-except:
-    print("\nWARNING: Package <<imageio>> not found. You won't be able to download datasets")
-try:
-    import paramiko
-except:
-    print("\nWARNING: Package <<paramiko>> not found. You won't be able to download NAS datasets")
-try:
-    from PIL import Image
-except:
-    print("\nWARNING: Package <<PIL>> not found. You won't be able to download datasets")
