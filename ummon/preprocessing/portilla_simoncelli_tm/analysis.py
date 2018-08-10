@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created by Michael Grunwald at 09.08.2018
+"""
+
 from __future__ import division
 
 import numpy as np
@@ -301,7 +307,29 @@ class Analysis:
         self.setAutoCorrMag_and_PixelStats_of_bp()
         self.setxScalePhaseStats()
 
-    def getFeatures(self):
+    def getJointStatisticsFeatures(self):
+        """
+        Return computed parameters per statistic of the given texture image.
+        """
+        channel = self.coeff[0][0]
+        varianceHPReal = np.mean(channel ** 2)
+        statsLPim = np.asarray([self.skew0p, self.kurt0p])
+
+        flattenFeatures = np.concatenate((np.asarray(self.pixelStats).flatten(), statsLPim.flatten(), self.autoCorrReal.flatten(),
+                                         self.autoCorrMag.flatten(), self.xCorrMag.flatten(), self.corrReal.flatten(),
+                                         self.xCorrReal.flatten(), varianceHPReal.flatten()))
+
+        # params_dic = {"pixelStats": self.pixelStats, "pixelLPStats": statsLPim,
+        #               "autoCorrReal": self.autoCorrReal, "autoCorrMag": self.autoCorrMag,
+        #               "magMeans": self.mag_means, "cousinMagCorr": self.corrMag,
+        #               "parentMagCorr": self.xCorrMag, "cousinRealCorr": self.corrReal,
+        #               "parentRealCorr": self.xCorrReal, "varianceHPR": varianceHPReal}
+        #
+        # params = Params(params_dic)
+
+        return flattenFeatures
+
+    def getJointStatisticsAsDict(self):
         """
         Return computed parameters per statistic of the given texture image.
         """

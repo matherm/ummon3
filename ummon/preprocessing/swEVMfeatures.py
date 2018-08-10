@@ -14,7 +14,7 @@ __all__ = ['swEVMfeatures']
 
 class swEVMfeatures():
     """
-    Extracts SW EVM features (Magnitude of the complex model output). Currently a fixed V1 parameter set is used.
+    Extracts Schutt Wichmann Early Vision Model (EVM) features (Magnitude of the complex model output). Currently a fixed V1 parameter set is used.
 
     Schuett, H. H., & Wichmann, F. A. (2017). An image-computable psychophysical spatial vision model. Journal of Vision, 17(12):12, 1–35, doi:10.1167/17.12.12.
 

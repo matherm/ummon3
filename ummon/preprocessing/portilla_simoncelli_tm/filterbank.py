@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created by Michael Grunwald at 09.08.2018
+"""
+
 from __future__ import division
 
 import numpy as np
