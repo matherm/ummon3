@@ -54,14 +54,17 @@ class TestUmmonFeatures(unittest.TestCase):
         
         # TEST Gram
         y = VGG19Features(cachedir="./", gram=True)(x)        
-        y = VGG19Features(cachedir="./", gram=True, clearcache=False)(x)        
+        y = VGG19Features(cachedir="./", gram=True, clearcache=False)(x)
         VGG19Features(cachedir="./", gram=True)
-        
+        assert y.size(0) == 512 == y.size(1)
+
+        # TEST random init
+        y = VGG19Features(gram=True, pretrained=False)(x)
         assert y.size(0) == 512 == y.size(1)
         
         
     def test_image_patches_data_set(self):
-        
+
         my_transforms = transforms.Compose([SquareAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
                                 train=False, \
@@ -113,7 +116,7 @@ class TestUmmonFeatures(unittest.TestCase):
         x = torch.from_numpy(np.random.uniform(0, 1, 32*32).reshape(32,32))
 
         # TEST EXTRACTOR
-        y = PSTMfeatures()(x)
+        y = PSTMfeatures(scales=2)(x)
         print(y)
 
     def test_swEVM_features(self):
