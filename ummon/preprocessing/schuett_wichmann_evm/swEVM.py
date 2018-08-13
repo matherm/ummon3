@@ -145,7 +145,7 @@ class swEMV:
         gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
         gaussON = gaussO / np.sum(gaussO)
         gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
-        gaussONF = np.reshape(gaussON, (1, 1, np.size(gaussONF)))
+        gaussONF = np.reshape(gaussONF, (1, 1, np.size(gaussONF)))
 
         # fourier space filtering to enable "wrap around"
         normalizerF = np.fft.fft(normalizer)
