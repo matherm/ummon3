@@ -142,16 +142,20 @@ class swEMV:
             o[i] = i - np.floor(nOrient / 2)
         o *= np.pi / 8
 
+        # Todo: if (not finite) else if pool0 else:
         gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
         gaussON = gaussO / np.sum(gaussO)
         gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
-        gaussONF = np.reshape(gaussON, (1, 1, np.size(gaussONF)))
+        gaussONF = np.reshape(gaussONF, (1, 1, np.size(gaussONF)))
 
         # fourier space filtering to enable "wrap around"
         normalizerF = np.fft.fft(normalizer)
 
         gaussONF = np.expand_dims(gaussONF, 3)
         normalizerF = normalizerF * gaussONF
+
+        # ToDo: symetric ifft --> only real part, compare ml
+        normalizer = np.fft.ifft(normalizerF)
 
         normalizerPad = np.pad(normalizer, ((0, 0), (0, 0), (0, 0), (0, (normalizer.shape[3] - 1) * 2)), 'constant',
                                constant_values=0)

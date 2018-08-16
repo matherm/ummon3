@@ -66,16 +66,19 @@ class VGG19Features():
         self.pretrained = pretrained
         self.gram_diagonal = gram_diagonal
         self.gram_diagonal_squared = gram_diagonal_squared
-        
+
         # Original PyTorch VGG19
         self.model = vgg19(pretrained=self.pretrained).features
-        
+
         # Custom VGG19 with better Layer naming convention
         self.vgg19 = VGG19()
-        
-        # Copy weights
-        self.copy_weights_(self.model, self.vgg19)
-        
+
+        if pretrained:
+            # Copy weights
+            self.copy_weights_(self.model, self.vgg19)
+        else:
+            self.vgg19.apply(self.random_weight_init)
+
         # Cuda
         self.vgg19 =  self.vgg19.cuda() if self.cuda and torch.cuda.is_available() else self.vgg19
         
@@ -96,7 +99,12 @@ class VGG19Features():
         if clearcache == True:
             [os.remove(os.path.join(self.cachedir, f)) for f in os.listdir(self.cachedir) if f.endswith(".npy")]
             
-            
+
+    def random_weight_init(self, m):
+        if isinstance(m, nn.Conv2d):
+            torch.nn.init.xavier_normal_(m.weight.data)
+            torch.nn.init.constant_(m.bias.data,0)
+
             
     def copy_weights_(self, model_source, model_dest):
         for i, k in enumerate(model_dest._modules):
