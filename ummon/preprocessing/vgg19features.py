@@ -111,8 +111,8 @@ class VGG19Features():
         x = x.unsqueeze(0)
         
         if self.cache:
-            fname = str(hash(str(x.detach().cpu().numpy())))
-            path = str(self.cachedir + "/ummon" + fname + ".npy")
+            fname = "".join(self.features) + "_" + str(hash(str(x.detach().cpu().numpy())))
+            path = str(self.cachedir + "/ummon_" + fname + ".npy")
             if Path(path).exists():
                 return torch.from_numpy(np.load(path))
 
