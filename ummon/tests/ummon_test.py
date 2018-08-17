@@ -50,7 +50,7 @@ class TestUmmon(unittest.TestCase):
         
         # create net
         cnet = Sequential(
-            ('line0', Linear([5], 7, 'xavier_uniform', 0.001)),
+            ('line0', Linear([5], 7, 'xavier_uniform_', 0.001)),
             ('sigm0', nn.Sigmoid())
         )
         print(cnet)
@@ -92,7 +92,7 @@ class TestUmmon(unittest.TestCase):
         y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
         
         # test MSE loss
-        loss = nn.MSELoss(size_average=False)
+        loss = nn.MSELoss(reduction='sum')
         mse = loss(x1, y1).data.numpy()
         print('MSE:     ', mse)
         mse_true = ((x0 - y0)**2).sum() # pyTorch divides by n_dim instead of 2
@@ -101,7 +101,7 @@ class TestUmmon(unittest.TestCase):
         
         # test log likelihood loss function
         y1 = Variable(torch.LongTensor(2*y0[:,2]), requires_grad=False) # pytorch takes class index, not one-hot coding
-        loss = nn.NLLLoss(size_average=False)
+        loss = nn.NLLLoss(reduction='sum')
         LL = loss(x1, y1).data.numpy()
         print('LL:     ', LL)
         # should be LL_true = (-y0*np.nan_to_num(np.log(x0))).sum(axis=1).mean(), but pytorch expects x1 to be already log'd by Log Softmax 
@@ -110,7 +110,7 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(LL, LL_true, 0, 1e-3)
         
         # test pytorch cross entropy loss function (=logsoftmax + NLL)
-        loss = nn.CrossEntropyLoss(size_average=False)
+        loss = nn.CrossEntropyLoss(reduction='sum')
         ce = loss(x1, y1).data.numpy()
         print('CE:      ', ce)
         # pytorch CE is combination of log softmax and log likelihood
@@ -119,7 +119,7 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(ce, ce_true, 0, 1e-3)
         
         # test binary cross entropy
-        loss = nn.BCELoss(size_average=False)
+        loss = nn.BCELoss(reduction='sum')
         y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
         bce = loss(x1, y1).data.numpy()
         print('BCE:     ', bce)
@@ -128,7 +128,7 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(bce, bce_true, 0, 1e-3)
         
         # test pytorch combined sigmoid and bce
-        loss = nn.BCEWithLogitsLoss(size_average=False)
+        loss = nn.BCEWithLogitsLoss(reduction='sum')
         bce = loss(x1, y1).data.numpy()
         print('BCEL:    ', bce)
         bce_true = (np.nan_to_num(-y0*np.log(sigmoid(x0))-(1-y0)*np.log(1-sigmoid(x0)))).sum()
@@ -149,7 +149,7 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(hinge, hinge_true, 0, 1e-3)
         
         # test true standard hinge loss
-        loss = nn.MarginRankingLoss(size_average=False, margin=1.0)
+        loss = nn.MarginRankingLoss(reduction='sum', margin=1.0)
         dummy = torch.FloatTensor(6,1).zero_()
         # dummy variable must have same size as x1, but must be 0
         hinge = loss(x1, dummy, y1).data.numpy()
@@ -203,18 +203,18 @@ class TestUmmon(unittest.TestCase):
             
             # net
             cnet = Sequential(
-                ('line0', Linear([3], 5, 'xavier_normal')),
+                ('line0', Linear([3], 5, 'xavier_normal_')),
                 ('nonl0', nonl)
             )
             print(cnet)
             
             # loss
             if lossfunc == 'mse':
-                loss = nn.MSELoss(size_average=False)
+                loss = nn.MSELoss(reduction='sum')
             elif lossfunc == 'cross_entropy':
-                loss = nn.BCELoss(size_average=False)
+                loss = nn.BCELoss(reduction='sum')
             elif lossfunc == 'log_likelihood': 
-                loss = nn.NLLLoss(size_average=False)
+                loss = nn.NLLLoss(reduction='sum')
             
             # get weights
             w0 = cnet.line0.w
@@ -297,9 +297,9 @@ class TestUmmon(unittest.TestCase):
         batch = 4
         eta = 0.1/batch
         cnet = Sequential(
-            ('line0', Linear([3], 2, 'xavier_normal'))
+            ('line0', Linear([3], 2, 'xavier_normal_'))
         )
-        loss = nn.BCEWithLogitsLoss(size_average=False)
+        loss = nn.BCEWithLogitsLoss(reduction='sum')
         opt = torch.optim.SGD(cnet.parameters(), lr=eta)
         w = cnet.line0.w
         b = cnet.line0.b.copy()
@@ -463,7 +463,7 @@ class TestUmmon(unittest.TestCase):
             ('flatt', Flatten([2,3,3]))
         )
         print(cnet)
-        loss = nn.MSELoss(size_average=False)
+        loss = nn.MSELoss(reduction='sum')
         opt = torch.optim.SGD(cnet.parameters(), lr=eta)
         
         # weight matrix
@@ -766,7 +766,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -780,7 +780,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         
         # CREATE A TRAINER
@@ -844,7 +844,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -858,7 +858,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         
         # CREATE A TRAINER
@@ -1023,7 +1023,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1099,7 +1099,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1171,7 +1171,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1181,7 +1181,7 @@ class TestUmmon(unittest.TestCase):
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         trs = Trainingstate()
         
@@ -1239,7 +1239,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1253,7 +1253,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         trs = Trainingstate()
         
         # CREATE A TRAINER
@@ -1306,7 +1306,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1320,7 +1320,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=100, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         trs = Trainingstate()
         
         # CREATE A TRAINER
@@ -1376,7 +1376,7 @@ class TestUmmon(unittest.TestCase):
         y_valid = torch.from_numpy(np.sin(x_valid.numpy())) 
         dataset_valid = TensorDataset(x_valid.float(), y_valid.float())
         
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(Net().parameters(), lr=0.001)
         
         ts = Trainingstate()
@@ -1483,11 +1483,11 @@ class TestUmmon(unittest.TestCase):
         self.assertTrue(type(Predictor.predict(model, dataset_valid)) == torch.Tensor)
         
         # SIMPLIFIED Interface
-        y0 = Predictor.predict(model, x_valid.float().numpy(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        y0 = Predictor.predict(model, x_valid.float().numpy(), batch_size = 100, output_transform=torch.sigmoid)
         self.assertTrue(type(y0) == np.ndarray)
    
         # SIMPLIFIED Interface with Tensors
-        y1 = Predictor.predict(model, x_valid.float(), batch_size = 100, output_transform=torch.nn.functional.sigmoid)
+        y1 = Predictor.predict(model, x_valid.float(), batch_size = 100, output_transform=torch.sigmoid)
         self.assertTrue(type(y1) == torch.Tensor)
         
         assert np.allclose(y0, y1.numpy())
@@ -1511,7 +1511,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1526,7 +1526,7 @@ class TestUmmon(unittest.TestCase):
             sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         
         
@@ -1584,7 +1584,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1605,14 +1605,13 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        loss = nn.BCEWithLogitsLoss(size_average=False)
+        loss = nn.BCEWithLogitsLoss(reduction='sum')
         trs = Trainingstate()
         
         # CREATE A TRAINER
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         my_trainer = ClassificationTrainer(Logger(), model, loss, 
             optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
-        
         my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, validation_set=dataset_valid)
         output = Predictor.predict(model, x_valid.numpy())
         predicts = Predictor.classify(output)
@@ -1622,7 +1621,6 @@ class TestUmmon(unittest.TestCase):
         predicts = Predictor.classify(output)
         accuracy = Predictor.compute_accuracy(predicts, y_valid2)
         assert accuracy > 0.48
-        
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -1661,7 +1659,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         trs = Trainingstate()
 
         # CREATE A TRAINER
@@ -1777,7 +1775,7 @@ class TestUmmon(unittest.TestCase):
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1791,7 +1789,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
         ts = Trainingstate()
         lg = Logger(loglevel=logging.ERROR)
@@ -1851,7 +1849,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         trs = Trainingstate()
 
         # CREATE A TRAINER
@@ -1904,7 +1902,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_training = DataLoader(dataset, batch_size=5, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         trs = Trainingstate()
 
         # CREATE A TRAINER
@@ -1945,11 +1943,11 @@ class TestUmmon(unittest.TestCase):
                 # Initialization
                 def weights_init_normal(m):
                     if type(m) == nn.Linear:
-                        nn.init.normal(m.weight, mean=0, std=0.1)
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
                 self.apply(weights_init_normal)
         
             def forward(self, x):
-                x = F.sigmoid(self.fc1(x))
+                x = torch.sigmoid(self.fc1(x))
                 x = self.fc2(x)
                 return x
         
@@ -1963,7 +1961,7 @@ class TestUmmon(unittest.TestCase):
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=False, sampler=None, batch_sampler=None)
         
         model = Net()
-        criterion = nn.MSELoss(size_average=False)
+        criterion = nn.MSELoss(reduction='sum')
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
         trs = Trainingstate()
         

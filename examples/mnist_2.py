@@ -46,7 +46,7 @@ net = Sequential(
 )
 
 # loss (size_averaging is numerically unstable)
-loss = nn.CrossEntropyLoss(size_average = False) # inside net: combination of softmax and llh
+loss = nn.CrossEntropyLoss(reduction='sum') # inside net: combination of softmax and llh
 
 # optimizer
 opt = torch.optim.SGD(net.parameters(), lr=eta/mbs, weight_decay=wdecay)
@@ -54,7 +54,8 @@ opt = torch.optim.SGD(net.parameters(), lr=eta/mbs, weight_decay=wdecay)
 with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     
     # trainer
-    trn = ClassificationTrainer(lg, net, loss, opt, combined_training_epochs=5)
+    trn = ClassificationTrainer(lg, net, loss, opt, model_filename='mnist2', 
+        combined_training_epochs=5)
     
     # train
     trn.fit((x0,y0,mbs), epochs=epochs, validation_set=(x2,y2))

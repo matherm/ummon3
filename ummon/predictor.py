@@ -130,7 +130,7 @@ class Predictor:
         if loss_function is not None:
             # Evaluate non-linearity in case of a combined loss-function like CrossEntropy
             if isinstance(loss_function, torch.nn.BCEWithLogitsLoss):
-                output = F.sigmoid(Variable(output)).data
+                output = torch.sigmoid(Variable(output)).data
             
             if isinstance(loss_function, torch.nn.CrossEntropyLoss):
                 output = F.softmax(Variable(output), dim=1).data

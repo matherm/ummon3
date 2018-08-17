@@ -43,7 +43,7 @@ net = Sequential(
 )
 
 # loss (size_averaging is numerically unstable)
-loss = nn.BCEWithLogitsLoss(size_average = False)
+loss = nn.BCEWithLogitsLoss(reduction='sum')
 
 # optimizer
 mbs = 16
@@ -59,7 +59,7 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=5000) as lg:
     
     # trainer
     trn = ClassificationTrainer(lg, net, loss, opt, trainingstate=trs, scheduler=scd, 
-        combined_training_epochs=5)
+        model_filename='mnist1', combined_training_epochs=5)
     
     # train
     trn.fit((x0,y0,mbs), epochs=70, validation_set=(x2,y2))

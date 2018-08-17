@@ -54,7 +54,7 @@ cnet = Sequential(
 print(cnet)
 
 # loss (size_averaging is numerically unstable)
-loss = nn.CrossEntropyLoss(size_average = False) # inside net: combination of softmax and llh
+loss = nn.CrossEntropyLoss(reduction='sum') # inside net: combination of softmax and llh
 
 # optimizer
 params_dict = dict(cnet.named_parameters())
@@ -76,7 +76,7 @@ with Logger(loglevel=20, logdir='.', log_batch_interval=1700) as lg:
     
     # trainer
     trn = ClassificationTrainer(lg, cnet, loss, opt, trainingstate=trs, scheduler=scd, 
-        combined_training_epochs=5, model_filename='mnist_3')
+        model_filename='mnist_3', combined_training_epochs=5)
     
     # train
     trn.fit((x0,y0,mbs), epochs=epochs, validation_set=(x2,y2))

@@ -36,7 +36,7 @@ class Linear(nn.Linear):
     * b: bias vector
     
     '''    
-    def __init__(self, insize, num_neurons=10, init='xavier_normal', bias=True):
+    def __init__(self, insize, num_neurons=10, init='xavier_normal_', bias=True):
         
         # allow both for list as input size (ummon style) and for number of input neurons
         if type(insize) == list:
