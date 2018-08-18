@@ -49,8 +49,13 @@ class swEMV:
             orient = orient0 - orientation[iOrient] + np.pi
             orient = np.mod(orient, 2 * np.pi) - np.pi
 
+            # prevent log 0 division
+            f[np.where(f == 0)] = 1e-17
+            if freq == 0:
+                freq = 1e-17
+
             filter[:, :, iOrient] = 2 * np.exp(
-                -1 / 2 * ((np.log2(f) - np.log2(freq)) ** 2 / bw[0] ** 2 + (orient ** 2 / bw[1] ** 2)))
+                -(1 / 2) * ((np.log2(f) - np.log2(freq)) ** 2 / bw[0] ** 2 + (orient ** 2 / bw[1] ** 2)))
 
         return filter
 
@@ -59,17 +64,16 @@ class swEMV:
         This runs a log-Gabor pyramid decompostion with the given parameters.
 
         """
-
         imSize = np.shape(image)
         freq = np.exp(np.linspace(np.log(freqRange[1]), np.log(freqRange[0]), nFreq))
         orient = np.linspace(0, np.pi, (nOrient + 1))
         orient = orient[0:nOrient]
 
-        # p = np.exp(np.log(freqRange[1] / freqRange[0]) / nFreq)
+        p = np.exp(np.log(freqRange[1] / freqRange[0]) / nFreq)
 
         pyr = np.zeros([imSize[0], imSize[1], nOrient, nFreq], dtype='complex128')
 
-        imgFourier = np.fft.fft2(image)
+        imgFourier = np.fft.fft2(image, axes=(0, 1))
         imgFourier = np.expand_dims(imgFourier, axis=2)
 
         x = np.zeros((1, imSize[1]))
@@ -80,9 +84,6 @@ class swEMV:
         y = (y - np.ceil(np.mean(y))) / degSize[0]
         f = np.sqrt((x ** 2) + ((y ** 2).T))
         orient0 = np.arctan2(x, y.T).T
-
-        ## todo: maybe add gradent implementation...
-        # pyrGradBW = np.zeros([imSize[0], imSize[1], nOrient, nFreq, 2])
 
         filters = []
         for iFilter in range(0, nFreq):
@@ -95,7 +96,8 @@ class swEMV:
 
     def V1(self, img, degSize=[2, 2], V1Mode=None, pars=None, Gradidx=None):
         '''
-        This runs a log-Gabor pyramid decompostion and computes a normalization of the different channels.
+        This runs a log-Gabor pyramid decompostion and computes a normalization of the different channels. Until now,
+        only V1Mode 7 (local normalization -> only activations at this pixel count) is supported.
         '''
 
         ## pars
@@ -125,11 +127,9 @@ class swEMV:
         x = (x - np.ceil(np.mean(x))) / degSize[1]
         y = (y - np.ceil(np.mean(y))) / degSize[0]
 
-        ## V1Mode (Ml switch case)
+        ## V1Mode 7 (Ml switch case)
         lao = np.log(ao)
-        lao0 = 0
-        normalizer1 = np.exp(lao * ExNakaNorm)
-        normalizer = normalizer1
+        normalizer = np.exp(lao * ExNakaNorm)
 
         fdiff = np.linspace(np.log2(minF) - np.log2(maxF), np.log2(maxF) - np.log2(minF), 2 * np.size(frequencies) - 1)
 
@@ -140,24 +140,24 @@ class swEMV:
         o = np.zeros(nOrient)
         for i in range(0, nOrient):
             o[i] = i - np.floor(nOrient / 2)
-        o *= np.pi / 8
+        o *= np.pi / nOrient
 
-        # Todo: if (not finite) else if pool0 else:
         gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
         gaussON = gaussO / np.sum(gaussO)
         gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
         gaussONF = np.reshape(gaussONF, (1, 1, np.size(gaussONF)))
 
         # fourier space filtering to enable "wrap around"
-        normalizerF = np.fft.fft(normalizer)
+        normalizerF = np.fft.fft(normalizer, axis=2)
 
         gaussONF = np.expand_dims(gaussONF, 3)
         normalizerF = normalizerF * gaussONF
 
-        # ToDo: symetric ifft --> only real part, compare ml
-        normalizer = np.fft.ifft(normalizerF)
+        normalizer = np.real(np.fft.ifft(normalizerF, axis=2))
 
-        normalizerPad = np.pad(normalizer, ((0, 0), (0, 0), (0, 0), (0, (normalizer.shape[3] - 1) * 2)), 'constant',
+        normalizerPad = np.pad(normalizer,
+                               ((0, 0), (0, 0), (0, 0), ((normalizer.shape[3] - 1), (normalizer.shape[3] - 1))),
+                               'constant',
                                constant_values=0)
         normalizer = convolve(normalizerPad, gaussFN, 'valid')
         normalizerFin = (normalizer + CNaka ** ExNakaNorm)
