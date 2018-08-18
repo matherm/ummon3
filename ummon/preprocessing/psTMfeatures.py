@@ -34,7 +34,7 @@ class PSTMfeatures():
 
         """
     
-    def __init__(self, scales = 2, img_scale_mode=None):
+    def __init__(self, scales=2, img_scale_mode=None, inclPixelStats=True):
         """
                Initialize all parameters needed to analyze a texture image.
 
@@ -45,6 +45,7 @@ class PSTMfeatures():
 
         self.scales = scales
         self.img_scale_mode = img_scale_mode
+        self.inclPixelStats = inclPixelStats
 
     def __call__(self, image):
         '''
@@ -82,9 +83,9 @@ class PSTMfeatures():
         # Todo: check scales and image size.
         
         # Analysis
-        a = Analysis(image, nsc=self.scales, scale_mode=self.img_scale_mode) # img,nsc # number of bandpasses (scales)
+        a = Analysis(image, nsc=self.scales, scale_mode=self.img_scale_mode ) # img,nsc # number of bandpasses (scales)
         a.computeFeatures()
-        jointStat = a.getJointStatisticsFeatures()
+        jointStat = a.getJointStatisticsFeatures(inclPixelStats = self.inclPixelStats)
 
         return  torch.from_numpy(jointStat.astype('float32'))
 
