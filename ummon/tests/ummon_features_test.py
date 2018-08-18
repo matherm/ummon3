@@ -118,6 +118,8 @@ class TestUmmonFeatures(unittest.TestCase):
         # TEST EXTRACTOR
         y = PSTMfeatures(scales=2)(x)
         print(y)
+        y = PSTMfeatures(scales=2, inclPixelStats=False)(x)
+        print(y)
 
     def test_swEVM_features(self):
 

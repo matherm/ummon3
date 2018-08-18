@@ -327,10 +327,10 @@ class Analysis:
                  self.autoCorrMag.flatten(), self.xCorrMag.flatten(), self.corrReal.flatten(),
                  self.xCorrReal.flatten(), varianceHPReal.flatten()))
         else:
-            flattenFeatures = np.concatenate(self.autoCorrReal.flatten(),
+            flattenFeatures = np.concatenate((self.autoCorrReal.flatten(),
                                              self.autoCorrMag.flatten(), self.xCorrMag.flatten(),
                                              self.corrReal.flatten(),
-                                             self.xCorrReal.flatten(), varianceHPReal.flatten())
+                                             self.xCorrReal.flatten(), varianceHPReal.flatten()))
 
         return flattenFeatures
 
