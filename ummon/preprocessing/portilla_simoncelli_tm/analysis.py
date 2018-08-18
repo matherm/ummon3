@@ -313,7 +313,7 @@ class Analysis:
         self.setAutoCorrMag_and_PixelStats_of_bp()
         self.setxScalePhaseStats()
 
-    def getJointStatisticsFeatures(self):
+    def getJointStatisticsFeatures(self, inclPixelStats=True):
         """
         Return computed parameters per statistic of the given texture image.
         """
@@ -321,17 +321,16 @@ class Analysis:
         varianceHPReal = np.mean(channel ** 2)
         statsLPim = np.asarray([self.skew0p, self.kurt0p])
 
-        flattenFeatures = np.concatenate((np.asarray(self.pixelStats).flatten(), statsLPim.flatten(), self.autoCorrReal.flatten(),
-                                         self.autoCorrMag.flatten(), self.xCorrMag.flatten(), self.corrReal.flatten(),
-                                         self.xCorrReal.flatten(), varianceHPReal.flatten()))
-
-        # params_dic = {"pixelStats": self.pixelStats, "pixelLPStats": statsLPim,
-        #               "autoCorrReal": self.autoCorrReal, "autoCorrMag": self.autoCorrMag,
-        #               "magMeans": self.mag_means, "cousinMagCorr": self.corrMag,
-        #               "parentMagCorr": self.xCorrMag, "cousinRealCorr": self.corrReal,
-        #               "parentRealCorr": self.xCorrReal, "varianceHPR": varianceHPReal}
-        #
-        # params = Params(params_dic)
+        if inclPixelStats:
+            flattenFeatures = np.concatenate(
+                (np.asarray(self.pixelStats).flatten(), statsLPim.flatten(), self.autoCorrReal.flatten(),
+                 self.autoCorrMag.flatten(), self.xCorrMag.flatten(), self.corrReal.flatten(),
+                 self.xCorrReal.flatten(), varianceHPReal.flatten()))
+        else:
+            flattenFeatures = np.concatenate(self.autoCorrReal.flatten(),
+                                             self.autoCorrMag.flatten(), self.xCorrMag.flatten(),
+                                             self.corrReal.flatten(),
+                                             self.xCorrReal.flatten(), varianceHPReal.flatten())
 
         return flattenFeatures
 
