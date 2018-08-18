@@ -34,9 +34,17 @@ class PSTMfeatures():
 
         """
     
-    def __init__(self, scales = 2):
+    def __init__(self, scales = 2, img_scale_mode=None):
+        """
+               Initialize all parameters needed to analyze a texture image.
+
+               Args:
+                   scales:             spatial neighborhood of autocorrelations is Na x Na coefficients (must be odd)
+                   img_scale_mode:     default None. 'rescale01', 'norm255'
+        """
 
         self.scales = scales
+        self.img_scale_mode = img_scale_mode
 
     def __call__(self, image):
         '''
@@ -74,8 +82,9 @@ class PSTMfeatures():
         # Todo: check scales and image size.
         
         # Analysis
-        a = Analysis(image, nsc=self.scales) # img,nsc # number of bandpasses (scales)
+        a = Analysis(image, nsc=self.scales, scale_mode=self.img_scale_mode) # img,nsc # number of bandpasses (scales)
         a.computeFeatures()
         jointStat = a.getJointStatisticsFeatures()
+
         return  torch.from_numpy(jointStat.astype('float32'))
 

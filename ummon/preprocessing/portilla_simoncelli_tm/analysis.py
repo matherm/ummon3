@@ -44,7 +44,7 @@ class Analysis:
                         (between orientations of two adjacent scales for each scale)
     """
 
-    def __init__(self, img, SP_decomp=True, nsc=4, Na=9):
+    def __init__(self, img, SP_decomp=True, nsc=4, Na=9, scale_mode=None):
         """
         Initialize all parameters needed to analyze a texture image.
 
@@ -53,6 +53,7 @@ class Analysis:
             sp_decomp:      use Portilla-Simoncelli filter bank
             nsc:            number of scales (bandpasses without high-/low-pass)
             Na:             spatial neighborhood of autocorrelations is Na x Na coefficients (must be odd)
+            scale_mode:     default None. 'rescale01', 'norm255'
 
          Returns:
              Analysis object
@@ -61,9 +62,14 @@ class Analysis:
             >> a = Analysis(im)
             >> stats = a.getFeatures()
         """
+        self.scale_mode = scale_mode
+        if self.scale_mode == 'norm255':
+            self.img / 255
+        elif self.scale_mode == 'rescale01':
+            self.img = (img - np.min(img)) / (np.max(img) - np.min(img))
+        else:
+            self.img = img
 
-        # 0 and 1
-        self.img = (img - np.min(img)) / (np.max(img) - np.min(img))
         self.sp_decomp = SP_decomp
         self.Na = Na
         self.Nsc = nsc
