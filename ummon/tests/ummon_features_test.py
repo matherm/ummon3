@@ -6,19 +6,8 @@ sys.path.insert(0,'../ummon3')
 #############################################################################################
 
 import unittest
-import logging
 import os
-import numpy as np
-from scipy.signal import convolve2d, correlate2d
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from math import log
-from torch.autograd import Variable
-from torch.utils.data.dataset import TensorDataset
-from torch.utils.data import DataLoader
 from torchvision import transforms
-import ummon.utils as uu
 from ummon import *
 
 # set fixed seed for reproducible results
@@ -128,24 +117,30 @@ class TestUmmonFeatures(unittest.TestCase):
         # Load test data from ML implementation
         import scipy.io as sio
 
-        filename = 'wood-0035_p1_gray'
+        filename = 'input.mat'
         object_name = 'input'
-        sw_mat = sio.loadmat(str('ummon/datasets/testdata/' + filename))
-        img = sw_mat[object_name]
+        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        input = sw_mat[object_name]
+
+        filename = 'outputDecomp.mat'
+        object_name = 'out'
+        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        outputDecomp_ml = np.asarray(np.real(sw_mat[object_name]).flatten(), dtype='float32')
+
+        filename = 'outputNormalized.mat'
+        object_name = 'outputNormalized'
+        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        outputNormalized_ml = np.asarray(sw_mat[object_name], dtype='float32')
+        outputNormalized_ml_mean = np.flip(np.mean(np.mean(outputNormalized_ml, 0), 0), 1).flatten()
 
         ## Test extractor
-        # decomp Gabor
-        pyr = swEVMfeatures(normalized=False, meanFreqOutput=False)(img)
+        pyr = swEVMfeatures(normalized=False, meanFreqOutput=False)(input)
+        pyr_normalized = swEVMfeatures(normalized=True, meanFreqOutput=False)(input)
+        pyr_normalized_mean = swEVMfeatures(normalized=True, meanFreqOutput=True)(input)
 
-        ## Load reference output from ML implementation
-        filename = 'evm_decomp_gabor_output_wood-0035_p1_gray'
-        object_name = 'output'
-        ml_obj_pyr = sio.loadmat(str('ummon/datasets/testdata/' + filename + '.mat'))
-        ml_pyr = np.abs(ml_obj_pyr[object_name]).astype('float32').flatten()
-
-        assert (np.allclose(pyr.data.numpy(), ml_pyr, rtol=1e-05, atol=1e-5))
-
-              
+        assert (np.allclose(pyr.data.numpy(), outputDecomp_ml, rtol=1e-05, atol=1e-5))
+        assert (np.allclose(pyr_normalized.data.numpy(), outputNormalized_ml.flatten()))
+        assert (np.allclose(pyr_normalized_mean.data.numpy(), outputNormalized_ml_mean))
 
 if __name__ == '__main__':
     import argparse

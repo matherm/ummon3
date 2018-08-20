@@ -85,6 +85,9 @@ class swEMV:
         f = np.sqrt((x ** 2) + ((y ** 2).T))
         orient0 = np.arctan2(x, y.T).T
 
+        ## todo: maybe add gradent implementation...
+        # pyrGradBW = np.zeros([imSize[0], imSize[1], nOrient, nFreq, 2])
+
         filters = []
         for iFilter in range(0, nFreq):
             filters.append(np.fft.ifftshift(
@@ -92,6 +95,7 @@ class swEMV:
                                  0), 1))
 
             pyr[:, :, :, iFilter] = np.fft.ifft2((filters[iFilter] * imgFourier), axes=(0, 1))
+
         return pyr, filters, freq
 
     def V1(self, img, degSize=[2, 2], V1Mode=None, pars=None, Gradidx=None):
@@ -101,31 +105,24 @@ class swEMV:
         '''
 
         ## pars
-        CNaka = 0.0046  # Naka rushton constant
-        ExNaka = 2.3929  # Naka rushton Exponent below
-        ExNakaNorm = 2.0253  # Naka rushton Exponent below
+        # Todo: parse pars input.
+        CNaka = 0.003593813663805  # Naka rushton constant
+        ExNaka = 4.400000000000000  # Naka rushton Exponent below
+        ExNakaNorm = 4  # Naka rushton Exponent below
         bw = [0, 0]
-        bw[0] = 0.5945  # bandwidth in frequency (std of log-Gabor in octaves)
-        bw[1] = 0.2965  # bandwidth in orientation (std log-Gabor in radiants)
+        bw[0] = 0.594525260201613  # bandwidth in frequency (std of log-Gabor in octaves)
+        bw[1] = 0.296469236479833  # bandwidth in orientation (std log-Gabor in radiants)
         nFreq = 12  # number of frequency bands
         nOrient = 8  # number of orientations
         poolbw = 1  # bandwidth of the normalization pool (Octaves in frequency)
         minF = 0.5  # lowest frequency band
         maxF = 20  # highest frequency band
-        pool0 = 0.2008
+        pool0 = 0.111175963679937
 
         ## Frequency decomposition
         # into log_Gabor frequency and orentation bands
         out, filters, frequencies = self.decomp_Gabor(img, degSize, [minF, maxF], nFreq, nOrient, bw)
         ao = np.abs(out)
-
-        imSize = np.shape(img)
-        x = np.zeros((1, imSize[1]))
-        y = np.zeros((1, imSize[0]))
-        x[0] = np.arange(0, imSize[1])
-        y[0] = np.arange(0, imSize[0])
-        x = (x - np.ceil(np.mean(x))) / degSize[1]
-        y = (y - np.ceil(np.mean(y))) / degSize[0]
 
         ## V1Mode 7 (Ml switch case)
         lao = np.log(ao)
@@ -142,6 +139,7 @@ class swEMV:
             o[i] = i - np.floor(nOrient / 2)
         o *= np.pi / nOrient
 
+        # Todo: if (not finite) else if pool0 else:
         gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
         gaussON = gaussO / np.sum(gaussO)
         gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
@@ -157,10 +155,10 @@ class swEMV:
 
         normalizerPad = np.pad(normalizer,
                                ((0, 0), (0, 0), (0, 0), ((normalizer.shape[3] - 1), (normalizer.shape[3] - 1))),
-                               'constant',
-                               constant_values=0)
+                               'constant', constant_values=0)
+
         normalizer = convolve(normalizerPad, gaussFN, 'valid')
         normalizerFin = (normalizer + CNaka ** ExNakaNorm)
         outNormalized = np.exp(lao * ExNaka) / normalizerFin
 
-        return outNormalized, out
+        return outNormalized

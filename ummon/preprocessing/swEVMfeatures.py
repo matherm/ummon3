@@ -64,12 +64,18 @@ class swEVMfeatures():
         evm = swEMV()
 
         if self.normalized:
-            out, _ = evm.V1(image)
-        else:
-            out, _, _ = evm.decomp_Gabor(image)
+            out = evm.V1(image)
 
-        if self.meanFreqOutput:
-            out = np.flip(np.mean(np.abs(np.mean(out, 0)), 0), 1)
+            if self.meanFreqOutput:
+                out = np.flip(np.mean(np.mean(out, 0), 0), 1)
+
+        else:
+            # retrun magnitude
+            out, _, _ = evm.decomp_Gabor(image)
+            out = np.real(out)
+
+            if self.meanFreqOutput:
+                out = np.flip(np.mean(np.abs(out, 0), 0), 1)
 
         # magnitude of the complex model output.
-        return torch.from_numpy(np.abs(out).astype('float32').flatten())
+        return torch.from_numpy(np.asarray(out.flatten(), dtype='float32'))
