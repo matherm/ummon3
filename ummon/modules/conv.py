@@ -12,7 +12,7 @@ class Conv(nn.Conv2d):
     '''
     Convolutional layer::
     
-        conv0 = Conv([m,n,p], [c,r,s], [ystride,xstride], padding, bias, init)
+        conv0 = Conv([m,n,p], [c,r,s], [ystride,xstride], [ypadding, xpadding], bias, init)
     
     creates a convolutional layer for unflattened 4d input tensors. The weight matrix is 
     initialized according to 'init' which must be one of the initialization methods 
@@ -29,9 +29,9 @@ class Conv(nn.Conv2d):
     input images. You can use a single number if the strides in both directions is equal.
     
     Additional boundary pixels with value 0 are allocated when 'padding' is set to value 
-    larger than 0. Note that the same number of rows and columns are added, independently
-    of the filter size. Therefore, this option should only be used for quadratic
-    filters in x-y-direction. If you set 'padding' to zero you obtain the classical
+    larger than 0. Note that in this case the same number of rows and columns are added, independently
+    of the filter size. Alternatively, you can two different paddings in y- and x-direction
+    by setting 'padding' to 2-tupke. If you set 'padding' to zero you obtain the classical
     'valid' padding used, e.g. in LeNet which leads to smaller output images. 
     By setting 'padding' to half the filter size you
     get the 'half' padding used in Theano. This corresponds to standard zero padding as
@@ -69,7 +69,6 @@ class Conv(nn.Conv2d):
             s = int(s)
             if s < 1:
                 raise ValueError('Filter size must be > 0.')
-        self._padding = abs(int(padding))
         if type(stride) == int:
             self._stride = [stride, stride]
         else:
@@ -81,6 +80,17 @@ class Conv(nn.Conv2d):
         if len(self._stride) != 2:
             raise TypeError('Provided stride must have 1 or 2 elements.')
         self._stride = tuple(self._stride)
+        if type(padding) == int:
+            self._padding = [padding, padding]
+        else:
+            self._padding = list(padding)
+        for s in self._padding:
+            s = int(s)
+            if s < 0:
+                raise ValueError('Padding must be >= 0.')
+        if len(self._padding) != 2:
+            raise TypeError('Provided padding must have 1 or 2 elements.')
+        self._padding = tuple(self._padding)
         
         # create pytorch conv2d
         super(Conv, self).__init__(self.insize[0], self.filtsize[0], (self.filtsize[1], 
@@ -93,9 +103,9 @@ class Conv(nn.Conv2d):
             nn.init.constant_(self.bias,0.0)
         
         # output size
-        out_height = (self.insize[1] + 2*self._padding - self.filtsize[1]) // \
+        out_height = (self.insize[1] + 2*self._padding[0] - self.filtsize[1]) // \
             self._stride[0] + 1
-        out_width = (self.insize[2] + 2*self._padding - self.filtsize[2]) // \
+        out_width = (self.insize[2] + 2*self._padding[1] - self.filtsize[2]) // \
             self._stride[1] + 1
         self.outsize = [self.filtsize[0], out_height, out_width]
         
@@ -124,16 +134,16 @@ class Conv(nn.Conv2d):
         '''
         Returns the input block that feeds into the specified output block.
         '''
-        y0 = outp[1]*self._stride[0] - self._padding
+        y0 = outp[1]*self._stride[0] - self._padding[0]
         if y0 < 0:
             y0 = 0
-        x0 = outp[2]*self._stride[1] - self._padding
+        x0 = outp[2]*self._stride[1] - self._padding[1]
         if x0 < 0: 
             x0 = 0
-        y1 = outp[4]*self._stride[0] + self.filtsize[1] - 1 - self._padding
+        y1 = outp[4]*self._stride[0] + self.filtsize[1] - 1 - self._padding[0]
         if y1 >= self.insize[1]:
             y1 = self.insize[1] - 1
-        x1 = outp[5]*self._stride[1] + self.filtsize[2] - 1 - self._padding
+        x1 = outp[5]*self._stride[1] + self.filtsize[2] - 1 - self._padding[1]
         if x1 >= self.insize[2]: 
             x1 = self.insize[2] - 1
         
