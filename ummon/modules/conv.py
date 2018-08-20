@@ -12,55 +12,42 @@ class Conv(nn.Conv2d):
     '''
     Convolutional layer::
     
-        conv0 = Conv(id, [m,n,p], cnet, ['name 1', 'name 2',..], [c,r,s], init, padding, 
-            ystride, xstride, wdecay, is_trainable)
+        conv0 = Conv([m,n,p], [c,r,s], [ystride,xstride], padding, bias, init)
     
-    creates a convolutional layer with ID string 'id' for unflattened 4d input tensors.
-    The layer is registered in the network 'cnet' and connected to the input 
-    layers 'name 1', 'name 2 ' etc. The weight matrix is initialized
-    according to 'init' which must be one of the initialization methods described in
-    the base class Layer. The actual initialization is done in Network.init_weights().
+    creates a convolutional layer for unflattened 4d input tensors. The weight matrix is 
+    initialized according to 'init' which must be one of the initialization methods 
+    described in pyTorch.
     
-    This node implements a convolutional layer with a set of 'c' learned filters that
+    This layer implements a convolutional layer with a set of 'c' learned filters that
     are applied to a sequence of m-channel images. The output of each filter is
     the cross-correlation of the learned m x r x s filter mask with the multi channel
     image where 'm' is the number of input channels, 'r' the filter mask height and 's' 
-    the filter mask width. Filter width and height must be odd numbers, so, e.g., a 
-    c x 2 x 2 filter is not allowed. 
+    the filter mask width. 
     
-    The user can set the boundary treatment to the following values:
+    The output image can be downscaled by a factor of 'ystride' in y- and 'xstride' in 
+    x-direction. In this way, a strided convolution is possible. This is useful for large 
+    input images. You can use a single number if the strides in both directions is equal.
     
-    1. 'valid': The c x m x n volume is scanned only over the valid xy-region of
-       input image such that the filter mask is completely inside the image. As a result,
-       no special treatment of the image boundary is needed, however the output image
-       becomes smaller by m - 1 pixels in y-direction and by n - 1 pixels in x-direction.
-       For valid padding, no strided convolution is possible.
-    
-    2. 'half': here, the volume is scanned over the entire image. Input regions 
-       outside the image are set to zero. The output image either has the same size as the input
-       image, or is downscaled by a factor of 'ystride' in y- and 'xstride' in x-direction
-       if these values are set larger than one. In this way, a strided convolution is 
-       possible. This is useful for large input images.
+    Additional boundary pixels with value 0 are allocated when 'padding' is set to value 
+    larger than 0. Note that the same number of rows and columns are added, independently
+    of the filter size. Therefore, this option should only be used for quadratic
+    filters in x-y-direction. If you set 'padding' to zero you obtain the classical
+    'valid' padding used, e.g. in LeNet which leads to smaller output images. 
+    By setting 'padding' to half the filter size you
+    get the 'half' padding used in Theano. This corresponds to standard zero padding as
+    used in image processing and preserves the image size.
     
     In addition, each filter also has a trainable bias term similar to standard linear 
-    layers.
+    layers. If you do not want a bias term set the argument 'bias' to False.
     
-    The node accepts only input tensors of size [mini_batch_size, m, n, p] and produces 
-    output tensors of size [mini_batch_size, c, n - r + 1, p - s + 1] for 'valid' boundary
-    conditions and [mini_batch_size, c, (n - 1)/ystride + 1, (p - 1)/xstride + 1] for 
-    'half' boundary conditions. If the input is in flattened format, an Unflatten node 
-    has to be inserted as input layer. You can set an L2 weight decay 'wdecay' for the 
-    weights for this layer individually.
+    The layer accepts only input tensors of size [mini_batch_size, m, n, p]. If the input 
+    is in flattened format, an Unflatten node 
+    has to be inserted as input layer. 
     
     Attributes:
     
-    * weights: weight tensor of the layer
-    * bias: bias vector
-    * filtsize: filter size, [ num_maps, filter_height, filter_width ] (read only)
-    * padding: padding type (either 'valid' or 'half', read only)
-    * ystride: stride in y-direction (read only)
-    * xstride: stride in x-direction (read only)
-    * is_trainable: True if weights and bias should be updated
+    * w: weight tensor of the layer
+    * b: bias vector
     
     '''
     # constructor

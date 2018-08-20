@@ -747,6 +747,230 @@ class TestUmmon(unittest.TestCase):
         print(y3)
     
     
+    # test convolutional layer with half padding
+    def test_half_padding(self):
+        print('\n')
+        
+        # create net
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3], padding=1))
+        )
+        print(cnet)
+        
+        # check weight matrix size
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        assert w.shape == (2,1,3,3)
+        assert b.shape == (2,)
+        
+        # test input
+        x0 = np.zeros((2,25), dtype=np.float32)
+        x0[0,12] = 1.0
+        x0[1,12] = 3.0
+        y0 = np.random.randn(2, 50).astype('float32')
+        y1 = np.zeros((2,2,5,5), dtype=np.float32)
+        
+        # predict and check cross-correlation
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Predictions Conv for delta input:')
+        print(y2)
+        print('Reference predictions:')
+        y1[0,0,1:-1,1:-1] += np.flipud(np.fliplr(w[0,0,:,:]))
+        y1[0,1,1:-1,1:-1] += np.flipud(np.fliplr(w[1,0,:,:]))
+        y1[1,0,1:-1,1:-1] += np.flipud(np.fliplr(3*w[0,0,:,:]))
+        y1[1,1,1:-1,1:-1] += np.flipud(np.fliplr(3*w[1,0,:,:]))
+        print(y1)
+        assert np.allclose(y1, y2, 0, 1e-5)
+    
+    
+    # test convolutional layer with half padding gradient
+    def test_half_padding_gradient(self):
+        print('\n')
+    
+        def half(img):
+            out_img = np.zeros((img.shape[0]+2, img.shape[1]+2), dtype=np.float32)
+            out_img[1:-1,1:-1] = img
+            return out_img
+        
+        # create net
+        eta = 0.1
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [2,3,3], padding=1)),
+            ('flatt', Flatten([2,5,5]))
+        )
+        print(cnet)
+        loss = nn.MSELoss(reduction='sum')
+        opt = torch.optim.SGD(cnet.parameters(), lr=eta)
+        
+        # weights
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        
+        # test input
+        x0 = np.zeros((2,25), dtype=np.float32)
+        x0[0,12] = 1.0
+        x0[1,12] = 3.0
+        y0 = np.random.randn(2, 50).astype('float32')
+        y1 = np.zeros((2,2,5,5), dtype=np.float32)
+        
+        # forward path
+        y1[0,0,1:-1,1:-1] += np.flipud(np.fliplr(w[0,0,:,:]))
+        y1[0,1,1:-1,1:-1] += np.flipud(np.fliplr(w[1,0,:,:]))
+        y1[1,0,1:-1,1:-1] += np.flipud(np.fliplr(3*w[0,0,:,:]))
+        y1[1,1,1:-1,1:-1] += np.flipud(np.fliplr(3*w[1,0,:,:]))
+        
+        # reference backward path
+        y1 = np.reshape(y1, (1,1,2,50))
+        dL = 2.0*(y1 - y0)
+        dL1 = np.reshape(dL, (2,2,5,5))
+        dL2 = np.zeros((2,2,7,7))
+        dL2[0,0,:,:] = half(dL1[0,0,:,:])
+        dL2[0,1,:,:] = half(dL1[0,1,:,:])
+        dL2[1,0,:,:] = half(dL1[1,0,:,:])
+        dL2[1,1,:,:] = half(dL1[1,1,:,:])
+        
+        # check update
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
+        y2 = cnet(x2)
+        lo = loss(y2, y1)
+        lo.backward() # torch gradient
+        print('Analytically computed gradient of w:')
+        dW0 = cnet.conv0.weight.grad.data.numpy()
+        print(dW0)
+        
+        # reference gradient of w
+        x1 = np.reshape(x0, (2,1,5,5))
+        dW1 = correlate2d(x1[0,0,:,:], dL1[0,0,1:-1,1:-1], 'valid')
+        dW2 = correlate2d(x1[0,0,:,:], dL1[0,1,1:-1,1:-1], 'valid')
+        dW1 += correlate2d(x1[1,0,:,:], dL1[1,0,1:-1,1:-1], 'valid')
+        dW2 += correlate2d(x1[1,0,:,:], dL1[1,1,1:-1,1:-1], 'valid')
+        print('True weight gradient:')
+        print(dW1)
+        print(dW2)
+        assert np.allclose(dW0[0,0,:,:], dW1, 0, 1e-5)
+        assert np.allclose(dW0[1,0,:,:], dW2, 0, 1e-5)
+        
+        print('Analytically computed gradient of b:')
+        db0 = cnet.conv0.bias.grad.data.numpy()
+        print(db0.transpose())
+        
+        # reference gradient of b
+        db1 = np.array([dL1[0,0,:,:].sum(), dL1[0,1,:,:].sum()])
+        db1 += np.array([dL1[1,0,:,:].sum(), dL1[1,1,:,:].sum()])
+        print('True bias gradient:')
+        print(db1)
+        assert np.allclose(db0.transpose(), db1, 0, 1e-5)
+    
+    
+    # test convolution with strides
+    def test_conv_with_strides(self):    
+        print('\n')
+        
+        # create net
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [1,3,3], stride=2, padding=1))
+        )
+        print(cnet)
+        
+        # weights
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        
+        # test input
+        x0 = np.random.randn(1, 25).astype('float32')
+        y0 = np.random.randn(1, 9).astype('float32')
+        print('Input:')
+        x1 = np.reshape(x0, (5,5))
+        print(x1)
+        
+        # predict and check cross-correlation
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions Conv for delta input:')
+        print(y2)
+        assert y2.shape[2] == 3 and y2.shape[3] == 3
+        print('Reference predictions (central column):')
+        y1 = np.sum(x1[:2,1:4]*w[0,0,1:,:]) + b
+        print(y1)
+        assert np.allclose(y1[0], y2[0,0,0,1], 0, 1e-5)
+        y1 = np.sum(x1[1:4,1:4]*w) + b
+        print(y1)
+        assert np.allclose(y1[0], y2[0,0,1,1], 0, 1e-5)
+        y1 = np.sum(x1[3:,1:4]*w[0,0,:2,:]) + b
+        print(y1)
+        assert np.allclose(y1[0], y2[0,0,2,1], 0, 1e-5)
+    
+    
+    # test convolution with strides gradient
+    def test_conv_with_strides_gradient(self):    
+        print('\n')
+        
+        # create net
+        eta = 0.1
+        cnet = Sequential(
+            ('unfla', Unflatten([25], [1,5,5])),
+            ('conv0', Conv([1,5,5], [1,3,3], stride=2, padding=1)),
+            ('flatt', Flatten([1,3,3]))
+        )
+        print(cnet)
+        loss = nn.MSELoss(reduction='sum')
+        opt = torch.optim.SGD(cnet.parameters(), lr=eta)
+        
+        # weights
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        
+        # test input
+        x0 = np.random.randn(1, 25).astype('float32')
+        y0 = np.random.randn(1, 9).astype('float32')
+        x1 = np.reshape(x0, (5,5))
+        
+        # predict 
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y1 = Variable(torch.FloatTensor(y0), requires_grad=False)
+        y2 = cnet(x2)
+        y = y2.data.numpy()
+        
+        # reference backward path
+        y3 = np.reshape(y, (1,9))
+        dL = 2.0*(y3 - y0)
+        
+        # check update
+        lo = loss(y2, y1)
+        lo.backward() # torch gradient
+        print('Analytically computed gradient of w:')
+        dW0 = cnet.conv0.weight.grad.data.numpy()
+        print(dW0)
+        dL1 = np.reshape(dL, (3,3))
+        print('True weight gradient:')
+        y1 = np.sum(x1[::2,::2]*dL1)
+        print(y1)
+        assert np.allclose(y1, dW0[0,0,1,1], 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
