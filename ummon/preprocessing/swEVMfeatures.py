@@ -72,7 +72,7 @@ class swEVMfeatures():
         else:
             # retrun magnitude
             out, _, _ = evm.decomp_Gabor(image)
-            out = np.real(out)
+            out = np.abs(out)
 
             if self.meanFreqOutput:
                 out = np.flip(np.mean(np.abs(out, 0), 0), 1)

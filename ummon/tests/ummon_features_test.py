@@ -125,7 +125,7 @@ class TestUmmonFeatures(unittest.TestCase):
         filename = 'outputDecomp.mat'
         object_name = 'out'
         sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
-        outputDecomp_ml = np.asarray(np.real(sw_mat[object_name]).flatten(), dtype='float32')
+        outputDecomp_ml = np.asarray(np.abs(sw_mat[object_name]).flatten(), dtype='float32')
 
         filename = 'outputNormalized.mat'
         object_name = 'outputNormalized'
