@@ -971,6 +971,83 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y1, dW0[0,0,1,1], 0, 1e-5)
     
     
+    # test SAME padding MAXPOOLING
+    def test_max_pooling_same(self):
+        print('\n')    
+        batch = 1
+        cnet = Sequential(
+            ('unfla', Unflatten([35], [1,5,7])),
+            ('pool0', MaxPool([1,5,7], kernel_size=(3,3), stride=(2,3), padding=(1,1)))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,35).astype('float32')
+        
+        # compute reference forward path
+        x1 = np.reshape(x0, (batch,1,5,7))
+        print('Input:')
+        print(x1)
+        y1 = np.zeros((3,3), dtype=np.float32)
+        y1[0,0] = x1[0,0,:2,:2].max()
+        y1[0,1] = x1[0,0,:2,2:5].max()
+        y1[0,2] = x1[0,0,:2,5:].max()
+        y1[1,0] = x1[0,0,1:4,:2].max()
+        y1[1,1] = x1[0,0,1:4,2:5].max()
+        y1[1,2] = x1[0,0,1:4,5:].max()
+        y1[2,0] = x1[0,0,3:,:2].max()
+        y1[2,1] = x1[0,0,3:,2:5].max()
+        y1[2,2] = x1[0,0,3:,5:].max()
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions max pooling:')
+        print(y2)
+        print('Reference predictions:')
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
+    # test SAME padding AVERAGE
+    def test_avg_pooling_same(self):
+        print('\n')    
+        batch = 1    
+        cnet = Sequential(
+            ('unfla', Unflatten([35], [1,5,7])),
+            ('pool0', AvgPool([1,5,7], kernel_size=(3,5), stride=(2,3), padding=(1,2)))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,35).astype('float32')
+        
+        # predict
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions average pooling:')
+        print(y2)
+        
+        print('Reference predictions:')
+        x2 = np.reshape(x0, (5,7))
+        x1 = np.zeros((7,11))
+        x1[1:6,2:9] = x2
+        y1 = np.zeros((3, 3), dtype=np.float32)
+        y1[0,0] = x1[:3,:5].mean()
+        y1[0,1] = x1[:3,3:8].mean()
+        y1[0,2] = x1[:3,6:].mean()
+        y1[1,0] = x1[2:5,:5].mean()
+        y1[1,1] = x1[2:5,3:8].mean()
+        y1[1,2] = x1[2:5,6:].mean()
+        y1[2,0] = x1[4:,:5].mean()
+        y1[2,1] = x1[4:,3:8].mean()
+        y1[2,2] = x1[4:,6:].mean()
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
