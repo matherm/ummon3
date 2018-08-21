@@ -65,6 +65,7 @@ from .modules.flatten import *
 from .modules.conv import *
 from .modules.pooling import *
 from .modules.dropout import *
+from .modules.lrn import *
 from .modules.vgg19 import *
 from .modules.gram import *
 from .gridsearch import *

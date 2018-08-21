@@ -1048,6 +1048,42 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y2, y1, 0, 1e-5)
     
     
+    # test local response normalization
+    def test_lrn(self):
+        print('\n')
+        batch = 1
+        cnet = Sequential(
+            ('unfla', Unflatten([16], [4,2,2])),
+            ('lrn00', LRN([4,2,2], 3, 2.0, 0.0001, 0.75))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,16).astype('float32')
+        
+        # compute reference forward path
+        x1 = np.reshape(x0, (batch,4,2,2))
+        y1 = np.zeros(x1.shape, dtype=np.float32)
+        sqr_sum = x1[0,0,:,:]**2
+        for j in range(4):
+            if j < 3:
+                sqr_sum += x1[0,j+1,:,:]**2
+            if j > 1:
+                sqr_sum -= x1[0,j-2,:,:]**2
+            denom = (2.0 + 0.0001*sqr_sum)**(-0.75)
+            y1[0,j,:,:] = x1[0,j,:,:]*denom
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions local response normalization:')
+        print(y2)
+        print('Reference predictions:')
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-4)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
