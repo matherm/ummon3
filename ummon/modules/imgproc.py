@@ -1,10 +1,11 @@
+import math
 import numpy as np
 import torch
 import torch.nn as nn
 
 
-__all__ = [ 'Crop' ]
-#, 'Whiten', 'RandomFlipLR', 'RandomBrightness', 'RandomContrast' ]
+__all__ = [ 'Crop', 'Whiten' ]
+#, 'RandomFlipLR', 'RandomBrightness', 'RandomContrast' ]
 
 # image cropping
 class Crop(nn.Module):
@@ -97,59 +98,69 @@ class Crop(nn.Module):
     @property
     def xcrop(self):
         return self._xcrop
-# 
-# 
-# # image whitening
-# class Whiten(Layer):
-#     '''
-#     Approximate image whitening::
-#     
-#         white  = Whiten(id, [n,p,q], cnet, ['name 1', 'name 2',..])
-#     
-#     Linearly scales input tensor of size [:,n,p,q] image-wise to have zero mean and unit 
-#     norm. This layer computes (x - mean) / dev, where dev = max(stddev, 
-#     1.0/sqrt(number of pixels). The standard deviation is capped away from zero to protect 
-#     against division by 0 when handling uniform images. Input and output size are the same.
-#     Note that this layer is only executed on the CPU.
-#     '''
-#     # constructor
-#     def __init__(self, id, insize, netw, inputs=[]):
-#         super(Whiten, self).__init__(id, insize, netw, inputs)
-#         
-#         # check layer parameters
-#         if len(insize) != 3:
-#             _lg.error('Input size list must have 3 elements.', TypeError)
-#         
-#         # add layer to network
-#         self.outsize = self.insize
-#         self.preprocessing = True
-#         netw.register_node(self)
-#         _lg.info("Whiten              ({}->{}) '{}'".format(
-#             self.insize, self.outsize, self.id))
-#         
-#         # minimum variance for normalization
-#         self._mindev = np.float32(1.0/math.sqrt(self.insize[2]*self.insize[3]))
-#     
-#     # Forward path
-#     def forward(self, input, **kwargs):
-#         '''
-#         Whitening done in Python(Numpy. Called by Network._preprocessing_deterministic()
-#         and Network._preprocessing_nondeterministic().
-#         '''
-#         output = np.zeros(self.outsize, dtype=np.float32)
-#         for i in range(self.insize[0]):
-#             for j in range(self.insize[1]):
-#                 img = input[i,j,:,:]
-#                 m = img.mean()
-#                 s = img.std()
-#                 if s < self._mindev:
-#                     s = self._mindev
-#                 s = 1.0/s
-#                 output[i,j,:,:] = s*(img - m)
-#         return output
-# 
-# 
-# # random left right flipping of an image
+
+
+# image whitening
+class Whiten(nn.Module):
+    '''
+    Approximate image whitening::
+    
+        white  = Whiten([n,p,q])
+    
+    Linearly scales input tensor of size [:,n,p,q] image-wise to have zero mean and unit 
+    norm. This layer computes (x - mean) / dev, where dev = max(stddev, 
+    1.0/sqrt(number of pixels). The standard deviation is capped away from zero to protect 
+    against division by 0 when handling uniform images. Input and output size are the same.
+    '''
+    # constructor
+    def __init__(self, insize):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 3:
+            raise TypeError('Input size list must have 3 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        super(Whiten, self).__init__()
+        self.outsize = self.insize
+        
+        # minimum variance for normalization
+        self._mindev = np.float32(1.0/math.sqrt(self.insize[1]*self.insize[2]))
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+        + '[bs,{},{},{}]->[bs,{},{},{}])'.format(self.insize[0], self.insize[1], 
+            self.insize[2], self.outsize[0], self.outsize[1], self.outsize[2])
+    
+    # Forward path
+    def forward(self, input):
+        output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+        for i in range(input.size()[0]):
+            for j in range(self.insize[0]):
+                img = input[i,j,:,:]
+                m = img.mean().item()
+                s = torch.std(img).item()
+                if s < self._mindev:
+                    s = self._mindev
+                s = 1.0/s
+                centred_img = torch.add(img, -m)
+                output[i,j,:,:] = torch.mul(centred_img, s)
+        return output
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        return outp
+
+
+# random left right flipping of an image
 # class RandomFlipLR(Layer):
 #     '''
 #     Randomly flips an image horizontally (left to right):: 

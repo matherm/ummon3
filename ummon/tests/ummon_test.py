@@ -1114,8 +1114,46 @@ class TestUmmon(unittest.TestCase):
         cnet.train()
         y2 = cnet(x2)
         y2 = y2.data.numpy()
-        print('Output crop evaluation mode:')
+        print('Output crop training mode:')
         print(y2)
+    
+    
+    # test whitening
+    def test_whitening(self):
+        print('\n')
+        batch = 1
+        cnet = Sequential(
+            ('unfla', Unflatten([32], [2,4,4])),
+            ('crop0', Crop([2,4,4], 2, 2)),
+            ('white', Whiten([2,2,2]))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,32).astype('float32')
+        x1 = np.reshape(x0, (batch,2,4,4))
+        print('Input:')
+        print(x1)
+        
+        # reference whitening
+        y1 = x1[:,:,1:3,1:3] # central crop
+        y2 = np.zeros((batch,2,2,2), dtype=np.float32)
+        for i in range(2):
+            stddev = y1[0,i,:,:].std(ddof=1) # numpy uses biased estimator if ddof is not set to 1
+            if stddev < 1.0/2.0:
+                stddev = 0.5
+            y2[0,i,:,:] = (y1[0,i,:,:] - y1[0,i,:,:].mean())/stddev
+        
+        # predict whiten
+        cnet.eval()
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y3 = cnet(x2)
+        y3 = y3.data.numpy()
+        print('Output whitening:')
+        print(y3)
+        print('Reference:')
+        print(y2)
+        assert np.allclose(y3, y2, 0, 1e-5)
     
     
     def test_Trainer(self):
