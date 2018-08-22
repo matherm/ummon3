@@ -1084,6 +1084,40 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y2, y1, 0, 1e-4)
     
     
+    # test crop
+    def test_crop(self):
+        print('\n')
+        batch = 2
+        cnet = Sequential(
+            ('unfla', Unflatten([32], [2,4,4])),
+            ('crop0', Crop([2,4,4], 2, 2))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,32).astype('float32')
+        x1 = np.reshape(x0, (batch,2,4,4))
+        print('Input:')
+        print(x1)
+        
+        # crop in evaluation mode
+        cnet.eval()
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Output crop evaluation mode:')
+        print(y2)
+        y1 = x1[:,:,1:3,1:3]
+        assert np.allclose(y2, y1, 0, 1e-5)
+        
+        # crop in training mode
+        cnet.train()
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Output crop evaluation mode:')
+        print(y2)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
