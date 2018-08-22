@@ -1156,6 +1156,35 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y3, y2, 0, 1e-5)
     
     
+    # test flipLR
+    def test_flipLR(self):
+        print('\n')
+        batch = 2
+        cnet = Sequential(
+            ('unfla', Unflatten([32], [2,4,4])),
+            ('flip0', RandomFlipLR([2,4,4]))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,32).astype('float32')
+        x1 = np.reshape(x0, (batch,2,4,4))
+        print('Input:')
+        print(x1)
+        
+        # predict flip
+        cnet.train()
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y3 = cnet(x2)
+        y3 = y3.data.numpy()
+        print('Output flipLR:')
+        print(y3)
+        y3 = cnet(x2)
+        y3 = y3.data.numpy()
+        print('Output flipLR:') # 2 times to see at least one flip
+        print(y3)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)

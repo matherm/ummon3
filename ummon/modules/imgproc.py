@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 
 
-__all__ = [ 'Crop', 'Whiten' ]
-#, 'RandomFlipLR', 'RandomBrightness', 'RandomContrast' ]
+__all__ = [ 'Crop', 'Whiten', 'RandomFlipLR' ]
+#, 'RandomBrightness', 'RandomContrast' ]
 
 # image cropping
 class Crop(nn.Module):
@@ -161,55 +161,67 @@ class Whiten(nn.Module):
 
 
 # random left right flipping of an image
-# class RandomFlipLR(Layer):
-#     '''
-#     Randomly flips an image horizontally (left to right):: 
-#     
-#         flip  = RandomFlipLR(id, [n,p,q], cnet, ['name 1', 'name 2',..])
-#     
-#     With a 1 in 2 chance, outputs the contents of an input tensor of size [:,n,p,q] with
-#     its images horizontally flipped; otherwise outputs the images as-is. Input and output 
-#     size are the same. Active only during training, otherwise only copies input to output.
-#     Note that this layer is only executed on the CPU.
-#     '''
-#     # constructor
-#     def __init__(self, id, insize, netw, inputs=[]):
-#         super(RandomFlipLR, self).__init__(id, insize, netw, inputs)
-#         
-#         # check layer parameters
-#         if len(insize) != 3:
-#             _lg.error('Input size list must have 3 elements.', TypeError)
-#         
-#         # add layer to network
-#         self.outsize = self.insize
-#         self.preprocessing = True
-#         netw.register_node(self)
-#         _lg.info("RandomFlipLR        ({}->{}) '{}'".format(
-#             self.insize, self.outsize, self.id))
-#     
-#     # Forward path
-#     def forward(self, input, training=False, **kwargs):
-#         '''
-#         Random flip done in Python(Numpy. Called by Network._preprocessing_deterministic()
-#         and Network._preprocessing_nondeterministic().
-#         '''
-#         # not in training mode: do nothing
-#         if not training:
-#             return input
-#         else:
-#             output = np.zeros(self.outsize, dtype=np.float32)
-#             for i in range(self.insize[0]):
-#                 rand = global_rng2.random_integers(low=0, high=1)
-#                 for j in range(self.insize[1]):
-#                     if rand > 0:
-#                         img = input[i,j,:,::-1]
-#                     else:
-#                         img = input[i,j,:,:]
-#                     output[i,j,:,:] = img
-#             return output
-# 
-# 
-# # random brightness adjustment of an image
+class RandomFlipLR(nn.Module):
+    '''
+    Randomly flips an image horizontally (left to right):: 
+    
+        flip  = RandomFlipLR([n,p,q])
+    
+    With a 1 in 2 chance, outputs the contents of an input tensor of size [:,n,p,q] with
+    its images horizontally flipped; otherwise outputs the images as-is. Input and output 
+    size are the same. Active only during training, otherwise only copies input to output.
+    '''
+    # constructor
+    def __init__(self, insize):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 3:
+            raise TypeError('Input size list must have 3 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        super(RandomFlipLR, self).__init__()
+        self.outsize = self.insize
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+        + '[bs,{},{},{}]->[bs,{},{},{}])'.format(self.insize[0], self.insize[1], 
+            self.insize[2], self.outsize[0], self.outsize[1], self.outsize[2])
+    
+    
+    # Forward path
+    def forward(self, input):
+        
+         # not in training mode: do nothing
+        if not self.training:
+            return input
+        else: # training: random flip
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            for i in range(input.size()[0]):
+                rand = int(torch.randint(low=0, high=2, size=(1,)).item())
+                for j in range(self.insize[0]):
+                    if rand > 0:
+                        inv_idx = torch.arange(self.insize[2]-1, -1, -1).long()
+                        img = input[i,j,:,inv_idx]
+                    else:
+                        img = input[i,j,:,:]
+                    output[i,j,:,:] = img
+            return output
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        return outp
+
+
+# random brightness adjustment of an image
 # class RandomBrightness(Layer):
 #     '''
 #     Adjust image brightness randomly::
