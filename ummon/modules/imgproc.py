@@ -193,6 +193,16 @@ class RandomFlipLR(nn.Module):
             self.insize[2], self.outsize[0], self.outsize[1], self.outsize[2])
     
     
+    # flip a tensor (Cuda + CPU)
+    def flip(self, x, dim):
+        xsize = x.size()
+        dim = x.dim() + dim if dim < 0 else dim
+        x = x.view(-1, *xsize[dim:])
+        x = x.view(x.size(0), x.size(1), -1)[:, getattr(torch.arange(x.size(1)-1, 
+            -1, -1), ('cpu','cuda')[x.is_cuda])().long(), :]
+        return x.view(xsize)
+    
+    
     # Forward path
     def forward(self, input):
         
@@ -205,8 +215,7 @@ class RandomFlipLR(nn.Module):
                 rand = int(torch.randint(low=0, high=2, size=(1,)).item())
                 for j in range(self.insize[0]):
                     if rand > 0:
-                        inv_idx = torch.arange(self.insize[2]-1, -1, -1).long()
-                        img = input[i,j,:,inv_idx]
+                        img = self.flip(input[i,j,:,:], 1)
                     else:
                         img = input[i,j,:,:]
                     output[i,j,:,:] = img
