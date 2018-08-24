@@ -1191,7 +1191,7 @@ class TestUmmon(unittest.TestCase):
         batch = 2
         cnet = Sequential(
             ('unfla', Unflatten([32], [2,4,4])),
-            ('flip0', RandomBrightness([2,4,4], 1.0))
+            ('rndbr', RandomBrightness([2,4,4], 1.0))
         )
         print(cnet)
         
@@ -1209,6 +1209,36 @@ class TestUmmon(unittest.TestCase):
         print('Output RandomBrightness:')
         print(y3)
         print(y3 - x1)
+    
+    
+    # test random contrast
+    def test_random_contrast(self):
+        print('\n')
+        batch = 2
+        cnet = Sequential(
+            ('unfla', Unflatten([32], [2,4,4])),
+            ('rndco', RandomContrast([2,4,4], 0.1, 10.0))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,32).astype('float32')
+        x1 = np.reshape(x0, (batch,2,4,4))
+        x1[0,0,:,:] = x1[0,0,:,:] - x1[0,0,:,:].mean()
+        x1[0,1,:,:] = x1[0,1,:,:] - x1[0,1,:,:].mean()
+        x1[1,0,:,:] = x1[1,0,:,:] - x1[1,0,:,:].mean()
+        x1[1,1,:,:] = x1[1,1,:,:] - x1[1,1,:,:].mean()
+        print('Input:')
+        print(x1)
+        
+        # predict rc
+        cnet.train()
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y3 = cnet(x2)
+        y3 = y3.data.numpy()
+        print('Output RandomContrast:')
+        print(y3)
+        print(y3/x1)
     
     
     def test_Trainer(self):
