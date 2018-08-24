@@ -1185,6 +1185,32 @@ class TestUmmon(unittest.TestCase):
         print(y3)
     
     
+    # test random brightness
+    def test_random_brightness(self):
+        print('\n')
+        batch = 2
+        cnet = Sequential(
+            ('unfla', Unflatten([32], [2,4,4])),
+            ('flip0', RandomBrightness([2,4,4], 1.0))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,32).astype('float32')
+        x1 = np.reshape(x0, (batch,2,4,4))
+        print('Input:')
+        print(x1)
+        
+        # predict rb
+        cnet.train()
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y3 = cnet(x2)
+        y3 = y3.data.numpy()
+        print('Output RandomBrightness:')
+        print(y3)
+        print(y3 - x1)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)

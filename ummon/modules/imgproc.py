@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 
 
-__all__ = [ 'Crop', 'Whiten', 'RandomFlipLR' ]
-#, 'RandomBrightness', 'RandomContrast' ]
+__all__ = [ 'Crop', 'Whiten', 'RandomFlipLR', 'RandomBrightness' ]
+#, 'RandomContrast' ]
 
 # image cropping
 class Crop(nn.Module):
@@ -231,67 +231,81 @@ class RandomFlipLR(nn.Module):
 
 
 # random brightness adjustment of an image
-# class RandomBrightness(Layer):
-#     '''
-#     Adjust image brightness randomly::
-#     
-#         bright = RandomBrightness(id, [n,p,q], cnet, ['name 1', 'name 2',..], max_delta)
-#     
-#     Adds a random number to all channels of the images in the input tensor during 
-#     training, thereby adjusting the overall brightness of the image. The random number is 
-#     drawn uniformly from the interval [-max_delta, max_delta] specified in the constructor. 
-#     No clipping is done, so this node should be used together with Whiten. Input and 
-#     output size are the same. Active only during training, otherwise only copies input to 
-#     output. Note that this layer is only executed on the CPU.
-#     
-#     Attributes:
-#     
-#     * max_delta: half width of additive brightness range (read only)
-#     
-#     '''
-#     # constructor
-#     def __init__(self, id, insize, netw, inputs=[], max_delta=0.5):
-#         super(RandomBrightness, self).__init__(id, insize, netw, inputs)
-#         
-#         # check layer parameters
-#         if len(insize) != 3:
-#             _lg.error('Input size list must have 3 elements.', TypeError)
-#         max_delta = np.float32(max_delta)
-#         if max_delta <= 0:
-#             _lg.error('Maximum brightness adjustment must be greater than zero.', 
-#                 ValueError)
-#         self._max_delta = max_delta
-#         
-#         # add layer to network
-#         self.outsize = self.insize
-#         self.preprocessing = True
-#         netw.register_node(self)
-#         _lg.info("RandomBrightness    ({}->{},delta={:.1f}) '{}'".format(
-#             self.insize, self.outsize, self.max_delta, self.id))
-#     
-#     # Forward path
-#     def forward(self, input, training=False, **kwargs):
-#         '''
-#         Add random constant to image,  done in Python(Numpy. Called by 
-#         Network._preprocessing_deterministic() and Network._preprocessing_nondeterministic().
-#         '''
-#         if not training:
-#             return input
-#         else:
-#             output = np.zeros(self.outsize, dtype=np.float32)
-#             for i in range(self.insize[0]):
-#                 rand = global_rng2.uniform(low=-self.max_delta, high=self.max_delta)
-#                 for j in range(self.insize[1]):
-#                     output[i,j,:,:] = input[i,j,:,:] + rand
-#             return output
-#     
-#     # Attribute: half width of additive brightness range (read only)
-#     @property
-#     def max_delta(self):
-#         return self._max_delta
-# 
-# 
-# # random contrast adjustment of an image
+class RandomBrightness(nn.Module):
+    '''
+    Adjust image brightness randomly::
+    
+        bright = RandomBrightness([n,p,q], max_delta)
+    
+    Adds a random number to all channels of the images in the input tensor during 
+    training, thereby adjusting the overall brightness of the image. The random number is 
+    drawn uniformly from the interval [-max_delta, max_delta] specified in the constructor. 
+    No clipping is done, so this node should be used together with Whiten. Input and 
+    output size are the same. Active only during training, otherwise only copies input to 
+    output. 
+    
+    Attributes:
+    
+    * max_delta: half width of additive brightness range (read only)
+    
+    '''
+    # constructor
+    def __init__(self, insize, max_delta=0.5):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 3:
+            raise TypeError('Input size list must have 3 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        max_delta = float(max_delta)
+        if max_delta <= 0:
+            raise ValueError('Maximum brightness adjustment must be greater than zero.')
+        self._max_delta = max_delta
+        super(RandomBrightness, self).__init__()
+        self.outsize = self.insize
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+        + '[bs,{},{},{}]->[bs,{},{},{}],delta={:.1f})'.format(self.insize[0], self.insize[1], 
+            self.insize[2], self.outsize[0], self.outsize[1], self.outsize[2], self.max_delta)
+    
+    
+    # Forward path
+    def forward(self, input):
+        '''
+        Add random constant to image.
+        '''
+        if not self.training:
+            return input
+        else:
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            for i in range(input.size()[0]):            
+                rand = 2.0*self.max_delta*(torch.rand(size=(1,)).item() - 0.5)
+                for j in range(self.insize[0]):
+                    output[i,j,:,:] = torch.add(input[i,j,:,:], rand)
+            return output
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        return outp
+    
+    
+    # Attribute: half width of additive brightness range (read only)
+    @property
+    def max_delta(self):
+        return self._max_delta
+
+
+# random contrast adjustment of an image
 # class RandomContrast(Layer):
 #     '''
 #     Adjust image contrast randomly::
