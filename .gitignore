@@ -11,3 +11,4 @@ local*
 examples/MNIST
 .DS_Store
 .ipynb_checkpoints
+examples/CIFAR10
