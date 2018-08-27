@@ -315,22 +315,32 @@ class Analysis:
 
     def getJointStatisticsFeatures(self, inclPixelStats=True):
         """
-        Return computed parameters per statistic of the given texture image.
-        """
+                Return computed parameters per statistic of the given texture image.
+                """
         channel = self.coeff[0][0]
         varianceHPReal = np.mean(channel ** 2)
         statsLPim = np.asarray([self.skew0p, self.kurt0p])
 
         if inclPixelStats:
-            flattenFeatures = np.concatenate(
-                (np.asarray(self.pixelStats).flatten(), statsLPim.flatten(), self.autoCorrReal.flatten(),
-                 self.autoCorrMag.flatten(), self.xCorrMag.flatten(), self.corrReal.flatten(),
-                 self.xCorrReal.flatten(), varianceHPReal.flatten()))
+            flattenFeatures = np.concatenate((np.asarray(self.pixelStats).flatten(),
+                                              statsLPim.flatten(),
+                                              self.autoCorrReal.flatten(),
+                                              self.autoCorrMag.flatten(),
+                                              self.mag_means.flatten(),
+                                              self.corrMag.flatten(),
+                                              self.xCorrMag.flatten(),
+                                              self.corrReal.flatten(),
+                                              self.xCorrReal.flatten(),
+                                              varianceHPReal.flatten()))
         else:
             flattenFeatures = np.concatenate((self.autoCorrReal.flatten(),
-                                             self.autoCorrMag.flatten(), self.xCorrMag.flatten(),
-                                             self.corrReal.flatten(),
-                                             self.xCorrReal.flatten(), varianceHPReal.flatten()))
+                                              self.autoCorrMag.flatten(),
+                                              self.mag_means.flatten(),
+                                              self.corrMag.flatten(),
+                                              self.xCorrMag.flatten(),
+                                              self.corrReal.flatten(),
+                                              self.xCorrReal.flatten(),
+                                              varianceHPReal.flatten()))
 
         return flattenFeatures
 
