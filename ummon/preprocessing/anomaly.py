@@ -136,13 +136,14 @@ class LineDefectAnomaly():
                                 transform=my_transforms) 
     
     """
-    def __init__(self, width=1, channel=[0]):
+    def __init__(self, width=1, intensity=0,  channel=[0]):
          self.anom_size = width
+         self.intensity = intensity
          if type(channel) == list:
              self.channel = channel
          else:
              self.channel = [channel]
-    
+
     def __call__(self, x):
         if not torch.is_tensor(x):
             was_numpy = True
@@ -158,9 +159,13 @@ class LineDefectAnomaly():
         # Handle different scaling
         x = x.float()
         if x.max() > 1:
-            defect = 255.
+            defect = self.intensity
+            if defect <= 1:
+                defect = defect * 255
         else:
-            defect = 1
+            defect = self.intensity
+            if defect > 1:
+                defect = defect / 255
         
         _x = np.random.randint(0, x.size(0) - self.anom_size)
         for c in self.channel:
