@@ -144,7 +144,7 @@ class LineDefectAnomaly():
          else:
              self.channel = [channel]
 
-    def __call__(self, x):
+    def __call__(self, x, pos=-1):
         if not torch.is_tensor(x):
             was_numpy = True
             x = torch.from_numpy(np.asarray(x)).float()
@@ -166,11 +166,17 @@ class LineDefectAnomaly():
             defect = self.intensity
             if defect > 1:
                 defect = defect / 255
-        
-        _x = np.random.randint(0, x.size(0) - self.anom_size)
+
+        if pos == -1:
+            _x = np.random.randint(0, x.size(1) - self.anom_size)
+        elif 0 <= pos <= (x.size(1) - self.anom_size ):
+            _x = pos
+        else:
+            raise ValueError(pos + ' invalid value.')
+
         for c in self.channel:
-            x[:, _x + self.anom_size, c] = defect
-            
+            x[:, _x : _x + self.anom_size, c] = defect
+
         if was_numpy:
             return x.numpy()
         else:

@@ -167,11 +167,11 @@ class ImagePatches(Dataset):
         * stride_x : The overlap in x direction
         * stride_y : The overlap in y direction
         * window_size (int) : square size of the resulting patches
-    
+        * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
     """
     
     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32, label=1):
+                 stride_x=16, stride_y=16, window_size=32, label=1, crop=[0, 0, -1, -1]):
 
         self.filename = file
         self.img = imread(file)
@@ -182,9 +182,10 @@ class ImagePatches(Dataset):
         self.window_size = window_size
         self.transform = transform
         self.label = label
-        self.dataset_size = int(((self.img.shape[0] - self.window_size) / self.stride_y) + 1) * int(((self.img.shape[1] - self.window_size) / self.stride_x) + 1)
 
-        # Normalize patch to (W, H, C) with [0, 1] float32
+        self.tlx, self.tly, self.brx, self.bry = crop
+
+        # Normalize patch to (H, W, C) with [0, 1] float32
         assert self.img.min() >= 0
         self.img = self.img.astype(np.float32)
         if self.img.max() > 1. :
@@ -193,13 +194,30 @@ class ImagePatches(Dataset):
             # bring channel to back
             self.img = np.transpose(self.img, (1,2,0))
         assert self.img.min() >= 0 and self.img.max() <= 1
-        
+
+
         if mode == 'bgr':
             self.__rgb_to_bgr__()
         elif mode == 'gray':
             self.__rgb_to_gray__()
         elif mode == 'gray3channel':
             self.__rgb_to_gray3channel__()
+
+        if self.brx == -1:
+            self.brx = self.img.shape[1]
+        if self.bry == -1:
+            self.bry = self.img.shape[0]
+
+        if self.img.ndim == 3:
+            self.img = self.img[self.tly : self.bry, self.tlx:self.brx , :].copy()
+        elif self.img.ndim == 2:
+            self.img = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
+        else:
+            raise AttributeError(self.img.shape + ' image dimensions invalid.')
+
+        self.patches_per_y = (((self.img.shape[0] - self.window_size) // self.stride_y) + 1)
+        self.patches_per_x = (((self.img.shape[1] - self.window_size) // self.stride_x) + 1)
+        self.dataset_size = int(self.patches_per_y) * int(self.patches_per_x)
 
     def __rgb_to_bgr__(self):
         r = np.expand_dims(self.img[:, :, 0], axis=2)
@@ -248,8 +266,8 @@ class ImagePatches(Dataset):
             return int((1 - self.train_percentage) * self.dataset_size)
 
     def _get_patch(self, idx):
-        y = idx // (((self.img.shape[0] - self.window_size) // self.stride_y) + 1)
-        x = idx % (((self.img.shape[1] - self.window_size) // self.stride_x) + 1)
+        x = idx % self.patches_per_x
+        y = idx // self.patches_per_x
 
         topleft_y = y * self.stride_y
         bottomright_y = y * self.stride_y + self.window_size
@@ -289,27 +307,50 @@ class AnomalyImagePatches(ImagePatches):
         * anomaly (torchvision.transformation)
         * propability (float) : propability of a anomaly
         * anomaly_label (int) : the label for anomaly data (normal data is 0)
-    
+        * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
      """
      def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), propability=0.2, label=1, anomaly_label = -1):
-        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size, label)
+                 stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), permutation='random', propability=0.2, label=1, anomaly_label = -1, crop=[0, 0, -1, -1]):
+        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size, label, crop)
 
         assert anomaly_label == 0 or anomaly_label == -1
 
-        self.anomaly = anomaly
+        self.permutation = permutation
         self.propability = propability
         self.anomaly_label = anomaly_label
+        self.anomaly = anomaly
+        if self.permutation == 'full':
+            if isinstance(self.anomaly, LineDefectAnomaly):
+                self.anomaly_permutations = (self.window_size - self.anomaly.anom_size + 1)
+            else:
+                raise NotImplementedError(str(self.anomaly) + ' not implemented yet.')
+        elif self.permutation == 'random':
+            self.anomaly_permutations = 1
+
+        else:
+            raise NotImplementedError(str(self.permutation) + ' not implemented yet.')
+
+     def compute_anomaly(self, patch, pos):
+         if isinstance(self.anomaly, LineDefectAnomaly):
+            return self.anomaly(patch, pos)
+         else:
+             return self.anomaly(patch)
 
      def __getitem__(self, idx):
-        
+
+        if self.anomaly_permutations > 1:
+            pos = idx % self.anomaly_permutations
+        else:
+            pos = -1 # random position of anomaly
+        idx //= self.anomaly_permutations
+
         # Get the patch
         patch = self._get_patch(idx)
         
         # Add anomaly with propability given by self.propability and label -1 respectivly
         if np.random.rand() < self.propability:
             patch = torch.from_numpy(patch)
-            patch = self.anomaly(patch)
+            patch = self.compute_anomaly(patch, pos)
             patch = patch.numpy()
             label = self.anomaly_label
         else:
@@ -319,7 +360,13 @@ class AnomalyImagePatches(ImagePatches):
         if self.transform:
             return self.transform(patch), label
         return patch, label
-    
+
+     def __len__(self):
+        return super(AnomalyImagePatches, self).__len__() * self.anomaly_permutations
+
+     def __repr__(self):
+         return super(AnomalyImagePatches, self).__repr__()
+
     
 class TripletTensorDataset(Dataset):
     """Dataset wrapping tensors for triplet networks.
