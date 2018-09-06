@@ -59,7 +59,7 @@ class FeatureCache():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, transform, cachedir="__ummoncache__", clearcache = False):
+    def __init__(self, transform, cachedir="__ummoncache__", clearcache = False, force_tensor_output=True):
         """
         Parameters
         ----------
@@ -71,6 +71,7 @@ class FeatureCache():
         self.transform = transform
         self.cachedir = cachedir
         self.clearcache = clearcache
+        self.force_tensor = force_tensor_output
         self.unique_transformation_hash = hash_obj(self.transform)
         
         self.cache_hits = 0
@@ -85,7 +86,7 @@ class FeatureCache():
     
     
     def __call__(self, x):
-        is_numpy = not isinstance(x, torch.Tensor)         
+        is_numpy = isinstance(x, np.ndarray)         
         is_cuda = x.is_cuda  if not is_numpy else False
         
         # Handle cache lookup
@@ -99,7 +100,7 @@ class FeatureCache():
         if Path(path).exists():
             self.cache_hits += 1    # stats
             cached_raw_data = np.load(path)
-            if is_numpy:
+            if is_numpy and not self.force_tensor:
                 return cached_raw_data
             elif is_cuda:
                 return torch.from_numpy(cached_raw_data).cuda()
@@ -116,8 +117,3 @@ class FeatureCache():
         np.save(path, y.cpu().detach().numpy())
                 
         return y
-        
-
-         
-         
-        
