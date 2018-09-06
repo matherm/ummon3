@@ -16,14 +16,22 @@ import os
 
 __all__ = ['FeatureCache']
 
+import hashlib
 def props(cls):   
   return [i for i in cls.__dict__.keys() if i[:1] != '_']
 
 def hash_obj(obj):
     hashes = []
     for key in props(obj):
-        hashes.append(str(hash(key) + hash(str(getattr(obj, key)))))
-    return str(hash("".join(hashes)))
+        hash_key = hashlib.md5(key.encode('utf-8')).hexdigest()
+        hash_val = hashlib.md5(str(getattr(obj, key)).encode('utf-8')).hexdigest()
+        hashes.append(hash_key + hash_val)
+    hash_output = hashlib.md5("".join(hashes).encode("utf-8")).hexdigest()
+    return hash_output
+
+def hash(obj):
+    return hashlib.md5(obj).hexdigest()
+    
     
 class FeatureCache():
     """
@@ -51,7 +59,7 @@ class FeatureCache():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, transform, cachedir="__ummoncache__", clearcache = True):
+    def __init__(self, transform, cachedir="__ummoncache__", clearcache = False):
         """
         Parameters
         ----------
