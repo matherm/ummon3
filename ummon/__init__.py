@@ -75,5 +75,6 @@ from ummon.preprocessing.psTMfeatures import *
 from ummon.preprocessing.swEVMfeatures import *
 from ummon.preprocessing.vgg19features import *
 from ummon.preprocessing.anomaly import *
+from ummon.preprocessing.featurecache import *
 from .datasets.generic import *
 

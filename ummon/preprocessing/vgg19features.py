@@ -42,7 +42,7 @@ class VGG19Features():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, features = "pool4", gram = False, triangular=False, cachedir = None, clearcache = True, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False):
+    def __init__(self, features = "pool4", gram = False, triangular=False, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False):
         """
         Parameters
         ----------
@@ -51,15 +51,11 @@ class VGG19Features():
             *gram_diagonal (bool) : compute only gram diagonal i.e. the scalar product of a feature map
             *gram_diagonal_squared (bool) : compute only the squared gram diagonal i.e. the l4 norm of a feature map
             *triangular (bool) : triangular matrix 
-            *cachedir (str) : an directory for caching computed matrices
-            *clearcache (bool) : deletes cache on object construction
             *cuda (bool) : compute with cuda
             *pretrained (bool) : use pretrained vgg19 net
         
         """
         self.features = features
-        self.cachedir = cachedir
-        self.clearcache = clearcache
         self.gram = gram
         self.cuda = cuda
         self.triangular = triangular
@@ -87,17 +83,6 @@ class VGG19Features():
         
         if type(self.features) is not list:
             self.features  = [self.features]
-        
-        if cachedir is None:
-             self.cache = False
-        else:
-            # create cache dir
-            self.cache = True
-            if os.path.exists(self.cachedir) == False:
-                os.makedirs(self.cachedir)
-
-        if clearcache == True:
-            [os.remove(os.path.join(self.cachedir, f)) for f in os.listdir(self.cachedir) if f.endswith(".npy")]
             
 
     def random_weight_init(self, m):
@@ -117,13 +102,7 @@ class VGG19Features():
         if x.dim != 3 and x.size(0) != 3:
             raise ValueError("Shape of input should be (3, x, x)")
         x = x.unsqueeze(0)
-        
-        if self.cache:
-            fname = "".join(self.features) + "_" + str(hash(str(x.detach().cpu().numpy())))
-            path = str(self.cachedir + "/ummon_" + fname + ".npy")
-            if Path(path).exists():
-                return torch.from_numpy(np.load(path))
-
+  
         if self.cuda and torch.cuda.is_available():
             x = x.cuda()
             
@@ -161,10 +140,6 @@ class VGG19Features():
                         break;
         
         if len(self.features) == 1:
-            if self.cache:
-                np.save(path, result.detach().numpy())
             return result
         else:    
-            if self.cache:
-                np.save(path, torch.cat(result).cpu().detach().numpy())
             return torch.cat(result).cpu()
