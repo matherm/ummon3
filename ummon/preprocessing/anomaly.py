@@ -5,9 +5,11 @@ Created on Fri Jun 15 09:13:39 2018
 
 @author: Matthias Hermann
 """
-
 import numpy as np
 import torch
+
+__all__ = ['SquareAnomaly', 'GaussianNoiseAnomaly', 'LaplacianNoiseAnomaly', 'LineDefectAnomaly', 'TurtleAnomaly']
+
 class SquareAnomaly():
     """
     Adds a random square anomaly to a given patch.
@@ -79,7 +81,7 @@ class GaussianNoiseAnomaly():
     
     Usage
     =====
-        my_transforms = transforms.Compose([NoiseAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        my_transforms = transforms.Compose([GaussianNoiseAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
                                 train=False, \
                                 transform=my_transforms) 
@@ -114,7 +116,57 @@ class GaussianNoiseAnomaly():
             return x.numpy()
         else:
             return x
+
+class LaplacianNoiseAnomaly():
+    """
+    Adds a random noise to a given patch.
+    
+    Limitations
+    ===========
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
+    
+    Note
+    =====
+        Please notice that normalization should happe nafter anomaly transformation because otherwise we end up with grey values.
+    
+    Usage
+    =====
+        my_transforms = transforms.Compose([LaplacianNoiseAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+    
+    """
+    def __init__(self, size=-1, loc=0, scale=1):
+         self.anom_size = size
+         self.loc = loc
+         self.scale = scale
+    
+    def __call__(self, x):
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(np.asarray(x)).float()
+        else:
+            was_numpy = False
+        x = x.clone()
+        assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
         
+        size = self.anom_size if self.anom_size != -1 else x.shape[0]
+            
+        _y = np.random.randint(0, x.size(0) - size) if size < x.size(0) else 0
+        _x = np.random.randint(0, x.size(1) - size) if size < x.size(1) else 0
+        
+        noise = torch.from_numpy(np.random.laplace(self.loc, self.scale, (size, size, x.size(2))).astype(np.float32))
+        x[_y : _y + size, _x : _x + size, :] += noise
+        x = torch.clamp(x, 0, 1)
+            
+        if was_numpy:
+            return x.numpy()
+        else:
+            return x
+               
         
 class LineDefectAnomaly():
     """

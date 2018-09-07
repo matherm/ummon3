@@ -11,7 +11,7 @@ class TestSystem(unittest.TestCase):
         developer_tested_pytorch_versions = ["0.4.0", "0.4.1"]
         assert torch.__version__ in developer_tested_pytorch_versions
         
-        developer_tested_numpy_versions =  ["1.13.3", "1.14.0", "1.14.3"]
+        developer_tested_numpy_versions =  ["1.13.3", "1.14.0", "1.14.3", "1.15.1"]
         assert np.version.version in developer_tested_numpy_versions
 
         developer_tested_torchvision_versions =  ['0.2.1']

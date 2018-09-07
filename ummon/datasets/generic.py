@@ -305,6 +305,7 @@ class AnomalyImagePatches(ImagePatches):
         * stride_y : The overlap in y direction
         * window_size (int) : square size of the resulting patches
         * anomaly (torchvision.transformation)
+        * permutation (string) : permutation mode 'random' = random position, 'center' = fixed center, 'full' = all posible positions..
         * propability (float) : propability of a anomaly
         * anomaly_label (int) : the label for anomaly data (normal data is 0)
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
@@ -324,9 +325,13 @@ class AnomalyImagePatches(ImagePatches):
                 self.anomaly_permutations = (self.window_size - self.anomaly.anom_size + 1)
             else:
                 raise NotImplementedError(str(self.anomaly) + ' not implemented yet.')
+        elif self.permutation == 'center':
+            if isinstance(self.anomaly, LineDefectAnomaly):
+                self.anomaly_permutations = 1
+            else:
+                raise NotImplementedError(str(self.anomaly) + ' not implemented yet.')
         elif self.permutation == 'random':
             self.anomaly_permutations = 1
-
         else:
             raise NotImplementedError(str(self.permutation) + ' not implemented yet.')
 
@@ -338,14 +343,15 @@ class AnomalyImagePatches(ImagePatches):
 
      def __getitem__(self, idx):
 
-        if self.anomaly_permutations > 1:
+        # Get the patch
+        patch = self._get_patch(idx // self.anomaly_permutations)
+
+        if self.permutation == 'full':
             pos = idx % self.anomaly_permutations
+        elif self.permutation == 'center':
+            pos = patch.shape[1] // 2 # compute horizontal center
         else:
             pos = -1 # random position of anomaly
-        idx //= self.anomaly_permutations
-
-        # Get the patch
-        patch = self._get_patch(idx)
         
         # Add anomaly with propability given by self.propability and label -1 respectivly
         if np.random.rand() < self.propability:

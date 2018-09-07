@@ -13,3 +13,4 @@ examples/MNIST
 .ipynb_checkpoints
 examples/CIFAR10
 **/__ummoncache__/**
+**ummon*.npy

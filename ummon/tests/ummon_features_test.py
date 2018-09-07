@@ -7,6 +7,7 @@ sys.path.insert(0,'../ummon3')
 
 import unittest
 import os
+import numpy as np
 from torchvision import transforms
 from ummon import *
 
