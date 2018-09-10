@@ -251,6 +251,7 @@ class ImagePatches(Dataset):
         return ((.2989 * r) + (.5870 * g) + (.114 * b)).copy()
 
     def __rgb_to_gray3channel__(self):
+        self.img = np.squeeze(self.img)
         if self.img.ndim == 2:
             g = np.expand_dims(self.img, axis=2)
             return  np.concatenate((g, g, g), axis=2)   
