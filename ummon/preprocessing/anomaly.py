@@ -232,10 +232,10 @@ class LineDefectAnomaly():
         if self.additive:
             for c in self.channel:
                 x[:, _x : _x + self.anom_size, c] += defect
-                x = np.clip(x, 0, amax)
+                x = torch.clamp(x, 0, amax)
         else:
             for c in self.channel:
-                x[:, _x : _x + self.anom_size, c] = np.abs(defect)
+                x[:, _x : _x + self.anom_size, c] = abs(defect)
 
         if was_numpy:
             return x.numpy()
