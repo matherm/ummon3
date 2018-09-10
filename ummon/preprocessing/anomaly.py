@@ -235,7 +235,7 @@ class LineDefectAnomaly():
                 x = np.clip(x, 0, amax)
         else:
             for c in self.channel:
-                x[:, _x : _x + self.anom_size, c] = defect
+                x[:, _x : _x + self.anom_size, c] = np.abs(defect)
 
         if was_numpy:
             return x.numpy()
