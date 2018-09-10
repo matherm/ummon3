@@ -243,12 +243,12 @@ class ImagePatches(Dataset):
 
     def __rgb_to_gray__(self):
         if self.img.shape[2] == 1:
-            return 
+            return self.img
         assert self.img.shape[2] == 3
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
-        return (.2989 * r) + (.5870 * g) + (.114 * b).copy()
+        return ((.2989 * r) + (.5870 * g) + (.114 * b)).copy()
 
     def __rgb_to_gray3channel__(self):
         if self.img.ndim == 2:
