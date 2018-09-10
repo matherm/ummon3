@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+import warnings
 
 __all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "Triplet", "ImagePatches", "AnomalyImagePatches", "TripletTensorDataset", "NumpyDataset"]
 
@@ -198,16 +199,21 @@ class ImagePatches(Dataset):
         # handle gray scale
         if self.img.ndim == 2:
             self.img = np.expand_dims(self.img,2)
-
         assert self.img.ndim == 3
 
-        # handle RGB
+        # handle transparent channel in png
+        if self.img.shape[2] == 4:
+            warnings.warn("I dont know how to handle transparency and will skip 4th channel (img[:,:,3]). Shape of image:" + str(self.img.shape), RuntimeWarning)       
+            self.img = self.img[:,:,0:3]
+
+        # handle RGB and store a copy
+        self.img_orig = self.img
         if mode == 'bgr':
-            self.__rgb_to_bgr__()
+            self.img = self.__rgb_to_bgr__()
         elif mode == 'gray':
-            self.__rgb_to_gray__()
+            self.img = self.__rgb_to_gray__()
         elif mode == 'gray3channel':
-            self.__rgb_to_gray3channel__()
+            self.img = self.__rgb_to_gray3channel__()
 
         if self.brx == -1:
             self.brx = self.img.shape[1]
@@ -215,9 +221,11 @@ class ImagePatches(Dataset):
             self.bry = self.img.shape[0]
 
         if self.img.ndim == 3:
-            self.img = self.img[self.tly : self.bry, self.tlx:self.brx , :].copy()
+            self.img      = self.img[self.tly : self.bry, self.tlx:self.brx , :].copy()
+            self.img_orig = self.img_orig[self.tly : self.bry, self.tlx:self.brx , :].copy()
         elif self.img.ndim == 2:
-            self.img = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
+            self.img      = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
+            self.img_orig = self.img_orig[self.tly: self.bry, self.tlx:self.brx].copy()
         else:
             raise AttributeError(self.img.shape + ' image dimensions invalid.')
 
@@ -230,7 +238,7 @@ class ImagePatches(Dataset):
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
-        self.img = np.concatenate((b,g,r), axis=2)
+        return np.concatenate((b,g,r), axis=2).copy()
         
 
     def __rgb_to_gray__(self):
@@ -240,18 +248,18 @@ class ImagePatches(Dataset):
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
-        self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
+        return (.2989 * r) + (.5870 * g) + (.114 * b).copy()
 
     def __rgb_to_gray3channel__(self):
         if self.img.ndim == 2:
             g = np.expand_dims(self.img, axis=2)
-            self.img = np.concatenate((g, g, g), axis=2)   
+            return  np.concatenate((g, g, g), axis=2)   
         if self.img.ndim == 3:
             r = np.expand_dims(self.img[:, :, 0], axis=2)
             g = np.expand_dims(self.img[:, :, 1], axis=2)
             b = np.expand_dims(self.img[:, :, 2], axis=2)
-            self.img = (.2989 * r) + (.5870 * g) + (.114 * b)
-            self.img = np.concatenate((self.img, self.img, self.img), axis=2)   
+            img = (.2989 * r) + (.5870 * g) + (.114 * b)
+            return np.concatenate((img, img, img), axis=2).copy() 
         
         
     def stats(self):
@@ -287,11 +295,11 @@ class ImagePatches(Dataset):
          patch[:,-thickness:, :] = color # left
          return patch
 
-    def mark_patches(self, patch_indices, color=255, thickness=2):
+    def mark_patches(self, patch_indices, color=255, thickness=2, mode="rgb"):
          if isinstance(patch_indices, list) == False: patch_indices = [patch_indices]
          # compute a copy of our image as a backup
          original_img = self.img
-         self.img = self.img.copy()
+         self.img = original_img.copy()
          for i in patch_indices:
              patch, _ = self._get_patch(i)
              # Draw white line..
@@ -300,11 +308,11 @@ class ImagePatches(Dataset):
              # Copy to image
              self._put_patch(i, patch)
          # restore original image
-         anomaly_img = self.img
+         marked_img = self.img
          self.img = original_img
-         if anomaly_img.shape[2] == 1: #gray scale
-             anomaly_img = anomaly_img.squeeze(2)
-         return anomaly_img
+         if marked_img.shape[2] == 1: #gray scale
+             marked_img = marked_img.squeeze(2)
+         return (marked_img * 255).astype(np.uint8)
 
 
     def _get_patch(self, idx):
@@ -394,22 +402,22 @@ class AnomalyImagePatches(ImagePatches):
      def mark_patches(self, patch_indices, color=255, thickness=2):
          if isinstance(patch_indices, list) == False and isinstance(patch_indices, np.ndarray) == False: 
              patch_indices = [patch_indices]
-         # compute a copy of our image as a backup
+           # compute a copy of our image as a backup
          original_img = self.img
-         self.img = self.img.copy()
+         self.img = original_img.copy()
          for i in patch_indices:
              patch, _ = self.get_anomaly_patch(i)
              # Draw white line..
              # ..as we operate inplace this will change the underlying self.img
              self._draw_boarder(patch, color, thickness, inplace = True)
              # Copy to image
-             self._put_patch(i, patch)
+             self._put_patch(i // self.anomaly_permutations, patch)
          # restore original image
-         anomaly_img = self.img
+         marked_img = self.img
          self.img = original_img
-         if anomaly_img.shape[2] == 1: #gray scale
-             anomaly_img = anomaly_img.squeeze(2)
-         return anomaly_img
+         if marked_img.shape[2] == 1: #gray scale
+             marked_img = marked_img.squeeze(2)
+         return (marked_img * 255).astype(np.uint8)
              
      def _compute_anomaly(self, patch, pos):
          if isinstance(self.anomaly, LineDefectAnomaly):
