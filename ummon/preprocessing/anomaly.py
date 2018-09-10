@@ -178,7 +178,7 @@ class LineDefectAnomaly():
     
     Note
     =====
-        Please notice that normalization should happe nafter anomaly transformation because otherwise we end up with grey values.
+        Please notice that normalization should happen after anomaly transformation because otherwise we end up with grey values.
     
     Usage
     =====
@@ -188,9 +188,10 @@ class LineDefectAnomaly():
                                 transform=my_transforms) 
     
     """
-    def __init__(self, width=1, intensity=0,  channel=[0]):
+    def __init__(self, width=1, intensity=0,  channel=[0], additive=False):
          self.anom_size = width
          self.intensity = intensity
+         self.additive = additive
          if type(channel) == list:
              self.channel = channel
          else:
@@ -211,12 +212,14 @@ class LineDefectAnomaly():
         # Handle different scaling
         x = x.float()
         if x.max() > 1:
+            amax = 255
             defect = self.intensity
-            if defect <= 1:
+            if defect <= 1 or defect >= -1:
                 defect = defect * 255
         else:
+            amax = 1.
             defect = self.intensity
-            if defect > 1:
+            if defect > 1 or defect < -1:
                 defect = defect / 255
 
         if pos == -1:
@@ -226,8 +229,13 @@ class LineDefectAnomaly():
         else:
             raise ValueError(pos + ' invalid value.')
 
-        for c in self.channel:
-            x[:, _x : _x + self.anom_size, c] = defect
+        if self.additive:
+            for c in self.channel:
+                x[:, _x : _x + self.anom_size, c] += defect
+                x = np.clip(x, 0, amax)
+        else:
+            for c in self.channel:
+                x[:, _x : _x + self.anom_size, c] = defect
 
         if was_numpy:
             return x.numpy()
