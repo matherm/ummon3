@@ -194,8 +194,14 @@ class ImagePatches(Dataset):
             # bring channel to back
             self.img = np.transpose(self.img, (1,2,0))
         assert self.img.min() >= 0 and self.img.max() <= 1
+        
+        # handle gray scale
+        if self.img.ndim == 2:
+            self.img = np.expand_dims(self.img,2)
 
+        assert self.img.ndim == 3
 
+        # handle RGB
         if mode == 'bgr':
             self.__rgb_to_bgr__()
         elif mode == 'gray':
@@ -220,6 +226,7 @@ class ImagePatches(Dataset):
         self.dataset_size = int(self.patches_per_y) * int(self.patches_per_x)
 
     def __rgb_to_bgr__(self):
+        assert self.img.shape[2] == 3
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
@@ -227,6 +234,9 @@ class ImagePatches(Dataset):
         
 
     def __rgb_to_gray__(self):
+        if self.img.shape[2] == 1:
+            return 
+        assert self.img.shape[2] == 3
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
         b = np.expand_dims(self.img[:, :, 2], axis=2)
@@ -265,6 +275,38 @@ class ImagePatches(Dataset):
         else:
             return int((1 - self.train_percentage) * self.dataset_size)
 
+    def _draw_boarder(self, patch, color, thickness, inplace = True):
+         if inplace == False: patch = patch.copy()
+         if np.max(patch) > 1 and color <= 1:
+             color = color * 255.
+         if np.max(patch) <= 1 and color > 1:
+             color = color / 255.
+         patch[0:thickness,:, :] = color # top
+         patch[-thickness:,:, :] = color # bottom
+         patch[:,0:thickness, :] = color # left
+         patch[:,-thickness:, :] = color # left
+         return patch
+
+    def mark_patches(self, patch_indices, color=255, thickness=2):
+         if isinstance(patch_indices, list) == False: patch_indices = [patch_indices]
+         # compute a copy of our image as a backup
+         original_img = self.img
+         self.img = self.img.copy()
+         for i in patch_indices:
+             patch, _ = self._get_patch(i)
+             # Draw white line..
+             # ..as we operate inplace this will change the underlying self.img
+             self._draw_boarder(patch, color, thickness, inplace = True)
+             # Copy to image
+             self._put_patch(i, patch)
+         # restore original image
+         anomaly_img = self.img
+         self.img = original_img
+         if anomaly_img.shape[2] == 1: #gray scale
+             anomaly_img = anomaly_img.squeeze(2)
+         return anomaly_img
+
+
     def _get_patch(self, idx):
         x = idx % self.patches_per_x
         y = idx // self.patches_per_x
@@ -275,6 +317,19 @@ class ImagePatches(Dataset):
         bottomright_x = x * self.stride_x + self.window_size
 
         patch = self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :].copy()
+        
+        return patch
+    
+    def _put_patch(self, idx, patch):
+        x = idx % self.patches_per_x
+        y = idx // self.patches_per_x
+
+        topleft_y = y * self.stride_y
+        bottomright_y = y * self.stride_y + self.window_size
+        topleft_x = x * self.stride_x
+        bottomright_x = x * self.stride_x + self.window_size
+
+        self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :] = patch
         
         return patch
 
@@ -335,34 +390,57 @@ class AnomalyImagePatches(ImagePatches):
         else:
             raise NotImplementedError(str(self.permutation) + ' not implemented yet.')
 
-     def compute_anomaly(self, patch, pos):
+    
+     def mark_patches(self, patch_indices, color=255, thickness=2):
+         if isinstance(patch_indices, list) == False and isinstance(patch_indices, np.ndarray) == False: 
+             patch_indices = [patch_indices]
+         # compute a copy of our image as a backup
+         original_img = self.img
+         self.img = self.img.copy()
+         for i in patch_indices:
+             patch, _ = self.get_anomaly_patch(i)
+             # Draw white line..
+             # ..as we operate inplace this will change the underlying self.img
+             self._draw_boarder(patch, color, thickness, inplace = True)
+             # Copy to image
+             self._put_patch(i, patch)
+         # restore original image
+         anomaly_img = self.img
+         self.img = original_img
+         if anomaly_img.shape[2] == 1: #gray scale
+             anomaly_img = anomaly_img.squeeze(2)
+         return anomaly_img
+             
+     def _compute_anomaly(self, patch, pos):
          if isinstance(self.anomaly, LineDefectAnomaly):
             return self.anomaly(patch, pos)
          else:
              return self.anomaly(patch)
 
-     def __getitem__(self, idx):
-
-        # Get the patch
-        patch = self._get_patch(idx // self.anomaly_permutations)
-
+     def _get_anomaly_position(self, idx):
         if self.permutation == 'full':
             pos = idx % self.anomaly_permutations
         elif self.permutation == 'center':
-            pos = patch.shape[1] // 2 # compute horizontal center
+            pos = self.window_size // 2 # compute horizontal center
         else:
             pos = -1 # random position of anomaly
+        return pos
+
+     def get_anomaly_patch(self, idx):
+        patch = self._get_patch(idx // self.anomaly_permutations)
+        pos = self._get_anomaly_position(idx)
         
         # Add anomaly with propability given by self.propability and label -1 respectivly
         if np.random.rand() < self.propability:
-            patch = torch.from_numpy(patch)
-            patch = self.compute_anomaly(patch, pos)
-            patch = patch.numpy()
+            patch = self._compute_anomaly(patch, pos)
             label = self.anomaly_label
         else:
             label = self.label
 
-        # Apply transformations
+        return patch, label
+
+     def __getitem__(self, idx):
+        patch, label = self.get_anomaly_patch(idx)
         if self.transform:
             return self.transform(patch), label
         return patch, label
