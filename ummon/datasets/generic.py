@@ -207,13 +207,12 @@ class ImagePatches(Dataset):
             self.img = self.img[:,:,0:3]
 
         # handle RGB and store a copy
-        self.img_orig = self.img
         if mode == 'bgr':
-            self.img = self.__rgb_to_bgr__()
+            self.img = self._rgb_to_bgr()
         elif mode == 'gray':
-            self.img = self.__rgb_to_gray__()
+            self.img = self._rgb_to_gray()
         elif mode == 'gray3channel':
-            self.img = self.__rgb_to_gray3channel__()
+            self.img = self._rgb_to_gray3channel()
 
         if self.brx == -1:
             self.brx = self.img.shape[1]
@@ -222,10 +221,8 @@ class ImagePatches(Dataset):
 
         if self.img.ndim == 3:
             self.img      = self.img[self.tly : self.bry, self.tlx:self.brx , :].copy()
-            self.img_orig = self.img_orig[self.tly : self.bry, self.tlx:self.brx , :].copy()
         elif self.img.ndim == 2:
             self.img      = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
-            self.img_orig = self.img_orig[self.tly: self.bry, self.tlx:self.brx].copy()
         else:
             raise AttributeError(self.img.shape + ' image dimensions invalid.')
 
@@ -233,7 +230,7 @@ class ImagePatches(Dataset):
         self.patches_per_x = (((self.img.shape[1] - self.window_size) // self.stride_x) + 1)
         self.dataset_size = int(self.patches_per_y) * int(self.patches_per_x)
 
-    def __rgb_to_bgr__(self):
+    def _rgb_to_bgr(self):
         assert self.img.shape[2] == 3
         r = np.expand_dims(self.img[:, :, 0], axis=2)
         g = np.expand_dims(self.img[:, :, 1], axis=2)
@@ -241,7 +238,7 @@ class ImagePatches(Dataset):
         return np.concatenate((b,g,r), axis=2).copy()
         
 
-    def __rgb_to_gray__(self):
+    def _rgb_to_gray(self):
         if self.img.shape[2] == 1:
             return self.img
         assert self.img.shape[2] == 3
@@ -250,10 +247,10 @@ class ImagePatches(Dataset):
         b = np.expand_dims(self.img[:, :, 2], axis=2)
         return ((.2989 * r) + (.5870 * g) + (.114 * b)).copy()
 
-    def __rgb_to_gray3channel__(self):
-        self.img = np.squeeze(self.img)
-        if self.img.ndim == 2:
-            g = np.expand_dims(self.img, axis=2)
+    def _rgb_to_gray3channel(self):
+        img = np.squeeze(self.img)
+        if img.ndim == 2:
+            g = np.expand_dims(img, axis=2)
             return  np.concatenate((g, g, g), axis=2)   
         if self.img.ndim == 3:
             r = np.expand_dims(self.img[:, :, 0], axis=2)
@@ -304,7 +301,6 @@ class ImagePatches(Dataset):
          for i in patch_indices:
              patch, _ = self._get_patch(i)
              # Draw white line..
-             # ..as we operate inplace this will change the underlying self.img
              self._draw_boarder(patch, color, thickness, inplace = True)
              # Copy to image
              self._put_patch(i, patch)
@@ -407,12 +403,11 @@ class AnomalyImagePatches(ImagePatches):
          original_img = self.img
          self.img = original_img.copy()
          for i in patch_indices:
-             patch, _ = self.get_anomaly_patch(i)
+             patch, _, anom_idx = self.get_anomaly_patch(i)
              # Draw white line..
-             # ..as we operate inplace this will change the underlying self.img
              self._draw_boarder(patch, color, thickness, inplace = True)
              # Copy to image
-             self._put_patch(i // self.anomaly_permutations, patch)
+             self._put_patch(anom_idx, patch)
          # restore original image
          marked_img = self.img
          self.img = original_img
@@ -445,11 +440,11 @@ class AnomalyImagePatches(ImagePatches):
             label = self.anomaly_label
         else:
             label = self.label
-
-        return patch, label
+        anom_idx = idx // self.anomaly_permutations
+        return patch, label, anom_idx
 
      def __getitem__(self, idx):
-        patch, label = self.get_anomaly_patch(idx)
+        patch, label, anom_idx = self.get_anomaly_patch(idx)
         if self.transform:
             return self.transform(patch), label
         return patch, label
