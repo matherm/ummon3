@@ -308,6 +308,8 @@ class ImagePatches(Dataset):
              marked_img = image.astype(np.float32)
              if marked_img.max() >= 1:
                  marked_img = marked_img / 255.
+             if marked_img.ndim == 2:
+                 marked_img = np.expand_dims(marked_img, 2)
              assert self.img.shape[:2] == marked_img.shape[:2]
          for i in patch_indices:
              patch, _ = self._get_patch(i)
@@ -341,7 +343,8 @@ class ImagePatches(Dataset):
         bottomright_y = y * self.stride_y + self.window_size
         topleft_x = x * self.stride_x
         bottomright_x = x * self.stride_x + self.window_size
-
+        
+        if patch.ndim == 2: np.expand_dims(patch, 2)
         if patch.shape[2] > img.shape[2]:
              img = np.concatenate((img, img, img), axis=2).copy()
         img[topleft_y : bottomright_y, topleft_x : bottomright_x, :] = patch
@@ -418,6 +421,8 @@ class AnomalyImagePatches(ImagePatches):
              marked_img = image.astype(np.float32)
              if marked_img.max() >= 1:
                  marked_img = marked_img / 255.
+             if marked_img.ndim == 2:
+                 marked_img = np.expand_dims(marked_img, 2)
              assert self.img.shape[:2] == marked_img.shape[:2]
          for i in patch_indices:
              patch, _, anom_idx = self.get_anomaly_patch(i)
