@@ -188,10 +188,11 @@ class LineDefectAnomaly():
                                 transform=my_transforms) 
     
     """
-    def __init__(self, width=1, intensity=0,  channel=[0], additive=False):
+    def __init__(self, width=1, intensity=0,  channel=[0], additive=False, vertical=True):
          self.anom_size = width
          self.intensity = intensity
          self.additive = additive
+         self.vertical = vertical
          if type(channel) == list:
              self.channel = channel
          else:
@@ -231,11 +232,17 @@ class LineDefectAnomaly():
 
         if self.additive:
             for c in self.channel:
-                x[:, _x : _x + self.anom_size, c] += defect
+                if self.vertical:
+                    x[:, _x : _x + self.anom_size, c] += defect
+                else:
+                    x[_x : _x + self.anom_size, : , c] += defect
                 x = torch.clamp(x, 0, amax)
         else:
             for c in self.channel:
-                x[:, _x : _x + self.anom_size, c] = abs(defect)
+                if self.vertical:
+                    x[:, _x : _x + self.anom_size, c] = abs(defect)
+                else:
+                    x[_x : _x + self.anom_size, : , c] = abs(defect)
 
         if was_numpy:
             return x.numpy()
