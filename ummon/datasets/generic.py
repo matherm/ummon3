@@ -283,32 +283,40 @@ class ImagePatches(Dataset):
 
     def _draw_boarder(self, patch, color, thickness, inplace = True):
          if inplace == False: patch = patch.copy()
-         if np.max(patch) > 1 and color <= 1:
-             color = color * 255.
-         if np.max(patch) <= 1 and color > 1:
-             color = color / 255.
+         if patch.shape[2] < 3:
+             patch = np.concatenate((patch, patch, patch), axis=2).copy()
+         if np.max(patch) > 1 and np.sum(color) <= 3:
+             color = np.asarray(color) * 255.
+         if np.max(patch) <= 1 and np.sum(color) > 3:
+             color =  np.asarray(color) / 255.
          patch[0:thickness,:, :] = color # top
          patch[-thickness:,:, :] = color # bottom
          patch[:,0:thickness, :] = color # left
          patch[:,-thickness:, :] = color # left
          return patch
 
-    def mark_patches(self, patch_indices, color=255, thickness=2, mode="rgb"):
-         if isinstance(patch_indices, list) == False: patch_indices = [patch_indices]
-         # compute a copy of our image as a backup
-         original_img = self.img
-         self.img = original_img.copy()
+    def mark_patches(self, patch_indices, color=(255, 255, 255), thickness=2, image = None):
+         if isinstance(patch_indices, list) == False and isinstance(patch_indices, np.ndarray) == False: 
+            patch_indices = [patch_indices]
+         patch_indices = np.asarray(patch_indices).squeeze() if len(patch_indices) > 1 else np.asarray(patch_indices)
+         if patch_indices.ndim == 2:
+             patch_indices = patch_indices[:,0] #in case of multiple columns take the first
+         if image is None:
+             # Compute on a copy
+             marked_img = self.img.copy()
+         else:
+             marked_img = image.astype(np.float32)
+             if marked_img.max() >= 1:
+                 marked_img = marked_img / 255.
+             assert self.img.shape[:2] == marked_img.shape[:2]
          for i in patch_indices:
              patch, _ = self._get_patch(i)
-             # Draw white line..
-             self._draw_boarder(patch, color, thickness, inplace = True)
+             # Draw line..
+             patch = self._draw_boarder(patch, color, thickness)
              # Copy to image
-             self._put_patch(i, patch)
-         # restore original image
-         marked_img = self.img
-         self.img = original_img
-         if marked_img.shape[2] == 1: #gray scale
-             marked_img = marked_img.squeeze(2)
+             marked_img = self._put_patch(marked_img, i, patch)
+         #gray scale
+         marked_img = marked_img.squeeze()
          return (marked_img * 255).astype(np.uint8)
 
 
@@ -325,7 +333,7 @@ class ImagePatches(Dataset):
         
         return patch
     
-    def _put_patch(self, idx, patch):
+    def _put_patch(self, img, idx, patch):
         x = idx % self.patches_per_x
         y = idx // self.patches_per_x
 
@@ -334,9 +342,10 @@ class ImagePatches(Dataset):
         topleft_x = x * self.stride_x
         bottomright_x = x * self.stride_x + self.window_size
 
-        self.img[topleft_y : bottomright_y, topleft_x : bottomright_x, :] = patch
-        
-        return patch
+        if patch.shape[2] > img.shape[2]:
+             img = np.concatenate((img, img, img), axis=2).copy()
+        img[topleft_y : bottomright_y, topleft_x : bottomright_x, :] = patch
+        return img
 
     def __getitem__(self, idx):
         patch = self._get_patch(idx)
@@ -396,23 +405,28 @@ class AnomalyImagePatches(ImagePatches):
             raise NotImplementedError(str(self.permutation) + ' not implemented yet.')
 
     
-     def mark_patches(self, patch_indices, color=255, thickness=2):
+     def mark_patches(self, patch_indices, color=(255, 255, 255), thickness=2, image = None):
          if isinstance(patch_indices, list) == False and isinstance(patch_indices, np.ndarray) == False: 
              patch_indices = [patch_indices]
-           # compute a copy of our image as a backup
-         original_img = self.img
-         self.img = original_img.copy()
+         patch_indices = np.asarray(patch_indices).squeeze() if len(patch_indices) > 1 else np.asarray(patch_indices)
+         if patch_indices.ndim == 2:
+             patch_indices = patch_indices[:,0] #in case of multiple columns take the first
+         if image is None:
+             # Compute on a copy
+             marked_img = self.img.copy()
+         else:
+             marked_img = image.astype(np.float32)
+             if marked_img.max() >= 1:
+                 marked_img = marked_img / 255.
+             assert self.img.shape[:2] == marked_img.shape[:2]
          for i in patch_indices:
              patch, _, anom_idx = self.get_anomaly_patch(i)
-             # Draw white line..
-             self._draw_boarder(patch, color, thickness, inplace = True)
+             # Draw boarder..
+             patch = self._draw_boarder(patch, color, thickness)
              # Copy to image
-             self._put_patch(anom_idx, patch)
-         # restore original image
-         marked_img = self.img
-         self.img = original_img
-         if marked_img.shape[2] == 1: #gray scale
-             marked_img = marked_img.squeeze(2)
+             marked_img = self._put_patch(marked_img, anom_idx, patch)
+         #gray scale
+         marked_img = marked_img.squeeze()
          return (marked_img * 255).astype(np.uint8)
              
      def _compute_anomaly(self, patch, pos):
