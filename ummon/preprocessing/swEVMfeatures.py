@@ -42,7 +42,7 @@ class swEVMfeatures():
 
     """
 
-    def __init__(self, normalized=True, meanFreqOutput=False):
+    def __init__(self, normalized=True, meanFreqOutput=False, gram=False, gram_diagonal=False):
         """
         Parameters
         ----------
@@ -52,6 +52,8 @@ class swEVMfeatures():
         """
         self.normalized = normalized
         self.meanFreqOutput = meanFreqOutput
+        self.gram = gram
+        self.gram_diagonal = gram_diagonal
 
     def __call__(self, image):
 
@@ -66,7 +68,7 @@ class swEVMfeatures():
         if self.normalized:
             out = evm.V1(image)
 
-            if self.meanFreqOutput:
+            if self.meanFreqOutput or self.gram or self.gram_diagonal:
                 out = np.flip(np.mean(np.mean(out, 0), 0), 1)
 
         else:
@@ -74,8 +76,15 @@ class swEVMfeatures():
             out, _, _ = evm.decomp_Gabor(image)
             out = np.abs(out)
 
-            if self.meanFreqOutput:
+            if self.meanFreqOutput or self.gram or self.gram_diagonal:
                 out = np.flip(np.mean(np.abs(out, 0), 0), 1)
+
+        if self.gram:
+            # ToDo: Fabi
+            pass
+        elif self.gram_diagonal:
+            # Todo: Fabi
+            pass
 
         # magnitude of the complex model output.
         return torch.from_numpy(np.asarray(out.flatten(), dtype='float32'))
