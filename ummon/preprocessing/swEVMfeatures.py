@@ -80,11 +80,11 @@ class swEVMfeatures():
                 out = np.flip(np.mean(np.abs(out, 0), 0), 1)
 
         if self.gram:
-            # ToDo: Fabi
-            pass
+            v = np.expand_dims(out.flatten(), axis=1)
+            out = v * v.T
         elif self.gram_diagonal:
-            # Todo: Fabi
-            pass
+            v = np.expand_dims(out.flatten(), axis=1)
+            out = v ** 2
 
         # magnitude of the complex model output.
         return torch.from_numpy(np.asarray(out.flatten(), dtype='float32'))
