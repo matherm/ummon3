@@ -222,6 +222,9 @@ class ImagePatches(Dataset):
                 self.img[:, :, 1] = self.img[:, :, 1] - np.mean(self.img[:, :, 1])
                 self.img[:, :, 2] = self.img[:, :, 2] - np.mean(self.img[:, :, 2])
 
+            #rescale 01
+            self.img = (self.img - np.min(self.img)) / (np.max(self.img) - np.min(self.img))
+
         if self.brx == -1:
             self.brx = self.img.shape[1]
         if self.bry == -1:
