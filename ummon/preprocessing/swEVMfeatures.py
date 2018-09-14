@@ -42,7 +42,7 @@ class swEVMfeatures():
 
     """
 
-    def __init__(self, normalized=True, meanFreqOutput=False, gram=False, gram_diagonal=False):
+    def __init__(self, pooling_mode='None', normalized=True, gram=False, gram_diagonal=False):
         """
         Parameters
         ----------
@@ -54,6 +54,7 @@ class swEVMfeatures():
         self.meanFreqOutput = meanFreqOutput
         self.gram = gram
         self.gram_diagonal = gram_diagonal
+        self.pooling_mode = pooling_mode
 
     def __call__(self, image):
 
@@ -68,16 +69,20 @@ class swEVMfeatures():
         if self.normalized:
             out = evm.V1(image)
 
-            if self.meanFreqOutput or self.gram or self.gram_diagonal:
+            if self.pooling_mode == 'mean_freq_orient':
                 out = np.flip(np.mean(np.mean(out, 0), 0), 1)
+            elif self.pooling_mode == 'mean_im_space':
+                out = np.mean(out, axis=(2,3))
 
         else:
             # retrun magnitude
             out, _, _ = evm.decomp_Gabor(image)
             out = np.abs(out)
 
-            if self.meanFreqOutput or self.gram or self.gram_diagonal:
+            if self.pooling_mode == 'mean_freq_orient':
                 out = np.flip(np.mean(np.abs(out, 0), 0), 1)
+            elif self.pooling_mode == 'mean_im_space':
+                out = np.mean(out, axis=(2,3))
 
         if self.gram:
             v = np.expand_dims(out.flatten(), axis=1)

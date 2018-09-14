@@ -135,9 +135,9 @@ class TestUmmonFeatures(unittest.TestCase):
         outputNormalized_ml_mean = np.flip(np.mean(np.mean(outputNormalized_ml, 0), 0), 1).flatten()
 
         ## Test extractor
-        pyr = swEVMfeatures(normalized=False, meanFreqOutput=False)(input)
-        pyr_normalized = swEVMfeatures(normalized=True, meanFreqOutput=False)(input)
-        pyr_normalized_mean = swEVMfeatures(normalized=True, meanFreqOutput=True)(input)
+        pyr = swEVMfeatures(normalized=False, pooling_mode='mean_freq_orient')(input)
+        pyr_normalized = swEVMfeatures(normalized=True, pooling_mode='mean_freq_orient')(input)
+        pyr_normalized_mean = swEVMfeatures(normalized=True, pooling_mode='mean_freq_orient')(input)
 
         assert (np.allclose(pyr.data.numpy(), outputDecomp_ml, rtol=1e-05, atol=1e-5))
         assert (np.allclose(pyr_normalized.data.numpy(), outputNormalized_ml.flatten()))
