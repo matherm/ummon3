@@ -390,9 +390,9 @@ class AnomalyImagePatches(ImagePatches):
         * anomaly_label (int) : the label for anomaly data (normal data is 0)
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
      """
-     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
+     def __init__(self, file, mode='bgr', mean_normalization=False, train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), permutation='random', propability=0.2, label=1, anomaly_label = -1, crop=[0, 0, -1, -1]):
-        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size, label, crop)
+        super(AnomalyImagePatches, self).__init__(file, mode, mean_normalization, train, train_percentage, transform, stride_x, stride_y, window_size, label, crop)
 
         assert anomaly_label == 0 or anomaly_label == -1
 
