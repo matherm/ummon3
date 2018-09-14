@@ -168,7 +168,7 @@ class swEMV:
 
         ## Frequency decomposition
         # into log_Gabor frequency and orentation bands
-        out, filters, frequencies = decomp_Gabor(img, degSize, [minF, maxF], nFreq, nOrient, bw)
+        out, filters, frequencies = self.decomp_Gabor(img, degSize, [minF, maxF], nFreq, nOrient, bw)
         ao = np.abs(out)
 
         if V1Mode == 6:
