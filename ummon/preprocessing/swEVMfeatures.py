@@ -51,7 +51,6 @@ class swEVMfeatures():
 
         """
         self.normalized = normalized
-        self.meanFreqOutput = meanFreqOutput
         self.gram = gram
         self.gram_diagonal = gram_diagonal
         self.pooling_mode = pooling_mode
