@@ -69,20 +69,27 @@ class swEVMfeatures():
             out = evm.V1(image)
 
             if self.pooling_mode == 'mean_freq_orient':
-                out = np.flip(np.mean(np.mean(out, 0), 0), 1)
+                out = np.mean(np.mean(out, 0), 0)
             elif self.pooling_mode == 'mean_im_space':
                 out = np.mean(out, axis=(2,3))
-
+            elif self.pooling_mode == 'max_freq_orient':
+                out = np.flip(np.max(np.max(out, 0), 0), 1)
+            elif self.pooling_mode == 'max_im_space':
+                out = np.max(out, axis=(2, 3))
         else:
             # retrun magnitude
             out, _, _ = evm.decomp_Gabor(image)
             out = np.abs(out)
 
             if self.pooling_mode == 'mean_freq_orient':
-                out = np.flip(np.mean(np.abs(out, 0), 0), 1)
+                out = np.mean(np.abs(out, 0), 0)
             elif self.pooling_mode == 'mean_im_space':
                 out = np.mean(out, axis=(2,3))
-
+            elif self.pooling_mode == 'max_freq_orient':
+                out = np.max(np.abs(out, 0), 0)
+            elif self.pooling_mode == 'max_im_space':
+                out = np.max(out, axis=(2, 3))
+                
         if self.gram:
             v = np.expand_dims(out.flatten(), axis=1)
             out = v * v.T
