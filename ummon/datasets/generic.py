@@ -282,6 +282,7 @@ class ImagePatches(Dataset):
             return int((1 - self.train_percentage) * self.dataset_size)
 
     def _draw_boarder(self, patch, color, thickness, inplace = True):
+         if thickness == 0: return patch
          if inplace == False: patch = patch.copy()
          if patch.shape[2] < 3:
              patch = np.concatenate((patch, patch, patch), axis=2).copy()
