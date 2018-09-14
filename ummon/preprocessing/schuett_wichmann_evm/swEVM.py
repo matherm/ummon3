@@ -98,67 +98,159 @@ class swEMV:
 
         return pyr, filters, freq
 
-    def V1(self, img, degSize=[2, 2], V1Mode=None, pars=None, Gradidx=None):
+    def V1(self, img, degSize=[2, 2], V1Mode=7, pars=None, Gradidx=None):
         '''
         This runs a log-Gabor pyramid decompostion and computes a normalization of the different channels. Until now,
-        only V1Mode 7 (local normalization -> only activations at this pixel count) is supported.
+        only V1Mode 6,7 (local normalization -> only activations at this pixel count) is supported.
         '''
 
         ## pars
-        # Todo: parse pars input.
-        CNaka = 0.003593813663805  # Naka rushton constant
-        ExNaka = 4.400000000000000  # Naka rushton Exponent below
-        ExNakaNorm = 4  # Naka rushton Exponent below
+        # current default for V1Mode7 and 1497
+        CNaka = 0.  # Naka rushton constant
+        ExNaka = 0.  # Naka rushton Exponent below
+        ExNakaNorm = 0.  # Naka rushton Exponent below
         bw = [0, 0]
-        bw[0] = 0.594525260201613  # bandwidth in frequency (std of log-Gabor in octaves)
-        bw[1] = 0.296469236479833  # bandwidth in orientation (std log-Gabor in radiants)
-        nFreq = 12  # number of frequency bands
-        nOrient = 8  # number of orientations
-        poolbw = 1  # bandwidth of the normalization pool (Octaves in frequency)
-        minF = 0.5  # lowest frequency band
-        maxF = 20  # highest frequency band
-        pool0 = 0.111175963679937
+        bw[0] = 0.  # bandwidth in frequency (std of log-Gabor in octaves)
+        bw[1] = 0.  # bandwidth in orientation (std log-Gabor in radiants)
+        nFreq = 0  # number of frequency bands
+        nOrient = 0  # number of orientations
+        poolSize = 0
+        poolbw = 0  # bandwidth of the normalization pool (Octaves in frequency)
+        minF = 0  # lowest frequency band
+        maxF = 0  # highest frequency band
+        pool0 = 0.
+
+        if pars is not None:
+            CNaka = pars[0]
+            ExNaka = pars[1] + pars[2]
+            ExNakaNorm = pars[1]
+            bw = [0, 0]
+            bw[0] = pars[3]
+            bw[1] = pars[4]
+            nFreq = pars[5].astype('int')
+            nOrient = pars[6].astype('int')
+            poolSize = pars[7].astype('int')
+            poolbw = pars[8].astype('int')
+            minF = pars[9]
+            maxF = pars[10]
+            if np.size(pars) >= 12:
+                pool0 = pars[11]
+        else:
+            # Some default parameter for time 1497
+            if V1Mode == 6 and pars == None:
+                # current default for V1Mode7 and 1497
+                CNaka = 0.002689259736807
+                ExNaka = 2.169827631936535
+                ExNakaNorm = 1.866666687672307
+                bw = [0, 0]
+                bw[0] = 0.594525260201613
+                bw[1] = 0.296469236479833
+                nFreq = 12
+                nOrient = 8
+                poolbw = 1
+                minF = 0.5
+                maxF = 20
+                pool0 = 0.200809948798191
+            elif V1Mode == 7 and pars == None:
+                # current default for V1Mode7 and 1497
+                CNaka = 0.003593813663805
+                ExNaka = 4.400000000000000
+                ExNakaNorm = 4
+                bw = [0, 0]
+                bw[0] = 0.594525260201613
+                bw[1] = 0.296469236479833
+                nFreq = 12
+                nOrient = 8
+                poolbw = 1
+                minF = 0.5
+                maxF = 20
+                pool0 = 0.111175963679937
 
         ## Frequency decomposition
         # into log_Gabor frequency and orentation bands
-        out, filters, frequencies = self.decomp_Gabor(img, degSize, [minF, maxF], nFreq, nOrient, bw)
+        out, filters, frequencies = decomp_Gabor(img, degSize, [minF, maxF], nFreq, nOrient, bw)
         ao = np.abs(out)
 
-        ## V1Mode 7 (Ml switch case)
-        lao = np.log(ao)
-        normalizer = np.exp(lao * ExNakaNorm)
+        if V1Mode == 6:
+            # HS:
+            # spatially pool whole image (Probably only sensible for foveal model)
+            # for obvious reasons this ignores the size of the pool in space
+            lao = np.log(ao)
+            normalizer1 = np.exp(lao * ExNakaNorm)
+            normalizer = np.mean(np.mean(normalizer1, 0), 0)  # ToDo: check this line, diff. between mode 6 and 7
+            normalizer = np.reshape(normalizer, (1, 1, nOrient, nFreq))
 
-        fdiff = np.linspace(np.log2(minF) - np.log2(maxF), np.log2(maxF) - np.log2(minF), 2 * np.size(frequencies) - 1)
+            fdiff = np.linspace(np.log2(minF) - np.log2(maxF), np.log2(maxF) - np.log2(minF),
+                                2 * np.size(frequencies) - 1)
 
-        gaussF = np.exp(-fdiff ** 2 / poolbw ** 2 / 2)
-        gaussFN = gaussF / np.sum(gaussF)
-        gaussFN = np.reshape(gaussFN, [1, 1, 1, np.size(gaussFN)])
+            gaussF = np.exp(-fdiff ** 2 / poolbw ** 2 / 2)
+            gaussFN = gaussF / np.sum(gaussF)
+            gaussFN = np.reshape(gaussFN, [1, 1, 1, np.size(gaussFN)])
 
-        o = np.zeros(nOrient)
-        for i in range(0, nOrient):
-            o[i] = i - np.floor(nOrient / 2)
-        o *= np.pi / nOrient
+            o = np.zeros(nOrient)
+            for i in range(0, nOrient):
+                o[i] = i - np.floor(nOrient / 2)
+            o *= np.pi / nOrient
 
-        # Todo: if (not finite) else if pool0 else:
-        gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
-        gaussON = gaussO / np.sum(gaussO)
-        gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
-        gaussONF = np.reshape(gaussONF, (1, 1, np.size(gaussONF)))
+            # Todo: if (not finite) else if pool0 else:
+            gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
+            gaussON = gaussO / np.sum(gaussO)
+            gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
+            gaussONF = np.reshape(gaussONF, (1, 1, nOrient, 1))
 
-        # fourier space filtering to enable "wrap around"
-        normalizerF = np.fft.fft(normalizer, axis=2)
+            # fourier space filtering to enable "wrap around"
+            normalizerF = np.fft.fft(normalizer, axis=2)
 
-        gaussONF = np.expand_dims(gaussONF, 3)
-        normalizerF = normalizerF * gaussONF
+            # normalizerF = np.expand_dims(np.expand_dims(normalizerF, 0), 0)
+            normalizerF = normalizerF * gaussONF
 
-        normalizer = np.real(np.fft.ifft(normalizerF, axis=2))
+            normalizer = np.real(np.fft.ifft(normalizerF, axis=2))
+            normalizerPad = np.pad(normalizer,
+                                   ((0, 0), (0, 0), (0, 0), ((normalizer.shape[3] - 1), (normalizer.shape[3] - 1))),
+                                   'constant', constant_values=0)
 
-        normalizerPad = np.pad(normalizer,
-                               ((0, 0), (0, 0), (0, 0), ((normalizer.shape[3] - 1), (normalizer.shape[3] - 1))),
-                               'constant', constant_values=0)
+            normalizer = convolve(normalizerPad, gaussFN, 'valid')
+            normalizerFin = (normalizer + CNaka ** ExNakaNorm)
+            outNormalized = ((np.exp(lao * ExNaka)) / normalizerFin)
 
-        normalizer = convolve(normalizerPad, gaussFN, 'valid')
-        normalizerFin = (normalizer + CNaka ** ExNakaNorm)
-        outNormalized = np.exp(lao * ExNaka) / normalizerFin
+        else:
+            # V1Mode7 - for now this is the default.
+            # Local normalization -> only activtions at this pixel count
+            lao = np.log(ao)
+            normalizer = np.exp(lao * ExNakaNorm)
 
-        return outNormalized
+            fdiff = np.linspace(np.log2(minF) - np.log2(maxF), np.log2(maxF) - np.log2(minF),
+                                2 * np.size(frequencies) - 1)
+
+            gaussF = np.exp(-fdiff ** 2 / poolbw ** 2 / 2)
+            gaussFN = gaussF / np.sum(gaussF)
+            gaussFN = np.reshape(gaussFN, [1, 1, 1, np.size(gaussFN)])
+
+            o = np.zeros(nOrient)
+            for i in range(0, nOrient):
+                o[i] = i - np.floor(nOrient / 2)
+            o *= np.pi / nOrient
+
+            # Todo: if (not finite) else if pool0 else:
+            gaussO = np.exp(-o ** 2 / pool0 ** 2 / 2)
+            gaussON = gaussO / np.sum(gaussO)
+            gaussONF = np.fft.fft(np.fft.ifftshift(gaussON))
+            gaussONF = np.reshape(gaussONF, (1, 1, np.size(gaussONF)))
+
+            # fourier space filtering to enable "wrap around"
+            normalizerF = np.fft.fft(normalizer, axis=2)
+
+            gaussONF = np.expand_dims(gaussONF, 3)
+            normalizerF = normalizerF * gaussONF
+
+            normalizer = np.real(np.fft.ifft(normalizerF, axis=2))
+
+            normalizerPad = np.pad(normalizer,
+                                   ((0, 0), (0, 0), (0, 0), ((normalizer.shape[3] - 1), (normalizer.shape[3] - 1))),
+                                   'constant', constant_values=0)
+
+            normalizer = convolve(normalizerPad, gaussFN, 'valid')
+            normalizerFin = (normalizer + CNaka ** ExNakaNorm)
+            outNormalized = np.exp(lao * ExNaka) / normalizerFin
+
+            return outNormalized
