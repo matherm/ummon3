@@ -171,7 +171,7 @@ class ImagePatches(Dataset):
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
     """
     
-    def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
+    def __init__(self, file, mode='bgr', mean_normalization=False, train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32, label=1, crop=[0, 0, -1, -1]):
 
         self.filename = file
@@ -213,6 +213,14 @@ class ImagePatches(Dataset):
             self.img = self._rgb_to_gray()
         elif mode == 'gray3channel':
             self.img = self._rgb_to_gray3channel()
+
+        if mean_normalization:
+            if mode == 'gray':
+                self.img[:, :, 0] = self.img[:, :, 0] - np.mean(self.img[:, :, 0])
+            else:
+                self.img[:, :, 0] = self.img[:, :, 0] - np.mean(self.img[:, :, 0])
+                self.img[:, :, 1] = self.img[:, :, 1] - np.mean(self.img[:, :, 1])
+                self.img[:, :, 2] = self.img[:, :, 2] - np.mean(self.img[:, :, 2])
 
         if self.brx == -1:
             self.brx = self.img.shape[1]
