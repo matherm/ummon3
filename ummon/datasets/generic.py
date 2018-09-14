@@ -171,7 +171,7 @@ class ImagePatches(Dataset):
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
     """
     
-    def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
+    def __init__(self, file, mode='bgr', mean_normalization=False, train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32, label=1, crop=[0, 0, -1, -1]):
 
         self.filename = file
@@ -213,6 +213,17 @@ class ImagePatches(Dataset):
             self.img = self._rgb_to_gray()
         elif mode == 'gray3channel':
             self.img = self._rgb_to_gray3channel()
+
+        if mean_normalization:
+            if mode == 'gray':
+                self.img[:, :, 0] = self.img[:, :, 0] - np.mean(self.img[:, :, 0])
+            else:
+                self.img[:, :, 0] = self.img[:, :, 0] - np.mean(self.img[:, :, 0])
+                self.img[:, :, 1] = self.img[:, :, 1] - np.mean(self.img[:, :, 1])
+                self.img[:, :, 2] = self.img[:, :, 2] - np.mean(self.img[:, :, 2])
+
+            #rescale 01
+            self.img = (self.img - np.min(self.img)) / (np.max(self.img) - np.min(self.img))
 
         if self.brx == -1:
             self.brx = self.img.shape[1]
@@ -383,9 +394,9 @@ class AnomalyImagePatches(ImagePatches):
         * anomaly_label (int) : the label for anomaly data (normal data is 0)
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
      """
-     def __init__(self, file, mode='bgr', train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
+     def __init__(self, file, mode='bgr', mean_normalization=False, train = True, train_percentage=.8, transform=transforms.Compose([transforms.ToTensor()]),
                  stride_x=16, stride_y=16, window_size=32, anomaly=SquareAnomaly(), permutation='random', propability=0.2, label=1, anomaly_label = -1, crop=[0, 0, -1, -1]):
-        super(AnomalyImagePatches, self).__init__(file, mode, train, train_percentage, transform, stride_x, stride_y, window_size, label, crop)
+        super(AnomalyImagePatches, self).__init__(file, mode, mean_normalization, train, train_percentage, transform, stride_x, stride_y, window_size, label, crop)
 
         assert anomaly_label == 0 or anomaly_label == -1
 
