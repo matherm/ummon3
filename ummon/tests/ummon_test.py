@@ -1081,7 +1081,7 @@ class TestUmmon(unittest.TestCase):
         print(y2)
         print('Reference predictions:')
         print(y1)
-        assert np.allclose(y2, y1, 0, 1e-4)
+        assert np.allclose(y2, y1, 0, 1e-2)
     
     
     # test crop
