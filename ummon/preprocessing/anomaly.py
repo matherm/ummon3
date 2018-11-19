@@ -8,7 +8,7 @@ Created on Fri Jun 15 09:13:39 2018
 import numpy as np
 import torch
 
-__all__ = ['SquareAnomaly', 'GaussianNoiseAnomaly', 'LaplacianNoiseAnomaly', 'LineDefectAnomaly', 'TurtleAnomaly']
+__all__ = ['SquareAnomaly', 'GaussianNoiseAnomaly', 'LaplacianNoiseAnomaly', 'LineDefectAnomaly', 'TurtleAnomaly', 'ShuffleAnomaly']
 
 class SquareAnomaly():
     """
@@ -344,3 +344,53 @@ class TurtleAnomaly():
             return x.numpy()
         else:
             return x
+        
+        
+class ShuffleAnomaly():
+    """
+    Shuffles a a patch randomly.
+    
+    Limitations
+    ===========
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
+    
+    
+    Usage
+    =====
+        my_transforms = transforms.Compose([ShuffleAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+    
+    """
+    def __init__(self, mode="rowscols"):
+         assert mode in ["rowscols", "full"]
+         if mode == "rowscols":
+             self.full_shuffle = False
+         else:
+             self.full_shuffle = True
+         
+    def __call__(self, x):
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(np.asarray(x)).float()
+        else:
+            was_numpy = False
+        x = x.clone()
+        assert np.min(x.numpy()) >= 0
+        if x.dim() == 2: x = x.unsqueeze(2)
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
+        
+        x = x.numpy()
+        if self.full_shuffle:
+            np.random.shuffle(x.reshape(-1))
+        else:
+            if x.ndim == 3:
+                np.random.shuffle(x.reshape(-1,x.shape[2]))
+            else:
+                np.random.shuffle(x.reshape(-1))
+            
+        if was_numpy:
+            return x
+        else:
+            return torch.from_numpy(x)

@@ -87,11 +87,11 @@ class swEVMfeatures():
             out = np.abs(out)
 
             if self.pooling_mode == 'mean_freq_orient':
-                out = np.mean(np.abs(out, 0), 0)
+                out = np.mean(out, 0)
             elif self.pooling_mode == 'mean_im_space':
                 out = np.mean(out, axis=(2,3))
             elif self.pooling_mode == 'max_freq_orient':
-                out = np.max(np.abs(out, 0), 0)
+                out = np.max(out, 0)
             elif self.pooling_mode == 'max_im_space':
                 out = np.max(out, axis=(2, 3))
 

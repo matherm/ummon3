@@ -77,4 +77,7 @@ from ummon.preprocessing.vgg19features import *
 from ummon.preprocessing.anomaly import *
 from ummon.preprocessing.featurecache import *
 from .datasets.generic import *
-
+from .datasets.imagepatches import *
+from .datasets.labeledimagepatches import *
+from .datasets.anomalyimagepatches import *
+from .datasets.shuffledimagepatches import *

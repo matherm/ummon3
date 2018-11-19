@@ -56,7 +56,7 @@ class TestUmmonFeatures(unittest.TestCase):
     def test_image_patches_data_set(self):
 
         my_transforms = transforms.Compose([SquareAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
                                 train=False, \
                                 mode='gray', \
                                 transform=my_transforms) 
@@ -67,7 +67,7 @@ class TestUmmonFeatures(unittest.TestCase):
         assert y.max() <= 10
         
         my_transforms = transforms.Compose([transforms.ToTensor()])
-        test_set = AnomalyImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+        test_set = AnomalyImagePatches("ummon/tests/testdata/Wood-0035.png", \
                                 train=False, \
                                 transform=my_transforms) 
         
@@ -79,7 +79,7 @@ class TestUmmonFeatures(unittest.TestCase):
         
         
         my_transforms = transforms.Compose([transforms.ToTensor()])
-        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
                                 train=False, \
                                 transform=my_transforms) 
         
@@ -91,7 +91,7 @@ class TestUmmonFeatures(unittest.TestCase):
         
         
         my_transforms = transforms.Compose([TurtleAnomaly(pixels=16*16//8, thickness = 8, color_bucket=[0, 128, 199])])
-        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
                                 window_size=512,
                                 train=False, \
                                 transform=my_transforms) 
@@ -120,28 +120,29 @@ class TestUmmonFeatures(unittest.TestCase):
 
         filename = 'input.mat'
         object_name = 'input'
-        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
         input = sw_mat[object_name]
 
+        # Test matlab implementation output      
         filename = 'outputDecomp.mat'
         object_name = 'out'
-        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
         outputDecomp_ml = np.asarray(np.abs(sw_mat[object_name]).flatten(), dtype='float32')
-
+        
         filename = 'outputNormalized.mat'
         object_name = 'outputNormalized'
-        sw_mat = sio.loadmat(str('ummon/datasets/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
         outputNormalized_ml = np.asarray(sw_mat[object_name], dtype='float32')
-        outputNormalized_ml_mean = np.flip(np.mean(np.mean(outputNormalized_ml, 0), 0), 1).flatten()
+        outputNormalized_ml_mean = np.mean(np.mean(outputNormalized_ml, 0), 0).flatten()
 
-        ## Test extractor
-        pyr = swEVMfeatures(normalized=False, pooling_mode='mean_freq_orient')(input)
-        pyr_normalized = swEVMfeatures(normalized=True, pooling_mode='mean_freq_orient')(input)
+        # Test without pooling
+        pyr = swEVMfeatures(normalized=False, pooling_mode='None')(input)
+        pyr_normalized = swEVMfeatures(normalized=True, pooling_mode='None')(input)
         pyr_normalized_mean = swEVMfeatures(normalized=True, pooling_mode='mean_freq_orient')(input)
 
         assert (np.allclose(pyr.data.numpy(), outputDecomp_ml, rtol=1e-05, atol=1e-5))
         assert (np.allclose(pyr_normalized.data.numpy(), outputNormalized_ml.flatten()))
-        assert (np.allclose(pyr_normalized_mean.data.numpy(), outputNormalized_ml_mean))
+        assert (np.allclose(pyr_normalized_mean.data.numpy(), outputNormalized_ml_mean, rtol=1e-05, atol=1e-5))
 
 if __name__ == '__main__':
     import argparse
