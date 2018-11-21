@@ -6,7 +6,7 @@ import warnings
 from torchvision import transforms
 from imageio import imread
 
-class OCLabeledImagePatches(Dataset):
+class LabeledImagePatches(Dataset):
     """
     Dataset for generating data from a single given image with labeled defects in a separate mask file. 
     It used a window-scheme, hence the name Image Patches.
@@ -24,10 +24,11 @@ class OCLabeledImagePatches(Dataset):
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
         * limit (int) : limits the number of patches (default: -1)
         * shuffle (boolean) : random pick limited patches (default: False)
+        * oneclass (bool): only return good samples as training examples
     """
     
     def __init__(self, file, mask_file, mode='rgb', mean_normalization=False, train = True, train_percentage=1.0, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32, train_label=0, test_label=1, crop=[0, 0, -1, -1], limit=-1, shuffle=False):
+                 stride_x=16, stride_y=16, window_size=32, train_label=0, test_label=1, crop=[0, 0, -1, -1], limit=-1, shuffle=False, oneclass=False):
 
         self.filename = file
         self.img = imread(file)
@@ -44,6 +45,7 @@ class OCLabeledImagePatches(Dataset):
         self.tlx, self.tly, self.brx, self.bry = crop
         self.limit = limit
         self.shuffle = shuffle
+        self.oneclass = oneclass
         
         assert self.img.shape[:2] == self.mask_image.shape[:2]
         assert self.mask_image.ndim == 3
@@ -108,29 +110,38 @@ class OCLabeledImagePatches(Dataset):
         self.num_patches = int(self.patches_per_x) * int(self.patches_per_y)
         
         # compute labels
-        good_idx, defective_idx = self._compute_labeled_patches(limit, self.shuffle) 
-        if train == True:
-            self.idx_mapping = good_idx
-            self.labels = [self.train_label] * len(good_idx) 
-        else:
-            self.idx_mapping = defective_idx
-            self.labels = [self.test_label] * len(defective_idx)
-            
-        # add unlearnt training samples to test set
-        if train_percentage < 1.0 and train == False:
-            num_train_samples = int(train_percentage * len(good_idx))
-            unlearnt_training_samples = good_idx[num_train_samples:]
-            self.idx_mapping =  defective_idx + unlearnt_training_samples
-            self.labels = self.labels + [self.train_label] * len(unlearnt_training_samples)
+        good_idx, defective_idx = self._compute_labeled_patches(limit, self.shuffle)
+        self.idx_mapping = good_idx + defective_idx
+        self.all_labels = np.zeros(self.num_patches).astype(np.int32)
+        self.all_labels[good_idx] = self.train_label
+        self.all_labels[defective_idx] = self.test_label
+                 
+        # case one class setting
+        if self.oneclass == True:
+            if train == True:
+                self.idx_mapping = good_idx
+            else:
+                self.idx_mapping = defective_idx
+                
+            # add unlearnt training samples to test set
+            if train_percentage < 1.0:
+                if train == True:
+                    num_train_samples = int(train_percentage * len(good_idx))
+                    self.idx_mapping =  good_idx[:num_train_samples]
+                else:
+                    num_train_samples = int(train_percentage * len(good_idx))
+                    unlearnt_training_samples = good_idx[num_train_samples:]
+                    self.idx_mapping =  defective_idx + unlearnt_training_samples
 
-        # store dataset sizes            
-        self.num_train_samples = len(good_idx)
-        self.num_test_samples = len(defective_idx)
-        if self.train:
-            self.dataset_size = self.num_train_samples
+            # store dataset sizes            
+            self.num_train_samples = int(train_percentage * len(good_idx))
+            self.num_test_samples = len(defective_idx) + int((1-train_percentage) * len(good_idx))
         else:
-            self.dataset_size = self.num_test_samples            
-            
+            # store dataset sizes   
+            self.num_train_samples = int(len(self.idx_mapping) * train_percentage)
+            self.num_test_samples = int(len(self.idx_mapping) * (1 - train_percentage))      
+      
+     
             
     def _rgb_to_bgr(self):
         assert self.img.shape[2] == 3
@@ -178,7 +189,10 @@ class OCLabeledImagePatches(Dataset):
         return str(self.stats())
         
     def __len__(self):
-            return self.dataset_size
+        if self.train:
+            return self.num_train_samples
+        else:
+            return self.num_test_samples  
 
     def _draw_boarder(self, patch, color, thickness, inplace = True):
          if thickness == 0: return patch
@@ -223,20 +237,18 @@ class OCLabeledImagePatches(Dataset):
 
     def _compute_labeled_patches(self, limit=-1, shuffle=False):
         if limit == -1:
-            limit = np.iinfo(np.int32).max
+            limit = self.num_patches
         idx = np.arange(self.num_patches)
         if shuffle:
             idx = np.random.permutation(idx)
         good_idx, defective_idx = [], []
-        for i in idx:
+        for i in range(limit):
+            i = idx[i]
             mask = self._get_internal_patch(i, self.mask_image)
             if(np.max(mask) > 0):
-                if len(defective_idx) < limit :
-                    defective_idx.append(i)
+                defective_idx.append(i)
             else:
-                if len(good_idx) < limit:
-                    good_idx.append(i) 
-            
+                good_idx.append(i) 
         return good_idx, defective_idx
    
 
@@ -273,9 +285,13 @@ class OCLabeledImagePatches(Dataset):
         img[topleft_y : bottomright_y, topleft_x : bottomright_x, :] = patch
         return img
     
+    def _get_label(self, idx):
+         idx = self.idx_mapping[idx]
+         return int(self.all_labels[idx])
+
     def __getitem__(self, idx):
         patch = self._get_patch(idx)
-        label = self.labels[idx]
+        label = self._get_label(idx)
         if self.transform:
             patch = self.transform(patch)
         return patch, label

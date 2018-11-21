@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import warnings
 
-__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset" , "WeightedPair", "Triplet", "TripletTensorDataset", "NumpyDataset"]
+__all__ = ["UnsupTensorDataset" , "SiameseTensorDataset", "SiameseDataset" , "WeightedPair", "Triplet", "TripletTensorDataset", "NumpyDataset"]
 
 class UnsupTensorDataset(Dataset):
     """Dataset wrapping tensors for unsupervised trainings.
@@ -50,6 +50,31 @@ class SiameseTensorDataset(Dataset):
     def __len__(self):
         return self.data_tensor_l.size(0)
     
+
+class SiameseDataset(Dataset):
+    """Dataset wrapping datasets for siamese networks.
+
+    Each sample will be retrieved by indexing both tensors along the first
+    dimension.
+
+    Arguments:
+        dataset_l (Dataset): contains sample data.
+        dataset_ (Dataset): contains sample data.
+    """
+
+    def __init__(self, dataset_l, dataset_r):
+        self.dataset_l = dataset_l
+        self.dataset_r = dataset_r
+        assert len(self.dataset_l) == len(self.dataset_r)
+
+    def __repr__(self):
+        return repr(self.dataset_l)
+
+    def __getitem__(self, index):
+        return ((self.dataset_l[index][0], self.dataset_r[index][0]) , (self.dataset_l[index][1], self.dataset_r[index][1]))
+
+    def __len__(self):
+        return len(self.dataset_l)
     
 import torch
 from torch.utils.data import Dataset
@@ -107,7 +132,7 @@ class Triplet(Dataset):
     """
     Dataset for training with deep metric networks (Triplet).
     
-    It takes a dataset like cifar10 and ensures that balanced tuples are returnd.
+    It takes a dataset like cifar10 and ensures that balanced triples are returnd.
     Balanced means that there are same number of same lables and different labels.
     
     Arguments:

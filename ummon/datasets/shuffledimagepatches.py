@@ -47,7 +47,7 @@ class ShuffledImagePatches(ImagePatches):
             np.random.shuffle(image.reshape(-1))
     
         
-class ShuffledOCLabeledImagePatches(OCLabeledImagePatches):
+class ShuffledLabeledImagePatches(LabeledImagePatches):
     """
     Dataset for generating data from a single given image with labeled defects in a separate mask file. 
     It used a window-scheme, hence the name Image Patches.
@@ -63,6 +63,9 @@ class ShuffledOCLabeledImagePatches(OCLabeledImagePatches):
         * stride_y : The overlap in y direction
         * window_size (int) : square size of the resulting patches
         * crop (list) : tlx, tly, brx, bry, default [0, 0, -1, -1]
+        * limit (int) : limits the number of patches (default: -1)
+        * shuffle (boolean) : random pick limited patches (default: False)
+        * oneclass (bool): only return good samples as training examples
     """
     def __init__(self, *args, shuffle_mode="full", **kwargs):
         super().__init__(*args, **kwargs)

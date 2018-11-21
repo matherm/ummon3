@@ -54,7 +54,7 @@ class TestDatasets(unittest.TestCase):
             [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
             )
 
-        patches_reference = OCLabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
+        patches_reference = LabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
                                                 "./ummon/tests/testdata/C2_mask.png", 
                                                 mode='bgr', 
                                                 train_percentage=1.0,
@@ -66,7 +66,7 @@ class TestDatasets(unittest.TestCase):
                                                 limit=10,
                                                 shuffle=True)
 
-        patches_anaomaly = OCLabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
+        patches_anaomaly = LabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
                                                 "./ummon/tests/testdata/C2_mask.png", 
                                                 mode='bgr', 
                                                 train_percentage=1.0,
@@ -78,7 +78,7 @@ class TestDatasets(unittest.TestCase):
                                                 limit=10,
                                                 shuffle=True)
 
-        patches_noise = ShuffledOCLabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
+        patches_noise = ShuffledLabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
                                                     "./ummon/tests/testdata/C2_mask.png", 
                                                     mode='bgr', 
                                                     train_percentage=1.0,
@@ -113,7 +113,7 @@ class TestDatasets(unittest.TestCase):
             [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
             )
 
-        patches_reference = OCLabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
+        patches_reference = LabeledImagePatches("./ummon/tests/testdata/C2_tex.jpg",
                                                 "./ummon/tests/testdata/C2_mask.png", 
                                                 mode='bgr', 
                                                 train_percentage=1.0,
@@ -123,7 +123,8 @@ class TestDatasets(unittest.TestCase):
                                                 window_size=32, 
                                                 transform=transform,
                                                 limit=10,
-                                                shuffle=True)
+                                                shuffle=True,
+                                                oneclass=True)
 
         assert NumpyDataset(patches_reference).data.shape[0] == 10
         assert NumpyDataset(patches_reference).labels.shape[0] == 10
@@ -132,7 +133,7 @@ class TestDatasets(unittest.TestCase):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test', default="", metavar="",
+    parser.add_argument('test', default="", metavar="",
                         help="Execute a specific test")
     argv = parser.parse_args()
     sys.argv = [sys.argv[0]]
