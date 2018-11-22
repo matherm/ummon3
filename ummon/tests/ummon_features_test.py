@@ -21,7 +21,7 @@ class TestUmmonFeatures(unittest.TestCase):
         super(TestUmmonFeatures, self).__init__(*args, **kwargs)
         
         # BACKUP files
-        backup_dir = "_backup"
+        backup_dir = "__backup__"
         files = os.listdir(".")
         dir = "."
         for file in files:

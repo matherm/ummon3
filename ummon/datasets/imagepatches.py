@@ -44,7 +44,7 @@ class ImagePatches(Dataset):
         # Normalize patch to (H, W, C) with [0, 1] float32
         assert self.img.min() >= 0
         self.img = self.img.astype(np.float32)
-        if self.img.max() > 1. :
+        while self.img.max() > 1. : # while as some images are scaled larger than 255 (e.g. disparity images)
             self.img = self.img / 255
         if self.img.ndim == 3 and self.img.shape[0] < self.img.shape[2] and self.img.shape[0] < self.img.shape[1]:
             # bring channel to back

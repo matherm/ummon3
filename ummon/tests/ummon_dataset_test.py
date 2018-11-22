@@ -40,7 +40,7 @@ class TestDatasets(unittest.TestCase):
         super(TestDatasets, self).__init__(*args, **kwargs)
         
         # BACKUP files
-        backup_dir = "_backup"
+        backup_dir = "__backup__"
         files = os.listdir(".")
         dir = "."
         for file in files:
@@ -90,6 +90,27 @@ class TestDatasets(unittest.TestCase):
                                                     limit=10,
                                                     shuffle=True)
 
+
+        
+    def test_disparity_image_patches(self):
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
+            )
+
+        patches_reference = LabeledImagePatches("./ummon/tests/testdata/C2_disp.jpg",
+                                                mode='bgr', 
+                                                train_percentage=1.0,
+                                                train=True, 
+                                                stride_y=32,
+                                                stride_x=32, 
+                                                window_size=32, 
+                                                transform=transform,
+                                                limit=10,
+                                                shuffle=True,
+                                                crop=[2000,2000,2200,2200],
+                                                affine_map=np.diag(np.ones(4)))
+        
+        
     def test_anomaly_image_patches(self):
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]

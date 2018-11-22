@@ -5,6 +5,8 @@ import numpy as np
 import warnings
 from torchvision import transforms
 from imageio import imread
+import os
+from scipy.ndimage.interpolation import affine_transform
 
 class LabeledImagePatches(Dataset):
     """
@@ -25,15 +27,13 @@ class LabeledImagePatches(Dataset):
         * limit (int) : limits the number of patches (default: -1)
         * shuffle (boolean) : random pick limited patches (default: False)
         * oneclass (bool): only return good samples as training examples
+        * affine_map (ndarray) : 4x4 ndarray defining the affine transformation
     """
     
-    def __init__(self, file, mask_file, mode='rgb', mean_normalization=False, train = True, train_percentage=1.0, transform=transforms.Compose([transforms.ToTensor()]),
-                 stride_x=16, stride_y=16, window_size=32, train_label=0, test_label=1, crop=[0, 0, -1, -1], limit=-1, shuffle=False, oneclass=False):
-
+    def __init__(self, file, mask_file=None, mode='rgb', mean_normalization=False, train = True, train_percentage=1.0, transform=transforms.Compose([transforms.ToTensor()]),
+                 stride_x=16, stride_y=16, window_size=32, train_label=0, test_label=1, crop=[0, 0, -1, -1], limit=-1, shuffle=False, oneclass=False, affine_map=None):
         self.filename = file
         self.img = imread(file)
-        self.mask_image = imread(mask_file)[:,:, 0]
-        self.mask_image = np.expand_dims(np.asarray(self.mask_image), 2) # only keep first layer
         self.train = train
         self.train_label = train_label 
         self.test_label = test_label 
@@ -46,15 +46,23 @@ class LabeledImagePatches(Dataset):
         self.limit = limit
         self.shuffle = shuffle
         self.oneclass = oneclass
-        
+        # Mask image >> only keep the first layer
+        self.mask_image = None
+        if mask_file is not None:
+            self.mask_image = imread(mask_file)[:,:, 0]
+            self.mask_image = np.expand_dims(np.asarray(self.mask_image), 2)
+        else:
+            self.mask_image = np.zeros(self.img.shape[0:2]) 
+            self.mask_image = np.expand_dims(self.mask_image, 2)
+
         assert self.img.shape[:2] == self.mask_image.shape[:2]
         assert self.mask_image.ndim == 3
 
         # Normalize patch to (H, W, C) with [0, 1] float32
         assert self.img.min() >= 0
         self.img = self.img.astype(np.float32)
-        if self.img.max() > 1. :
-            self.img = self.img / 255
+        while self.img.max() > 1. : # while as some images are scaled larger than 255 (e.g. disparity images)
+            self.img = self.img / 255 
         if self.img.ndim == 3 and self.img.shape[0] < self.img.shape[2] and self.img.shape[0] < self.img.shape[1]:
             # bring channel to back
             self.img = np.transpose(self.img, (1,2,0))
@@ -90,11 +98,12 @@ class LabeledImagePatches(Dataset):
             #rescale 01
             self.img = (self.img - np.min(self.img)) / (np.max(self.img) - np.min(self.img))
 
-        # image cropping
+        # image and mask_image cropping
         if self.brx == -1:
             self.brx = self.img.shape[1]
         if self.bry == -1:
             self.bry = self.img.shape[0]
+        self.mask_image = self.mask_image[self.tly: self.bry, self.tlx:self.brx].copy()
 
         if self.img.ndim == 3:
             self.img      = self.img[self.tly : self.bry, self.tlx:self.brx , :].copy()
@@ -102,7 +111,11 @@ class LabeledImagePatches(Dataset):
             self.img      = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
         else:
             raise AttributeError(self.img.shape + ' image dimensions invalid.')
-        self.mask_img     = self.img[self.tly: self.bry, self.tlx:self.brx].copy()
+               
+        # Apply given affine transformation to image and mask_image
+        if affine_map is not None:
+            self.img = affine_transform(self.img, affine_map) 
+            self.mask_image = affine_transform(self.mask_image, affine_map)
 
         # compute some statistics
         self.patches_per_y = (((self.img.shape[0] - self.window_size) // self.stride_y) + 1)
@@ -110,39 +123,8 @@ class LabeledImagePatches(Dataset):
         self.num_patches = int(self.patches_per_x) * int(self.patches_per_y)
         
         # compute labels
-        good_idx, defective_idx = self._compute_labeled_patches(limit, self.shuffle)
-        self.idx_mapping = good_idx + defective_idx
-        self.all_labels = np.zeros(self.num_patches).astype(np.int32)
-        self.all_labels[good_idx] = self.train_label
-        self.all_labels[defective_idx] = self.test_label
-                 
-        # case one class setting
-        if self.oneclass == True:
-            if train == True:
-                self.idx_mapping = good_idx
-            else:
-                self.idx_mapping = defective_idx
-                
-            # add unlearnt training samples to test set
-            if train_percentage < 1.0:
-                if train == True:
-                    num_train_samples = int(train_percentage * len(good_idx))
-                    self.idx_mapping =  good_idx[:num_train_samples]
-                else:
-                    num_train_samples = int(train_percentage * len(good_idx))
-                    unlearnt_training_samples = good_idx[num_train_samples:]
-                    self.idx_mapping =  defective_idx + unlearnt_training_samples
-
-            # store dataset sizes            
-            self.num_train_samples = int(train_percentage * len(good_idx))
-            self.num_test_samples = len(defective_idx) + int((1-train_percentage) * len(good_idx))
-        else:
-            # store dataset sizes   
-            self.num_train_samples = int(len(self.idx_mapping) * train_percentage)
-            self.num_test_samples = int(len(self.idx_mapping) * (1 - train_percentage))      
-      
-     
-            
+        self.idx_mapping, self.all_labels, self.num_train_samples, self.num_test_samples = self._label_image()
+                  
     def _rgb_to_bgr(self):
         assert self.img.shape[2] == 3
         r = np.expand_dims(self.img[:, :, 0], axis=2)
@@ -235,13 +217,48 @@ class LabeledImagePatches(Dataset):
          marked_img = marked_img.squeeze()
          return (marked_img * 255).astype(np.uint8)
 
+    def _label_image(self):
+        good_idx, defective_idx = self._compute_labeled_patches(self.limit, self.shuffle)
+        idx_mapping = good_idx + defective_idx
+        all_labels = np.zeros(self.num_patches).astype(np.int32)
+        all_labels[good_idx] = self.train_label
+        all_labels[defective_idx] = self.test_label              
+        # case one class setting
+        if self.oneclass == True:
+            if self.train == True:
+                idx_mapping = good_idx
+            else:
+                idx_mapping = defective_idx
+                
+            # add unlearnt training samples to test set
+            if self.train_percentage < 1.0:
+                if self.train == True:
+                    num_train_samples = int(self.train_percentage * len(good_idx))
+                    idx_mapping =  good_idx[:num_train_samples]
+                else:
+                    num_train_samples = int(self.train_percentage * len(good_idx))
+                    unlearnt_training_samples = good_idx[num_train_samples:]
+                    idx_mapping =  defective_idx + unlearnt_training_samples
+
+            # store dataset sizes            
+            num_train_samples = int(self.train_percentage * len(good_idx))
+            num_test_samples = len(defective_idx) + int((1-self.train_percentage) * len(good_idx))
+        else:
+            # store dataset sizes   
+            num_train_samples = int(len(idx_mapping) * self.train_percentage)
+            num_test_samples = int(len(idx_mapping) * (1 - self.train_percentage))
+        return idx_mapping, all_labels, num_train_samples, num_test_samples
+
     def _compute_labeled_patches(self, limit=-1, shuffle=False):
+        # Handle limits in case we do not want to process the whole image
         if limit == -1:
             limit = self.num_patches
         idx = np.arange(self.num_patches)
+        # Randomize the access indices so that we process arbitrary positions
         if shuffle:
             idx = np.random.permutation(idx)
         good_idx, defective_idx = [], []
+        # Loop through randomized indices until limit reached and fill label buckets
         for i in range(limit):
             i = idx[i]
             mask = self._get_internal_patch(i, self.mask_image)
