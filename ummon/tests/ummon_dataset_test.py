@@ -146,7 +146,7 @@ class TestDatasets(unittest.TestCase):
                                                 limit=10,
                                                 shuffle=True,
                                                 oneclass=True)
-
+        data_point = patches_reference[0]
         assert NumpyDataset(patches_reference).data.shape[0] == 10
         assert NumpyDataset(patches_reference).labels.shape[0] == 10
 

@@ -259,13 +259,14 @@ class LabeledImagePatches(Dataset):
             idx = np.random.permutation(idx)
         good_idx, defective_idx = [], []
         # Loop through randomized indices until limit reached and fill label buckets
-        for i in range(limit):
-            i = idx[i]
+        for i in idx:
             mask = self._get_internal_patch(i, self.mask_image)
             if(np.max(mask) > 0):
                 defective_idx.append(i)
             else:
-                good_idx.append(i) 
+                good_idx.append(i)
+            if len(good_idx) == limit or len(defective_idx) == limit:
+                break
         return good_idx, defective_idx
    
 

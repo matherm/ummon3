@@ -48,21 +48,6 @@ class TestExamples(unittest.TestCase):
                     os.makedirs(backup_dir)
                 os.rename(os.path.join(dir,file), os.path.join(backup_dir,file))
     
-    def test_mnist1(self):
-        import examples.mnist_pytorch_examples
-        
-        ts = examples.mnist_pytorch_examples.example()
-        assert ts["best_validation_accuracy"][1] > 0.11
-        
-        import examples.validation
-        examples.validation.example()
-        
-        # Clean up
-        files = os.listdir(".")
-        dir = "."
-        for file in files:
-            if file.endswith(Trainingstate().extension) or file.endswith(".log"):
-                os.remove(os.path.join(dir,file))
          
     def test_sine(self):
         import examples.sine
