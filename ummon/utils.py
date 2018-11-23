@@ -111,50 +111,36 @@ def get_type_information(dataset):
 def get_numerical_information(dataset):
     if dataset is None: return "---"
     assert isinstance(dataset, torch.utils.data.Dataset)
-    n_set = NumpyDataset(dataset, limit=50)
-    # CASE SUPERVISED
-    if type(dataset[0]) == tuple:  
-        # CASE MULTIPLE INPUT
-        if type(n_set.data) == list:
-            data_range = "["
-            for di in n_set.data:
-                data_range = data_range \
-                            + "min:"   + str(np.round(di.min(),1)) \
-                            + " max:"  + str(np.round(di.max(),1)) \
-                            + " mean:" + str(np.round(di.mean(),1)) \
-                            + " std:"  + str(np.round(di.std(),1)) \
-                            + ", "
-            data_range = data_range + "]"
+    # GET A SAMPLE
+    samples = []
+    labels = []
+    for i in range(np.min([len(dataset), 10])):
+        # e.g. dataset = [([array, array],label),([array,array],label),..]
+        # e.g. dataset = [((array, array),label),((array,array),label),..]
+        # e.g. *dataset = [((array, array),(label, label)),((array,array),(label, label)),..]
+        # e.g. dataset = [(array, label),(array,label),..]
+        # e.g. dataset = [array, array, ...]
+        datapoint = dataset[i]
+        if type(datapoint) == tuple:
+            X, y = datapoint   # X e (tensor, tensor) , y e (label, label)
         else:
-            data_range = "min:"    + str(np.round(n_set.data.min(),1)) \
-                        + " max:"  + str(np.round(n_set.data.max(),1)) \
-                        + " mean:" + str(np.round(n_set.data.mean(),1)) \
-                        + " std:"  + str(np.round(n_set.data.std(),1)) \
-        # CASE MULTIPLE OUTPUT
-        if type(n_set.labels) == list:
-            target_range = "["
-            for di in n_set.labels:
-                  target_range = target_range \
-                            + "min:"   + str(np.round(di.min(),1)) \
-                            + " max:"  + str(np.round(di.max(),1)) \
-                            + " mean:" + str(np.round(di.mean(),1)) \
-                            + " gini:" + str(np.round(gini(di),1)) \
-                            + ", "
-            target_range = target_range + "]"
-        else:
-            target_range = "min:"  + str(np.round(n_set.labels.min(),1)) \
-                    + " max:"  + str(np.round(n_set.labels.max(),1)) \
-                    + " mean:" + str(np.round(n_set.labels.mean(),1)) \
-                    + " gini:" + str(np.round(gini(n_set.labels),1)) 
-        return "\n\tStats IN:{} / TARGET:{}".format(data_range,target_range)
-     # CASE UNSUPERVISED 
-    else:
-        data_range = "min: "   + str(np.round(n_set.data.min(),1)) \
-                   + " max: "  + str(np.round(n_set.data.max(),1)) \
-                   + " mean: " + str(np.round(n_set.data.mean(),1)) \
-                   + " std: "  + str(np.round(n_set.data.std(),1)) 
-        return "\n\tStats IN:{}".format(data_range)
+            X = datapoint
+            y = 0
+        samples = samples + [x.numpy() for x in list(X)]
+        labels  = labels  + list(np.asarray(y).reshape(1,-1))
+        
+    data    =  "min:"  + str(np.round(np.min(samples),1)) \
+            + " max:"  + str(np.round(np.max(samples),1)) \
+            + " mean:" + str(np.round(np.mean(samples),1)) \
+            + " std:"  + str(np.round(np.std(samples),1))
 
+    labels  =  "min:"  + str(np.round(np.min(labels),1)) \
+            + " max:"  + str(np.round(np.max(labels),1)) \
+            + " mean:" + str(np.round(np.mean(labels),1)) \
+            + " std:"  + str(np.round(np.std(labels),1)) 
+    return "\n\tStats Data:{} / Labels:{}".format(data,labels)
+ 
+    
 def get_size_information(dataset):
     if dataset is None: return "---"
     assert isinstance(dataset, torch.utils.data.Dataset)
