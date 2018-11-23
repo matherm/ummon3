@@ -129,7 +129,7 @@ class TestDatasets(unittest.TestCase):
                                                     anomaly=GaussianNoiseAnomaly(size=32, mean=0, std=0.1))
 
  
-    def test_numpy_data_set(self):
+    def test_in_ram_numpy_data_set(self):
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
             )
@@ -147,8 +147,8 @@ class TestDatasets(unittest.TestCase):
                                                 shuffle=True,
                                                 oneclass=True)
         data_point = patches_reference[0]
-        assert NumpyDataset(patches_reference).data.shape[0] == 10
-        assert NumpyDataset(patches_reference).labels.shape[0] == 10
+        assert LoadDatasetIntoRam(patches_reference).data.shape[0] == 10
+        assert LoadDatasetIntoRam(patches_reference).labels.shape[0] == 10
 
 
 if __name__ == '__main__':
