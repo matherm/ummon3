@@ -394,3 +394,48 @@ class ShuffleAnomaly():
             return x
         else:
             return torch.from_numpy(x)
+
+
+class RotationAnomaly():
+    """
+    Rotatesa patch by 90 or 180 degree.
+    
+    Limitations
+    ===========
+        Supported shapes are ( y, x, 3) or (y, x) or ( y, x, 1).
+    
+    
+    Usage
+    =====
+        my_transforms = transforms.Compose([RotationAnomaly(rot=90), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        test_set = ImagePatches("ummon/datasets/testdata/Wood-0035.png", \
+                                train=False, \
+                                transform=my_transforms) 
+    
+    """
+    def __init__(self, rot=90):
+         assert rot in [90, 180, 270]
+         self.rot = rot
+
+    def __call__(self, x):
+        if not torch.is_tensor(x):
+            was_numpy = True
+            x = torch.from_numpy(np.asarray(x)).float()
+        else:
+            was_numpy = False
+        x = x.clone()
+        if x.dim() == 2: 
+            x = x.unsqueeze(2)
+        assert np.min(x.numpy()) >= 0
+        assert x.size(2) < x.size(1) and x.size(2) < x.size(0)
+        
+        x = x.numpy()
+        x = np.rot90(x, self.rot // 90).copy()
+      #  from scipy.ndimage.interpolation import affine_transform
+      #  x = affine_transform(x, np.array([[np.cos(25),-np.sin(25),0],
+      #                                     [np.sin(25),np.cos(25),0],
+      #                                       [0,0,1]]))       
+        if was_numpy:
+            return x
+        else:
+            return torch.from_numpy(x)
