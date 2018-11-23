@@ -188,7 +188,7 @@ class ImagePatches(Dataset):
                  marked_img = np.expand_dims(marked_img, 2)
              assert self.img.shape[:2] == marked_img.shape[:2]
          for i in patch_indices:
-             patch, _ = self._get_patch(i)
+             patch, _ = self.get_patch(i)
              # Draw line..
              patch = self._draw_boarder(patch, color, thickness)
              # Copy to image
@@ -197,7 +197,7 @@ class ImagePatches(Dataset):
          marked_img = marked_img.squeeze()
          return (marked_img * 255).astype(np.uint8)
 
-    def _get_patch(self, idx):
+    def get_patch(self, idx):
         # map external index to internal
         idx = self.idx_mapping[idx]
         x = idx % self.patches_per_x
@@ -230,7 +230,7 @@ class ImagePatches(Dataset):
         return img
 
     def __getitem__(self, idx):
-        patch = self._get_patch(idx)
+        patch = self.get_patch(idx)
         label = self.label
         if self.transform:
             patch = self.transform(patch)

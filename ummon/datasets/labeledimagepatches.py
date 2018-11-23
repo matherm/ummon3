@@ -8,6 +8,7 @@ from imageio import imread
 import os
 from scipy.ndimage.interpolation import affine_transform
 
+
 class LabeledImagePatches(Dataset):
     """
     Dataset for generating data from a single given image with labeled defects in a separate mask file. 
