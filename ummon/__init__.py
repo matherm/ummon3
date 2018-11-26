@@ -26,7 +26,8 @@ import ummon.schedulers
 import ummon.trainingstate
 import ummon.visualizer
 import ummon.modules
-import ummon.preprocessing
+import ummon.features
+import ummon.transforms
 import ummon.functionals
 import ummon.tests
 import ummon.tools
@@ -70,9 +71,9 @@ from .modules.imgproc import *
 from .modules.vgg19 import *
 from .modules.gram import *
 from .gridsearch import *
-from ummon.preprocessing.imagetransforms import *
-from ummon.preprocessing.psTMfeatures import *
-from ummon.preprocessing.swEVMfeatures import *
-from ummon.preprocessing.vgg19features import *
-from ummon.preprocessing.featurecache import *
+from ummon.transforms.imagetransforms import *
+from ummon.features.psTMfeatures import *
+from ummon.features.swEVMfeatures import *
+from ummon.features.vgg19features import *
+from ummon.features.featurecache import *
 from .datasets.generic import *

@@ -97,8 +97,9 @@ setup(
         'scipy',
         ],
       test_suite="ummon.tests",
-      packages=['ummon', 'ummon.modules', 'ummon.functionals', 'ummon.preprocessing',
-                'ummon.preprocessing.schuett_wichmann_evm', 'ummon.preprocessing.portilla_simoncelli_tm',
+      packages=['ummon', 'ummon.modules', 'ummon.functionals', 
+                'ummon.features', 'ummon.features.schuett_wichmann_evm', 'ummon.features.portilla_simoncelli_tm',
+                'ummon.transforms',
                 'ummon.tests', 'ummon.datasets', 'ummon.tools'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
