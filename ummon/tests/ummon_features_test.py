@@ -53,52 +53,6 @@ class TestUmmonFeatures(unittest.TestCase):
         assert y.size(0) == 512 == y.size(1)
         
         
-    def test_image_patches_data_set(self):
-
-        my_transforms = transforms.Compose([SquareAnomaly(), transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
-                                train=False, \
-                                mode='gray', \
-                                transform=my_transforms) 
-        y = test_set[0][0]
-        
-        assert y.size(0) == 1 and y.dim() == 3
-        assert y.min() >= -10
-        assert y.max() <= 10
-        
-        my_transforms = transforms.Compose([transforms.ToTensor()])
-        test_set = AnomalyImagePatches("ummon/tests/testdata/Wood-0035.png", \
-                                train=False, \
-                                transform=my_transforms) 
-        
-        y = test_set[0][0]
-        
-        assert y.size(0) == 3 and y.dim() == 3
-        assert y.min() >= 0
-        assert y.max() <= 10
-        
-        
-        my_transforms = transforms.Compose([transforms.ToTensor()])
-        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
-                                train=False, \
-                                transform=my_transforms) 
-        
-        y = test_set[0][0]
-        
-        assert y.size(0) == 3 and y.dim() == 3
-        assert y.min() >= 0
-        assert y.max() <= 10
-        
-        
-        my_transforms = transforms.Compose([TurtleAnomaly(pixels=16*16//8, thickness = 8, color_bucket=[0, 128, 199])])
-        test_set = ImagePatches("ummon/tests/testdata/Wood-0035.png", \
-                                window_size=512,
-                                train=False, \
-                                transform=my_transforms) 
-        
-        assert test_set[0][0].min() == 0  
-        
-        
     def test_portilla_simoncelli_features(self):
 
         from ummon.preprocessing.psTMfeatures import PSTMfeatures
