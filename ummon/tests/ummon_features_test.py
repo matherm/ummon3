@@ -61,9 +61,22 @@ class TestUmmonFeatures(unittest.TestCase):
 
         # TEST EXTRACTOR
         y = PSTMfeatures(scales=2)(x)
-        print(y)
+        print(y.shape)
         y = PSTMfeatures(scales=2, inclPixelStats=False)(x)
-        print(y)
+        print(y.shape)
+
+
+    def test_portilla_simoncelli_color_features(self):
+
+        from ummon.features.psTMColorfeatures import PSTMColorfeatures
+        # PREPARE DATA
+        x = torch.from_numpy(np.random.uniform(0, 1, 32*32*3).reshape(32,32,3))
+
+        # TEST EXTRACTOR
+        y = PSTMColorfeatures(scales=2)(x)
+        print(y.shape)
+        y = PSTMColorfeatures(scales=2)(x)
+        print(y.shape)
 
     def test_swEVM_features(self):
 
