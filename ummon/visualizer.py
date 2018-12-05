@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import math
 import numpy as np
 import torch.nn as nn
@@ -372,7 +365,3 @@ class Visualizer:
         neg_saliency = (np.maximum(0, -gradient) / -gradient.min())
         
         return pos_saliency, neg_saliency
-
-
-if __name__ == "__main__":
-    print("This is", Visualizer().name)

@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3') 
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import time
 import numpy as np
 import torch
@@ -654,7 +647,3 @@ class SiameseAnalyzer(SupervisedAnalyzer):
         evaluation_dict["detailed_loss"] = ctx
         
         return evaluation_dict
-    
-if __name__ == "__main__":
-    pass           
-        
