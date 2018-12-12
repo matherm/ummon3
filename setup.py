@@ -99,7 +99,7 @@ setup(
       test_suite="ummon.tests",
       packages=['ummon', 'ummon.modules', 'ummon.functionals', 
                 'ummon.features', 'ummon.features.schuett_wichmann_evm', 'ummon.features.portilla_simoncelli_tm', 'ummon.features.ps_color',
-                'ummon.transforms',
+                'ummon.transformations',
                 'ummon.tests', 'ummon.datasets', 'ummon.tools'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
