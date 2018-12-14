@@ -14,9 +14,8 @@ import torchvision
 import shutil
 
 # VERSION DEPENDENCIES
-if "0.4" not in torch.__version__: 
-    exit("Sorry, PyTorch version " + torch.__version__ + " is not supported yet! Please use version 0.4.x")
-
+if torch.__version__ not in ["0.4.0", "0.4.1", "1.0.0"]: 
+    exit("Sorry, PyTorch version " + torch.__version__ + " is not supported yet! Please use version >0.4.x")
 
 """
 ummon3: IOS Neural Network Package

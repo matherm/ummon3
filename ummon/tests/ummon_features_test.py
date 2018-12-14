@@ -61,9 +61,7 @@ class TestUmmonFeatures(unittest.TestCase):
 
         # TEST EXTRACTOR
         y = PSTMfeatures(scales=2)(x)
-        print(y.shape)
         y = PSTMfeatures(scales=2, inclPixelStats=False)(x)
-        print(y.shape)
 
 
     def test_portilla_simoncelli_color_features(self):
@@ -74,9 +72,7 @@ class TestUmmonFeatures(unittest.TestCase):
 
         # TEST EXTRACTOR
         y = PSTMColorfeatures(scales=2)(x)
-        print(y.shape)
         y = PSTMColorfeatures(scales=2)(x)
-        print(y.shape)
 
     def test_swEVM_features(self):
 
