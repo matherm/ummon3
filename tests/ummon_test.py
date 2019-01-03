@@ -2083,19 +2083,14 @@ class TestUmmon(unittest.TestCase):
                 return x
         
         x = torch.from_numpy(np.random.normal(0, 1, 10000).reshape(10000,1))
-        y = 2 * torch.from_numpy(np.random.binomial(1, 0.5, 10000).reshape(10000,1)) - 1
-        
         x_valid = torch.from_numpy(np.random.normal(0, 1, 100).reshape(100,1))
-
+        
         # -1/1 Encoding
+        y = 2 * torch.from_numpy(np.random.binomial(1, 0.5, 10000).reshape(10000,1)) - 1
         y_valid = 2 * torch.from_numpy(np.random.binomial(1, 0.5, 100).reshape(100,1)) - 1
-
-        # 0/1 Encoding
-        y_valid2 = torch.from_numpy(np.random.binomial(1, 0.5, 100).reshape(100,1))
 
         dataset = TensorDataset(x.double(), y.double())
         dataset_valid = TensorDataset(x_valid.double(), y_valid.double())
-        dataset_valid2 = TensorDataset(x_valid.double(), y_valid2.double())
         dataloader_trainingdata = DataLoader(dataset, batch_size=10, shuffle=True, sampler=None, batch_sampler=None)
         
         model = Net()
@@ -2112,9 +2107,6 @@ class TestUmmon(unittest.TestCase):
         accuracy = Predictor.compute_accuracy(predicts, y_valid)
         assert accuracy > 0.48
 
-        predicts = Predictor.classify(output)
-        accuracy = Predictor.compute_accuracy(predicts, y_valid2)
-        assert accuracy > 0.48
         files = os.listdir(".")
         dir = "."
         for file in files:

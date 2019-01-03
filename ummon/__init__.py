@@ -28,7 +28,6 @@ import ummon.visualizer
 import ummon.modules
 import ummon.features
 import ummon.functionals
-import ummon.tests
 import ummon.tools
 
 version = ummon.__version__.version
