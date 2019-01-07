@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 #__all__ = [ 'Conv', 'Deconv' ]
-__all__ = [ 'Conv' ]
+__all__ = [ 'Conv', 'Conv1d' ]
 
 
 # Convolutional layer class
@@ -162,6 +162,162 @@ class Conv(nn.Conv2d):
         if type(wmat) != np.ndarray:
             raise TypeError('Provided weight matrix is not a *NumPy* array')
         if wmat.shape != (self.filtsize[0], self.insize[0], self.filtsize[1], self.filtsize[2]):
+            raise TypeError('Provided weight tensor has wrong size.')
+        self.weight.data = torch.from_numpy(wmat)
+    
+    
+    # get bias
+    @property
+    def b(self):
+        if self.bias is not None:
+            return self.bias.data.numpy()
+        else:
+            return None
+    
+    
+    # set bias
+    @b.setter
+    def b(self, bvec):
+        if self.bias is not None:
+            if type(bvec) != np.ndarray:
+                raise TypeError('Provided bias vector is not a *NumPy* array')
+            if bvec.ndim == 1:
+                bvec = bvec.reshape((len(bvec),1)).copy()
+            if bvec.shape != (self.filtsize[0], 1):
+                raise TypeError('Provided bias vector has wrong size.')
+            self.bias.data = torch.from_numpy(bvec)
+
+
+# 1d Convolutional layer class
+class Conv1d(nn.Conv1d):
+    '''
+    Convolutional layer::
+    
+        conv0 = Conv([m,n,p], [c,r,s], [ystride,xstride], [ypadding, xpadding], bias, init)
+    
+    creates a convolutional layer for unflattened 4d input tensors. The weight matrix is 
+    initialized according to 'init' which must be one of the initialization methods 
+    described in pyTorch.
+    
+    This layer implements a convolutional layer with a set of 'c' learned filters that
+    are applied to a sequence of m-channel images. The output of each filter is
+    the cross-correlation of the learned m x r x s filter mask with the multi channel
+    image where 'm' is the number of input channels, 'r' the filter mask height and 's' 
+    the filter mask width. 
+    
+    The output image can be downscaled by a factor of 'ystride' in y- and 'xstride' in 
+    x-direction. In this way, a strided convolution is possible. This is useful for large 
+    input images. You can use a single number if the strides in both directions is equal.
+    
+    Additional boundary pixels with value 0 are allocated when 'padding' is set to value 
+    larger than 0. Note that in this case the same number of rows and columns are added, independently
+    of the filter size. Alternatively, you can two different paddings in y- and x-direction
+    by setting 'padding' to 2-tupke. If you set 'padding' to zero you obtain the classical
+    'valid' padding used, e.g. in LeNet which leads to smaller output images. 
+    By setting 'padding' to half the filter size you
+    get the 'half' padding used in Theano. This corresponds to standard zero padding as
+    used in image processing and preserves the image size.
+    
+    In addition, each filter also has a trainable bias term similar to standard linear 
+    layers. If you do not want a bias term set the argument 'bias' to False.
+    
+    The layer accepts only input tensors of size [mini_batch_size, m, n, p]. If the input 
+    is in flattened format, an Unflatten node 
+    has to be inserted as input layer. 
+    
+    Attributes:
+    
+    * w: weight tensor of the layer
+    * b: bias vector
+    
+    '''
+    # constructor
+    def __init__(self, insize, fsize, stride=1, padding=0, dilation=1, groups=1, 
+        bias=True, init='xavier_normal_'):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 2:
+            raise TypeError('Input size list must have 2 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        self.filtsize = list(fsize)
+        if len(self.filtsize) != 2:
+            raise TypeError('Filter size list must have 2 elements.')
+        for s in self.filtsize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Filter size must be > 0.')
+        self._stride = int(stride)
+        if self._stride < 1:
+            raise ValueError('Stride must be > 0.')
+        self._padding = int(padding)
+        if self._padding < 0:
+            raise ValueError('Padding must be >= 0.')
+        
+        # create pytorch conv1d
+        super(Conv1d, self).__init__(self.insize[0], self.filtsize[0], self.filtsize[1], 
+            self._stride, self._padding, dilation, groups, bias)
+        
+        # initialize weights
+        init = str(init)
+        nn.init.__dict__[init](self.weight)
+        if self.bias is not None:
+            nn.init.constant_(self.bias,0.0)
+        
+        # output size
+        out_size = (self.insize[1] + 2*self._padding - self.filtsize[1]) // \
+            self._stride + 1
+        self.outsize = [self.filtsize[0], out_size]
+        
+        # network stats
+        self.num_neurons = self.outsize[0] * self.outsize[1]
+        self.num_weights = self.num_neurons*self.filtsize[1]*self.insize[0] 
+        self.num_adj_weights = self.filtsize[0]*self.insize[0]*self.filtsize[1]
+        if self.bias is not None:
+            self.num_weights += self.num_neurons
+            self.num_adj_weights += self.filtsize[0]
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+            + '[bs,{},{}]->[bs,{},{}],mask[{},{},{}],str={},pad={}'.format(
+            self.insize[0], self.insize[1], self.outsize[0], self.outsize[1], 
+            self.filtsize[0], self.insize[0], self.filtsize[1], 
+            self._stride, self._padding) + ',bias=' + \
+            str(self.bias is not None) + ')' 
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        x0 = outp[1]*self._stride - self._padding
+        if x0 < 0:
+            x0 = 0
+        x1 = outp[3]*self._stride + self.filtsize[1] - 1 - self._padding
+        if x1 >= self.insize[1]:
+            x1 = self.insize[1] - 1
+        
+        return [0, x0, self.insize[0] - 1, x1]
+    
+    
+    # get weights
+    @property
+    def w(self):
+        return self.weight.data.numpy()
+    
+    
+    # set weights
+    @w.setter
+    def w(self, wmat):
+        if type(wmat) != np.ndarray:
+            raise TypeError('Provided weight matrix is not a *NumPy* array')
+        if wmat.shape != (self.filtsize[0], self.insize[0], self.filtsize[1]):
             raise TypeError('Provided weight tensor has wrong size.')
         self.weight.data = torch.from_numpy(wmat)
     

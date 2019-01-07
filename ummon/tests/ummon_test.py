@@ -1241,6 +1241,47 @@ class TestUmmon(unittest.TestCase):
         print(y3/x1)
     
     
+    # test 1d convolutional layer valid padding
+    def test_conv_1d_valid(self):
+        print('\n')
+        
+        # create net
+        cnet = Sequential(
+            ('conv0', Conv1d([1,5], [2,3]))
+        )
+        print(cnet)
+        
+        # check weight matrix size
+        w = cnet.conv0.w
+        b = cnet.conv0.b
+        print('Weight tensor:')
+        print(w)
+        print('bias:')
+        print(b)
+        assert w.shape == (2,1,3)
+        assert b.shape == (2,)
+        
+        # test input
+        x0 = np.zeros((2,1,5), dtype=np.float32)
+        x0[0,0,2] = 1.0
+        x0[1,0,2] = 3.0
+        y1 = np.zeros((2,2,3), dtype=np.float32)
+        
+        # predict and check cross-correlation
+        x1 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x1)
+        y2 = y2.data.numpy()
+        print('Predictions Conv for delta input:')
+        print(y2)
+        print('Reference predictions:')
+        y1[0,0,:] = w[0,0,-1::-1] + b[0]
+        y1[0,1,:] = w[1,0,-1::-1] + b[1]
+        y1[1,0,:] = 3*w[0,0,-1::-1] + b[0]
+        y1[1,1,:] = 3*w[1,0,-1::-1] + b[1]
+        print(y1)
+        assert np.allclose(y1, y2, 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
