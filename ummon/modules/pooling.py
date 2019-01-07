@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-__all__ = [ 'MaxPool', 'AvgPool' ]
+__all__ = [ 'MaxPool', 'AvgPool', 'MaxPool1d' ]
 
 # Max pooling layer class
 class MaxPool(nn.MaxPool2d):
@@ -126,6 +126,96 @@ class MaxPool(nn.MaxPool2d):
                 x1 = self.insize[2] - 1
         
         return [outp[0], y0, x0, outp[3], y1, x1]
+
+
+
+# Max pooling layer class
+class MaxPool1d(nn.MaxPool1d):
+    '''
+    Max pooling layer class::
+    
+        poo0 = MaxPool1d([n,p], kernel_size, stride, padding)
+    
+    creates a max pooling layer. This method selects the local maximum in the 
+    neighborhood determined by 'kernel_size' as the output value. The error is sparsely 
+    backpropagated, i.e., only the pixels where the maximum occurred is updated with the 
+    backpropagated error, all others are ignored.
+    
+    Applies max pooling to subsample an input tensor and provides a certain translation 
+    invariance. The input tensor for this layer must be in a non-flattened format. Pooling is 
+    controlled by 3 attributes: the stride between window centers in x- and y-direction
+    ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
+    either a number or 2-tuple). You can set an additional padding region ('padding':
+    either a number or 2-tuple) filled with zeroes for treating the image boundary 
+    regions.
+    
+    You obtain the classical pooling in the valid region (as, e.g., in LeNet) by setting
+    stride and kernel size to the same values and by setting 'padding' to zero. If you
+    want a behaviour similar to a strided convolution with zero padding set 'padding'
+    to half the filter size in each direction. For examples, see the tests in ummon_test.py.
+    '''    
+    # constructor
+    def __init__(self, insize, kernel_size, stride, padding=0, dilation=1, 
+        return_indices=False, ceil_mode=False):
+        
+        # check layer parameters
+        self.insize = list(insize)
+        if len(self.insize) != 2:
+            raise TypeError('Input size list must have 2 elements.')
+        for s in self.insize:
+            s = int(s)
+            if s < 1:
+                raise ValueError('Input size must be > 0.')
+        self._kernel_size = int(kernel_size)
+        if self._kernel_size < 1:
+            raise ValueError('Kernel size must be > 0.')
+        self._stride = int(stride)
+        if self._stride < 1:
+            raise ValueError('Stride must be > 0.')
+        self._padding = int(padding)
+        if self._padding < 0:
+            raise ValueError('Padding must be >= 0.')
+        
+        super(MaxPool1d, self).__init__(kernel_size, stride, padding, dilation, 
+            return_indices, ceil_mode)
+        
+        # output size
+        if self._stride == self._kernel_size: # valid pooling
+            out_width = (self.insize[1] + 2*self._padding)//self._stride
+        else:
+            out_width =  (self.insize[1] + 2*self._padding - 2*(self._kernel_size//2) - 1) // self._stride + 1
+        self.outsize = [self.insize[0], out_width]
+        
+        # network stats
+        self.num_neurons = self.outsize[0] * self.outsize[1]
+        self.num_weights = self.num_adj_weights = 0
+    
+    
+    # return printable representation
+    def __repr__(self):
+        return self.__class__.__name__ + '(' \
+            + '[bs,{},{}]->[bs,{},{}];sz={};str={};pad={})'.format(
+            self.insize[0], self.insize[1], self.outsize[0], self.outsize[1], 
+            self._kernel_size, self._stride, self._padding)
+    
+    
+    # Get the input block of a given output block
+    def get_input_block(self, outp):
+        '''
+        Returns the input block that feeds into the specified output block.
+        '''
+        if self._stride == self._kernel_size: # valid pooling
+            x0 = outp[1]*self._stride
+            x1 = outp[3]*self._stride + self._kernel_size - 1            
+        else: 
+            x0 = outp[1]*self._stride - self._padding
+            if x0 < 0: 
+                x0 = 0
+            x1 = outp[3]*self._stride + self._kernel_size - 1 - self._padding
+            if x1 >= self.insize[1]: 
+                x1 = self.insize[1] - 1
+        
+        return [outp[0], x0, outp[2], x1]
 
 
 # Average pooling layer class

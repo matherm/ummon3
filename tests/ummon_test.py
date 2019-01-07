@@ -1282,6 +1282,38 @@ class TestUmmon(unittest.TestCase):
         assert np.allclose(y1, y2, 0, 1e-5)
     
     
+    # test 1d max pooling inside valid region
+    def test_max_pooling_valid_1d(self):
+        
+        batch = 1    
+        print('\n')
+        cnet = Sequential(
+            ('pool0', MaxPool1d([1,5], kernel_size=2, stride=2))
+        )
+        print(cnet)
+        
+        # test dataset
+        x0 = np.random.randn(batch,1,5).astype('float32')
+        
+        # compute reference forward path
+        x1 = np.reshape(x0, (batch,1,5))
+        print('Input:')
+        print(x1)
+        y1 = np.zeros((2,), dtype=np.float32)
+        y1[0] = x1[0,0,:2].max()
+        y1[1] = x1[0,0,2:4].max()
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions max pooling:')
+        print(y2)
+        print('Reference predictions:')
+        print(y1)
+        assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
     def test_Trainer(self):
         np.random.seed(17)
         torch.manual_seed(17)
