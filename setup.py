@@ -66,10 +66,10 @@ class Installation(install):
         print("\tprint(ummon.version)")   
         print("\tummon.system_info()")   
 
-import ummon.tests
+import tests
 class TestPerformance(install):
     def run(self):
-        ummon.tests.performance()
+       tests.performance()
         
 setup(
       name = 'ummon',
@@ -95,11 +95,12 @@ setup(
         'setuptools',
         'scipy',
         ],
-      test_suite="ummon.tests",
+      test_suite="tests",
       packages=['ummon', 'ummon.modules', 'ummon.functionals', 
                 'ummon.features', 'ummon.features.schuett_wichmann_evm', 'ummon.features.portilla_simoncelli_tm', 'ummon.features.ps_color',
                 'ummon.transformations',
-                'ummon.tests', 'ummon.datasets', 'ummon.tools'],
+                'ummon.datasets', 
+                'ummon.tools'],
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )

@@ -1,19 +1,32 @@
+# Cache dirs and files
 **/__pycache__/**
 **/__backup__/**
-local*
 *.pyc
+.DS_Store
+.ipynb_checkpoints
+**/__ummoncache__/**
+
+# Custom local pattern
+local*
+
+# build files
 .eggs
 **/build/**
 *egg*
+
+# Feature preprocessing
 **/processed/**
 **/raw/**
-*.pth.tar
-*.log
+
+# Datasets
 examples/MNIST
-.DS_Store
-.ipynb_checkpoints
 examples/CIFAR10
-**/__ummoncache__/**
+
+# pytorch models
+*.pth.tar
 **ummon**.npy
 ummon_*.npy
+
+# IDEs and logs
 **/.vscode/**
+*.log

@@ -263,6 +263,3 @@ dependencies:
   - prompt-toolkit==1.0.15
   - ruamel-yaml==0.15.35
   - tables==3.4.2
-  - torch==0.4.0
-  - ummon==3.5.0.post3
-

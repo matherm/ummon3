@@ -127,10 +127,16 @@ class Predictor:
             
             if isinstance(loss_function, torch.nn.CrossEntropyLoss):
                 output = F.softmax(Variable(output), dim=1).data
+
+        # Case single output neurons (e.g. one-class-svm sign(output))
+        if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
+            # makes zeroes positive
+            classes = (output - 1e-12).sign().long()  
                 
         # One-Hot-Encoding
         if (output.dim() > 1 and output.size(1) > 1):
-            classes = output.max(1, keepdim=True)[1] 
+            classes = output.max(1, keepdim=True)[1]
+
         return classes
     
     
@@ -147,8 +153,6 @@ class Predictor:
         
         # number of correctly classified examples
         correct = classes.eq(targets.view_as(classes))
-        
-        # BACKWARD COMPATBILITY FOR TORCH < 0.4
         sum_correct = correct.sum()
         
         if type(sum_correct) == torch.Tensor:

@@ -83,18 +83,18 @@ class TestUmmonFeatures(unittest.TestCase):
 
         filename = 'input.mat'
         object_name = 'input'
-        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('./tests/testdata/sw_evm/' + filename))
         input = sw_mat[object_name]
 
         # Test matlab implementation output      
         filename = 'outputDecomp.mat'
         object_name = 'out'
-        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('./tests/testdata/sw_evm/' + filename))
         outputDecomp_ml = np.asarray(np.abs(sw_mat[object_name]).flatten(), dtype='float32')
         
         filename = 'outputNormalized.mat'
         object_name = 'outputNormalized'
-        sw_mat = sio.loadmat(str('ummon/tests/testdata/sw_evm/' + filename))
+        sw_mat = sio.loadmat(str('./tests/testdata/sw_evm/' + filename))
         outputNormalized_ml = np.asarray(sw_mat[object_name], dtype='float32')
         outputNormalized_ml_mean = np.mean(np.mean(outputNormalized_ml, 0), 0).flatten()
 
