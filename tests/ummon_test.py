@@ -1286,7 +1286,6 @@ class TestUmmon(unittest.TestCase):
     # test 1d max pooling inside valid region
     def test_max_pooling_valid_1d(self):
         
-        batch = 1    
         print('\n')
         cnet = Sequential(
             ('unfla', Unflatten([10], [2,5])),
@@ -1295,6 +1294,7 @@ class TestUmmon(unittest.TestCase):
         print(cnet)
         
         # test dataset
+        batch = 1
         x0 = np.random.randn(batch,10).astype('float32')
         
         # compute reference forward path
@@ -1315,6 +1315,35 @@ class TestUmmon(unittest.TestCase):
         print('Reference predictions:')
         print(y1)
         assert np.allclose(y2, y1, 0, 1e-5)
+    
+    
+    # test 1d batch normalization
+    def test_batch_norm_1d(self):
+        print('\n')
+        cnet = Sequential(
+            ('unfla', Unflatten([10], [2,5])),
+            ('pool0', BatchNorm1d([2,5], eps=1e-10, affine=False))
+        )
+        print(cnet)
+        
+        # test dataset
+        batch = 1
+        x0 = np.random.randn(batch,10).astype('float32')
+        
+        # Input
+        print('Input:')
+        print(x0)
+        
+        # predict and check
+        x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
+        y2 = cnet(x2)
+        y2 = y2.data.numpy()
+        print('Predictions 1d batch normalization:')
+        print(y2)
+        print('Channel 0 mean:', y2[0,0,:].mean(), 'Channel 0 std:', y2[0,0,:].std())
+        print('Channel 1 mean:', y2[0,1,:].mean(), 'Channel 1 std:', y2[0,1,:].std())
+        assert np.allclose(y2.mean(), 0.0, 0, 1e-5)
+        assert np.allclose(y2.std(), 1.0, 0, 1e-5)
     
     
     def test_Trainer(self):
