@@ -1298,7 +1298,6 @@ class TestUmmon(unittest.TestCase):
         x0 = np.random.randn(batch,10).astype('float32')
         
         # compute reference forward path
-        x1 = np.reshape(x0, (batch,2,5))
         print('Input:')
         print(x0)
         y1 = np.zeros((2,2), dtype=np.float32)

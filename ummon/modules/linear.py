@@ -25,8 +25,8 @@ class Linear(nn.Linear):
     where the input is given as an mbs x n matrix X with the flattened n-dimensional
     inputs as rows and the mini batch size mbs, the output as an mbs x m matrix Y with 
     neuron outputs in a row, the m x n weight matrix W and the m x 1 bias vector b. 
-    The layer accepts only flat input tensors of size [1,1,mbs,n] and produces output tensors 
-    of size [1,1,mbs,n]. If the input is in unflattened format, a Flatten node has to be 
+    The layer accepts only flat input tensors of size [mbs,n] and produces flat output tensors 
+    of size [mbs,n]. If the input is in unflattened format, a Flatten node has to be 
     included as input layer. If the argument 'bias' is set to False the bias vector is 
     ignored.
     
@@ -48,8 +48,8 @@ class Linear(nn.Linear):
         # initialize weights
         init = str(init)
         nn.init.__dict__[init](self.weight)
-        self.insize = [1,1,self.in_features]
-        self.outsize = [1,1,self.out_features]
+        self.insize = self.in_features
+        self.outsize = self.out_features
         self.num_weights = self.in_features*self.out_features
         if self.bias is not None:
             nn.init.constant_(self.bias,0.0)
@@ -61,7 +61,7 @@ class Linear(nn.Linear):
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[1,1,bs,{}]->[1,1,bs,{}])'.format(str(self.in_features), 
+            + '[bs,{}]->[bs,{}])'.format(str(self.in_features), 
             str(self.out_features)) + ', bias=' + str(self.bias is not None) + ')' 
     
     

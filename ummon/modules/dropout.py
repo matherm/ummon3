@@ -19,7 +19,7 @@ class Dropout(nn.Dropout):
     maintain the overall activation of the layer. For every mini batch other neurons are 
     switched on and off individually. This forces the subsequent layer to develop robust 
     features and avoids overfitting. Currently, dropout is only implemented for fully 
-    connected layers, i.e. the input must be in flattened format [1, 1, mini_batch_size, n].
+    connected layers, i.e. the input must be in flattened format [mini_batch_size, n].
     Input and output sizes are identical. For prediction, the state of the network must
     set by calling model.eval(). For training mode (default), you have to call 
     model.train().
@@ -33,7 +33,7 @@ class Dropout(nn.Dropout):
         insize = int(insize)
         if insize < 1:
             raise ValueError('Input size must be > 0.')
-        self.insize = [1, 1, insize]
+        self.insize = insize
         self.outsize = self.insize
         
         super(Dropout, self).__init__(rate, inplace)
@@ -45,8 +45,7 @@ class Dropout(nn.Dropout):
     # return printable representation
     def __repr__(self):
         return self.__class__.__name__ + '(' \
-            + '[1,1,bs,{}]->[1,1,bs,{}];rate={})'.format(self.insize[2], self.outsize[2], 
-            self.p)
+            + '[bs,{}]->[bs,{}];rate={})'.format(self.insize, self.outsize, self.p)
     
     
     # Get the input block of a given output block

@@ -13,13 +13,19 @@ class Flatten(nn.Module):
     
         flat0 = Flatten([m,n,p])
     
+    or 
+    
+        flat0 = Flatten([m,n])
+    
     creates a flattening layer for an unflattened sequence of input 
     tensors. 
     
-    This layer converts a sequence of multichannel images in a 4d tensor in a matrix 
-    where each row is a flattened version of the multichannel image. The input 
-    must be of size [mini_batch_size, nmaps, height, width]. The corresponding output 
-    size is [1, 1, mini_batch_size, n] with rows of length n = nmaps * height * width. 
+    This layer converts a sequence of multichannel images in a 3d or 4d tensor in a matrix 
+    where each row is a flattened version of the multichannel image or signal. The input 
+    must be of size [mini_batch_size, nmaps, height, width] or [mini_batch_size, nmaps, 
+    width]. The corresponding output 
+    size is [mini_batch_size, n] with rows of length n = nmaps * height * width or n = 
+    nmaps * width, respectively. 
     The conversion of the unflattened to the flattened format is necessary for
     applying linear layers and loss functions. The conversion back to the unflattened 
     format is done in the layer type Unflatten.
@@ -37,26 +43,26 @@ class Flatten(nn.Module):
             if s < 1:
                 raise ValueError('Input size must be > 0.')
         if len(self.insize) == 2:
-            self.outsize = [1,self.insize[0]*self.insize[1]]
+            self.outsize = self.insize[0]*self.insize[1]
         else:
-            self.outsize = [1,1,self.insize[0]*self.insize[1]*self.insize[2]]
+            self.outsize = self.insize[0]*self.insize[1]*self.insize[2]
     
     
     # return printable representation
     def __repr__(self):
         if len(self.insize) == 2:
             return self.__class__.__name__ + '(' \
-                + '[bs,{},{}]->[1,bs,{}])'.format(self.insize[0], self.insize[1], \
-                    self.insize[0]*self.insize[1]) 
+                + '[bs,{},{}]->[bs,{}])'.format(self.insize[0], self.insize[1], \
+                    self.outsize) 
         else:
             return self.__class__.__name__ + '(' \
-                + '[bs,{},{},{}]->[1,1,bs,{}])'.format(self.insize[0], self.insize[1], \
-                    self.insize[2], self.insize[0]*self.insize[1]*self.insize[2]) 
+                + '[bs,{},{},{}]->[bs,{}])'.format(self.insize[0], self.insize[1], \
+                    self.insize[2], self.outsize) 
     
     
     def forward(self, input):
         '''
-        Flattening of a 4D mini batch into a 2D output batch. The 
+        Flattening of a 3D/4D mini batch into a 2D output batch. The 
         leading dimension (training example index) is kept unchanged
         '''
         if len(self.insize) == 2:
@@ -117,13 +123,18 @@ class Unflatten(nn.Module):
     
         unflat0 = Unflatten(id, [q], [m,n,p])
     
+    or:: 
+    
+        unflat0 = Unflatten(id, [q], [m,n])
+    
     creates an unflattening layer for a flattened sequence in a 
     matrix.
     
     This layer converts a sequence of flattened examples (given as rows of a matrix) 
-    into a 4d tensor where each sequence element is a multichannel image. The input 
-    must be of size [1, 1, mini_batch_size, q] with rows of length 
-    q = m * n * p. The corresponding output size is [mini_batch_size, m, n, p]. The 
+    into a 3d or 4d tensor where each sequence element is a multichannel image or signal. The input 
+    must be of size [mini_batch_size, q] with rows of length 
+    q = m * n * p or q = m * n, respectively. The corresponding output size is 
+    [mini_batch_size, m, n, p] or [mini_batch_size, m, n]. The 
     conversion of the flattened to the unflattened format is 
     necessary for applying convolutional layers. The conversion back to the flattened 
     format is done in the layer type Flatten. 
@@ -149,28 +160,26 @@ class Unflatten(nn.Module):
         if len(self.outsize) == 2:
             if self.insize != self.outsize[0] * self.outsize[1]:
                 raise ValueError('Input size must be the product of the input sizes.')
-            self.insize = [1,self.insize]
         else:
             if self.insize != self.outsize[0] * self.outsize[1] * self.outsize[2]:
                 raise ValueError('Input size must be the product of the input sizes.')
-            self.insize = [1,1,self.insize]
     
     
     # return printable representation
     def __repr__(self):
         if len(self.outsize) == 2:
             return self.__class__.__name__ + '(' \
-                + '[1,bs,{}]->[bs,{},{}])'.format(self.insize[1], self.outsize[0], \
+                + '[bs,{}]->[bs,{},{}])'.format(self.insize, self.outsize[0], \
                     self.outsize[1]) 
         else:
             return self.__class__.__name__ + '(' \
-                + '[1,1,bs,{}]->[bs,{},{},{}])'.format(self.insize[2], self.outsize[0], \
+                + '[bs,{}]->[bs,{},{},{}])'.format(self.insize, self.outsize[0], \
                     self.outsize[1], self.outsize[2]) 
     
     # Forward path
     def forward(self, input, **kwargs):
         '''
-        Unflattening of a 2D mini batch into a 4D output batch. The 
+        Unflattening of a 2D mini batch into a 3D or 4D output batch. The 
         leading dimension (training example index) is kept unchanged
         '''
         return input.view(-1, *self.outsize)

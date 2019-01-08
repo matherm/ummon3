@@ -191,37 +191,34 @@ class Conv(nn.Conv2d):
 # 1d Convolutional layer class
 class Conv1d(nn.Conv1d):
     '''
-    Convolutional layer::
+    1D Convolutional layer::
     
-        conv0 = Conv([m,n,p], [c,r,s], [ystride,xstride], [ypadding, xpadding], bias, init)
+        conv0 = Conv1d([m,n], [c,r], stride, padding, bias, init)
     
-    creates a convolutional layer for unflattened 4d input tensors. The weight matrix is 
+    creates a 1D convolutional layer for unflattened 3d input tensors. The weight matrix is 
     initialized according to 'init' which must be one of the initialization methods 
     described in pyTorch.
     
     This layer implements a convolutional layer with a set of 'c' learned filters that
-    are applied to a sequence of m-channel images. The output of each filter is
-    the cross-correlation of the learned m x r x s filter mask with the multi channel
-    image where 'm' is the number of input channels, 'r' the filter mask height and 's' 
+    are applied to a sequence of m-channel signals. The output of each filter is
+    the cross-correlation of the learned m x s filter mask with the multi channel
+    signal where 'm' is the number of input channels and 's' 
     the filter mask width. 
     
-    The output image can be downscaled by a factor of 'ystride' in y- and 'xstride' in 
-    x-direction. In this way, a strided convolution is possible. This is useful for large 
-    input images. You can use a single number if the strides in both directions is equal.
+    The output signal can be downscaled by a factor of 'stride' In this way, a strided 
+    convolution is possible. This is useful for large 
+    input signals. 
     
-    Additional boundary pixels with value 0 are allocated when 'padding' is set to value 
-    larger than 0. Note that in this case the same number of rows and columns are added, independently
-    of the filter size. Alternatively, you can two different paddings in y- and x-direction
-    by setting 'padding' to 2-tupke. If you set 'padding' to zero you obtain the classical
-    'valid' padding used, e.g. in LeNet which leads to smaller output images. 
-    By setting 'padding' to half the filter size you
+    Additional boundary sampling points with value 0 are allocated when 'padding' is set to value 
+    larger than 0. If you set 'padding' to zero you obtain the classical
+    'valid' padding. By setting 'padding' to half the filter size you
     get the 'half' padding used in Theano. This corresponds to standard zero padding as
-    used in image processing and preserves the image size.
+    used in image processing and preserves the signal size.
     
     In addition, each filter also has a trainable bias term similar to standard linear 
     layers. If you do not want a bias term set the argument 'bias' to False.
     
-    The layer accepts only input tensors of size [mini_batch_size, m, n, p]. If the input 
+    The layer accepts only input tensors of size [mini_batch_size, m, n]. If the input 
     is in flattened format, an Unflatten node 
     has to be inserted as input layer. 
     

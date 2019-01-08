@@ -132,7 +132,7 @@ class MaxPool(nn.MaxPool2d):
 # Max pooling layer class
 class MaxPool1d(nn.MaxPool1d):
     '''
-    Max pooling layer class::
+    1D Max pooling layer class::
     
         poo0 = MaxPool1d([n,p], kernel_size, stride, padding)
     
@@ -143,11 +143,9 @@ class MaxPool1d(nn.MaxPool1d):
     
     Applies max pooling to subsample an input tensor and provides a certain translation 
     invariance. The input tensor for this layer must be in a non-flattened format. Pooling is 
-    controlled by 3 attributes: the stride between window centers in x- and y-direction
-    ('stride': either a number or 2-tuple), and the pooling window size ('kernel_size': 
-    either a number or 2-tuple). You can set an additional padding region ('padding':
-    either a number or 2-tuple) filled with zeroes for treating the image boundary 
-    regions.
+    controlled by 3 attributes: the stride between window centers ('stride'), and the 
+    pooling window size ('kernel_size'). You can set an additional padding region 
+    ('padding') filled with zeroes for treating the image boundary regions.
     
     You obtain the classical pooling in the valid region (as, e.g., in LeNet) by setting
     stride and kernel size to the same values and by setting 'padding' to zero. If you
