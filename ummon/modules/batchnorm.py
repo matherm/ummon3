@@ -25,8 +25,8 @@ class BatchNorm1d(nn.BatchNorm1d):
         
         # check layer parameters
         self.insize = list(insize)
-        if len(self.insize) != 2:
-            raise TypeError('Input size list must have 2 elements.')
+        if len(self.insize) not in [1,2]:
+            raise TypeError('Input size list must have 1 or 2 elements.')
         for s in self.insize:
             s = int(s)
             if s < 1:
@@ -44,10 +44,15 @@ class BatchNorm1d(nn.BatchNorm1d):
     
     # return printable representation
     def __repr__(self):
-        return self.__class__.__name__ + '(' \
-            + '[bs,{},{}]->[bs,{},{}];eps={};mom={};affine={};track={})'.format(self.insize[0], 
-            self.insize[1], self.outsize[0], self.outsize[1], self.eps, self.momentum, 
-            self.affine, self.track_running_stats)
+        if len(self.insize) == 1:
+            return self.__class__.__name__ + '(' \
+                + '[bs,{}]->[bs,{}];eps={};mom={};affine={};track={})'.format(self.insize[0], 
+                self.outsize[0], self.eps, self.momentum, self.affine, self.track_running_stats)
+        else:
+            return self.__class__.__name__ + '(' \
+                + '[bs,{},{}]->[bs,{},{}];eps={};mom={};affine={};track={})'.format(self.insize[0], 
+                self.insize[1], self.outsize[0], self.outsize[1], self.eps, self.momentum, 
+                self.affine, self.track_running_stats)
     
     
     # Get the input block of a given output block
