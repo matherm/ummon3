@@ -30,20 +30,28 @@ class Flatten(nn.Module):
         
         # check layer parameters
         self.insize = list(insize)
-        if len(self.insize) != 3:
-            raise TypeError('Input size list must have 3 elements.')
+        if len(self.insize) not in [2,3]:
+            raise TypeError('Input size list must have 2 or 3 elements.')
         for s in self.insize:
             s = int(s)
             if s < 1:
                 raise ValueError('Input size must be > 0.')
-        self.outsize = [1,1,self.insize[0]*self.insize[1]*self.insize[2]]
+        if len(self.insize) == 2:
+            self.outsize = [1,self.insize[0]*self.insize[1]]
+        else:
+            self.outsize = [1,1,self.insize[0]*self.insize[1]*self.insize[2]]
     
     
     # return printable representation
     def __repr__(self):
-        return self.__class__.__name__ + '(' \
-            + '[bs,{},{},{}]->[1,1,bs,{}])'.format(self.insize[0], self.insize[1], \
-                self.insize[2], self.insize[0]*self.insize[1]*self.insize[2]) 
+        if len(self.insize) == 2:
+            return self.__class__.__name__ + '(' \
+                + '[bs,{},{}]->[1,bs,{}])'.format(self.insize[0], self.insize[1], \
+                    self.insize[0]*self.insize[1]) 
+        else:
+            return self.__class__.__name__ + '(' \
+                + '[bs,{},{},{}]->[1,1,bs,{}])'.format(self.insize[0], self.insize[1], \
+                    self.insize[2], self.insize[0]*self.insize[1]*self.insize[2]) 
     
     
     def forward(self, input):
@@ -51,7 +59,10 @@ class Flatten(nn.Module):
         Flattening of a 4D mini batch into a 2D output batch. The 
         leading dimension (training example index) is kept unchanged
         '''
-        return input.view(-1, self.insize[0]*self.insize[1]*self.insize[2])
+        if len(self.insize) == 2:
+            return input.view(-1, self.insize[0]*self.insize[1])
+        else:
+            return input.view(-1, self.insize[0]*self.insize[1]*self.insize[2])
     
     
     # Get the input block of a given output block
@@ -61,25 +72,42 @@ class Flatten(nn.Module):
         when the output block is a single voxel or the entire layer. In both cases the
         input keeps the same format, but the single voxel gets a different position.
         '''
-        # single unit
-        if outp[2] == outp[5]:
-            z0 = outp[2]//(self.insize[1] * self.insize[2])
-            y0 = (outp[2] - z0 * self.insize[1] * self.insize[2]) // self.insize[2]
-            x0 = outp[2] - z0 * self.insize[1] * self.insize[2] - y0 * self.insize[2]
-            z1 = z0
-            y1 = y0
-            x1 = x0
-        
-        # full output
+        if len(self.insize) == 2:
+            # single unit
+            if outp[1] == outp[3]:
+                z0 = outp[1]//self.insize[1]
+                x0 = outp[1] - z0 * self.insize[1]
+                z1 = z0
+                x1 = x0
+            
+            # full output
+            else:
+                z0 = 0
+                x0 = 0
+                z1 = self.insize[0] - 1
+                x1 = self.insize[1] - 1
+            
+            return [z0, x0, z1, x1]
         else:
-            z0 = 0
-            y0 = 0
-            x0 = 0
-            z1 = self.insize[0] - 1
-            y1 = self.insize[1] - 1
-            x1 = self.insize[2] - 1
-        
-        return [z0, y0, x0, z1, y1, x1]
+            # single unit
+            if outp[2] == outp[5]:
+                z0 = outp[2]//(self.insize[1] * self.insize[2])
+                y0 = (outp[2] - z0 * self.insize[1] * self.insize[2]) // self.insize[2]
+                x0 = outp[2] - z0 * self.insize[1] * self.insize[2] - y0 * self.insize[2]
+                z1 = z0
+                y1 = y0
+                x1 = x0
+            
+            # full output
+            else:
+                z0 = 0
+                y0 = 0
+                x0 = 0
+                z1 = self.insize[0] - 1
+                y1 = self.insize[1] - 1
+                x1 = self.insize[2] - 1
+            
+            return [z0, y0, x0, z1, y1, x1]
 
 
 # Unflatten
@@ -112,22 +140,32 @@ class Unflatten(nn.Module):
         else:
             self.insize = int(insize)            
         self.outsize = list(outsize)
-        if len(self.outsize) != 3:
-            raise TypeError('Output size list must have 3 elements.')
+        if len(self.outsize) not in [2,3]:
+            raise TypeError('Output size list must have 2 or 3 elements.')
         for s in self.outsize:
             s = int(s)
             if s < 1:
                 raise ValueError('Output size must be > 0.')        
-        if self.insize != self.outsize[0] * self.outsize[1] * self.outsize[2]:
-            raise ValueError('Input size must be the product of the input sizes.')
-        self.insize = [1,1,self.insize]
+        if len(self.outsize) == 2:
+            if self.insize != self.outsize[0] * self.outsize[1]:
+                raise ValueError('Input size must be the product of the input sizes.')
+            self.insize = [1,self.insize]
+        else:
+            if self.insize != self.outsize[0] * self.outsize[1] * self.outsize[2]:
+                raise ValueError('Input size must be the product of the input sizes.')
+            self.insize = [1,1,self.insize]
     
     
     # return printable representation
     def __repr__(self):
-        return self.__class__.__name__ + '(' \
-            + '[1,1,bs,{}]->[bs,{},{},{}])'.format(self.insize[2], self.outsize[0], \
-                self.outsize[1], self.outsize[2]) 
+        if len(self.outsize) == 2:
+            return self.__class__.__name__ + '(' \
+                + '[1,bs,{}]->[bs,{},{}])'.format(self.insize[1], self.outsize[0], \
+                    self.outsize[1]) 
+        else:
+            return self.__class__.__name__ + '(' \
+                + '[1,1,bs,{}]->[bs,{},{},{}])'.format(self.insize[2], self.outsize[0], \
+                    self.outsize[1], self.outsize[2]) 
     
     # Forward path
     def forward(self, input, **kwargs):
@@ -144,10 +182,18 @@ class Unflatten(nn.Module):
         when the output block is a single voxel or the entire layer. In both cases the
         input keeps the same format, but the single voxel gets a different position.
         '''
-        if outp[2] == outp[5]:
-            x0 = outp[0]*self.outsize[1]*self.outsize[2] + outp[1]*self.outsize[2] + outp[2]
-            x1 = outp[3]*self.outsize[1]*self.outsize[2] + outp[4]*self.outsize[2] + outp[5]
-            return [0, 0, x0, 0, 0, x1]
+        if len(self.outsize) == 2:
+            if outp[1] == outp[3]:
+                x0 = outp[0]*self.outsize[1] + outp[1]
+                x1 = outp[2]*self.outsize[1] + outp[3]
+                return [0, x0, 0, x1]
+            else:
+                return [0, 0, 0, self.insize-1]
         else:
-            return [0, 0, 0, 0, 0, self.insize-1]
+            if outp[2] == outp[5]:
+                x0 = outp[0]*self.outsize[1]*self.outsize[2] + outp[1]*self.outsize[2] + outp[2]
+                x1 = outp[3]*self.outsize[1]*self.outsize[2] + outp[4]*self.outsize[2] + outp[5]
+                return [0, 0, x0, 0, 0, x1]
+            else:
+                return [0, 0, 0, 0, 0, self.insize-1]
 

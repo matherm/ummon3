@@ -1247,6 +1247,7 @@ class TestUmmon(unittest.TestCase):
         
         # create net
         cnet = Sequential(
+            ('unfla', Unflatten([5], [1,5])),
             ('conv0', Conv1d([1,5], [2,3]))
         )
         print(cnet)
@@ -1262,9 +1263,9 @@ class TestUmmon(unittest.TestCase):
         assert b.shape == (2,)
         
         # test input
-        x0 = np.zeros((2,1,5), dtype=np.float32)
-        x0[0,0,2] = 1.0
-        x0[1,0,2] = 3.0
+        x0 = np.zeros((2,5), dtype=np.float32)
+        x0[0,2] = 1.0
+        x0[1,2] = 3.0
         y1 = np.zeros((2,2,3), dtype=np.float32)
         
         # predict and check cross-correlation
@@ -1288,20 +1289,23 @@ class TestUmmon(unittest.TestCase):
         batch = 1    
         print('\n')
         cnet = Sequential(
-            ('pool0', MaxPool1d([1,5], kernel_size=2, stride=2))
+            ('unfla', Unflatten([10], [2,5])),
+            ('pool0', MaxPool1d([2,5], kernel_size=2, stride=2))
         )
         print(cnet)
         
         # test dataset
-        x0 = np.random.randn(batch,1,5).astype('float32')
+        x0 = np.random.randn(batch,10).astype('float32')
         
         # compute reference forward path
-        x1 = np.reshape(x0, (batch,1,5))
+        x1 = np.reshape(x0, (batch,2,5))
         print('Input:')
-        print(x1)
-        y1 = np.zeros((2,), dtype=np.float32)
-        y1[0] = x1[0,0,:2].max()
-        y1[1] = x1[0,0,2:4].max()
+        print(x0)
+        y1 = np.zeros((2,2), dtype=np.float32)
+        y1[0,0] = x0[0,:2].max()
+        y1[0,1] = x0[0,2:4].max()
+        y1[1,0] = x0[0,5:7].max()
+        y1[1,1] = x0[0,7:9].max()
         
         # predict and check
         x2 = Variable(torch.FloatTensor(x0), requires_grad=False)
