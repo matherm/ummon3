@@ -15,9 +15,9 @@ class BatchNorm1d(nn.BatchNorm1d):
     speed. For the theory, see Ioffe, S. and Szegedy, C. (2015). Batch normalization: 
     Accelerating deep network training by reducing internal covariate shift. arXiv preprint 
     arXiv:1502.03167. For the meaning of the parameters, see PyTorch documenation of
-    nn.BatchNorm1d. The input tensor for this layer must be in a non-flattened 1d format,
-    each example consisting of 'p' features and 'n' channels. For examples, see the test 
-    in ummon_test.py.
+    nn.BatchNorm1d. The input tensor for this layer must be either: (1) in a non-flattened 1d format,
+    each example consisting of 'p' features and 'n' channels, or (2) in a flattened format
+    with each example having n*p features. For examples, see the test in ummon_test.py.
     '''    
     # constructor
     def __init__(self, insize, eps=1e-05, momentum=0.1, affine=True, 
