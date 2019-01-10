@@ -26,6 +26,13 @@ class Sequential(nn.Sequential):
         # get layers
         layers = list(args)
         
+        # check for duplicates
+        keys = set()
+        for key,_ in layers:
+            if key in keys:
+                raise TypeError('Duplicate layer name {} in network.'.format(key))
+            keys.add(key)
+        
         # init nn.Sequential
         super(Sequential, self).__init__(OrderedDict(layers))
         
