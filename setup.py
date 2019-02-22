@@ -13,9 +13,6 @@ import torch
 import torchvision
 import shutil
 
-# VERSION DEPENDENCIES
-if torch.__version__ not in ["0.4.0", "0.4.1", "1.0.0"]: 
-    exit("Sorry, PyTorch version " + torch.__version__ + " is not supported yet! Please use version >0.4.x")
 
 """
 ummon3: IOS Neural Network Package
@@ -96,11 +93,7 @@ setup(
         'scipy',
         ],
       test_suite="tests",
-      packages=['ummon', 'ummon.modules', 'ummon.functionals', 
-                'ummon.features', 'ummon.features.schuett_wichmann_evm', 'ummon.features.portilla_simoncelli_tm', 'ummon.features.ps_color',
-                'ummon.transformations',
-                'ummon.datasets', 
-                'ummon.tools'],
+      packages=find_packages(),
       cmdclass={ 'install':  Installation,
                  'performance' : TestPerformance}
   )

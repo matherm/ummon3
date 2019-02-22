@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import logging, warnings, os, time, socket
 import numpy as np
 import torch
@@ -14,7 +7,7 @@ from torch.autograd import Variable
 from torch.nn.modules.loss import _Loss
 from platform import platform
 import ummon
-import re
+import re, sys
 
 __all__ = [ 'Logger' ]
 

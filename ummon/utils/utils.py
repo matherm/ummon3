@@ -6,8 +6,6 @@ from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from ummon.datasets.generic import *
 
-__all__ = ["Timer"]
-
 class Timer(object):
     def __init__(self, name=None):
         self.name = name

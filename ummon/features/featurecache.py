@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3') 
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import torch
 import numpy as np
 import torch.nn as nn

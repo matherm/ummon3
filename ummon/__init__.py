@@ -69,7 +69,6 @@ from .modules.batchnorm import *
 from .modules.imgproc import *
 from .modules.vgg19 import *
 from .modules.gram import *
-from .gridsearch import *
 from ummon.transformations.imagetransforms import *
 from ummon.features.psTMfeatures import *
 from ummon.features.swEVMfeatures import *

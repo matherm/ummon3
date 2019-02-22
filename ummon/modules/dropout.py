@@ -30,7 +30,7 @@ class Dropout(nn.Dropout):
     def __init__(self, insize, rate, inplace=False):
         
         # check layer parameters
-        self.insize = list(insize)
+        self.insize = [insize] if type(insize) is not list else insize
         if len(self.insize) not in [1,2,3]:
             raise TypeError('Input size list must have 1 to 3 elements.')
         for s in self.insize:
