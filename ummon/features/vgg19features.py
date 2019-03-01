@@ -42,7 +42,7 @@ class VGG19Features():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, features = "pool4", gram = False, triangular=False, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False):
+    def __init__(self, features = "pool4", gram = False, triangular=False, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False, selected_feat = None):
         """
         Parameters
         ----------
@@ -53,7 +53,8 @@ class VGG19Features():
             *triangular (bool) : triangular matrix 
             *cuda (bool) : compute with cuda
             *pretrained (bool) : use pretrained vgg19 net
-        
+            *selected_feat (list of int):  contains feature correlations(entries of the Gram-Matrix) selected_feat: ['23', '25', '44']
+            v23,v23 || v23,v25 || v23,v44 || v25,v25 || v25,v44 || v27,v44 || v44,v44
         """
         self.features = features
         self.gram = gram
@@ -62,6 +63,7 @@ class VGG19Features():
         self.pretrained = pretrained
         self.gram_diagonal = gram_diagonal
         self.gram_diagonal_squared = gram_diagonal_squared
+        self.selected_feat = selected_feat
 
         # Original PyTorch VGG19
         self.model = vgg19(pretrained=self.pretrained).features
@@ -115,7 +117,7 @@ class VGG19Features():
                     y = GramMatrix()(y)
                     if self.triangular:
                         y = y[:, np.triu_indices(x.shape[1])[0], np.triu_indices(x.shape[1])[1]]
-                if self.gram_diagonal or self.gram_diagonal_squared:
+                if (self.gram_diagonal or self.gram_diagonal_squared) and (self.selected_feat is None):
                     y = y.view(y.size(0), y.size(1), 1, y.size(2) * y.size(3))
                     gram_diag = None
                     for b in range(y.size(0)):
@@ -129,6 +131,26 @@ class VGG19Features():
                             gram_diag = z
                     y = torch.squeeze(gram_diag)
                     y = torch.unsqueeze(y, 0)
+                if not(self.gram_diagonal and self.gram_diagonal_squared and self.gram) and (self.selected_feat is not None):
+                    #Normalize with max
+                    y = y/y.max()
+                    b, c, h, w = y.size()
+                    res=[]
+                    for feat in self.selected_feat:
+                        for feat2 in self.selected_feat:
+                            if feat is not feat2 and feat2 > feat:
+                                k = y[:, feat, : , :]
+                                F = k.view(b, 1, h * w)
+                                k2 = y[:, feat2, :, :]
+                                F2 = k2.view(b, 1, h * w)
+                                G = torch.bmm(F, F2.transpose(1, 2))
+                                G.div_(h * w)
+                                res.append(G)
+
+                    res = torch.cat(res, dim=1)
+                    y = res
+
+
                 if len(self.features) == 1:
                     # get first item, preserve shape
                     result = y.cpu()[0].detach()
