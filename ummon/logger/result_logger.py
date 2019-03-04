@@ -1,4 +1,4 @@
-from ummon.utils.sftp_helpers import SFTP
+from ..utils.sftp_helpers import SFTP
 import os
 
 class ExperimentLogger():
@@ -20,7 +20,7 @@ class ExperimentLogger():
         except:
             print("Could not write to Splunk-Server.")
 
-    def write_dict_to_file(self, blob):
+    def write_dict_to_file(self, **blob):
         with open(self.logfname , "a") as f:
             line = []
             for k,v in blob.items(): 
@@ -33,10 +33,10 @@ class GraphLogger(ExperimentLogger):
     def __init__(self, splunk=True, **kwargs):
         super(GraphLogger, self).__init__(splunk=splunk, **kwargs)
 
-    def __call__(self, experiment_name, batch_size, num_points, coord_dims, lrate, train_dataset, 
+    def __call__(self, exp_name, batch_size, num_points, coord_dims, lrate, train_dataset, 
                         epoch, optimizer, arch_multiplier, model, train_acc=0, test_acc=0, train_loss=0, test_loss=0, early_stopper=None):
         blob = {
-                "exp_name"   :      experiment_name,
+                "exp_name"   :      exp_name,
                 "batch_size" :      batch_size,
                 "num_points" :      num_points,
                 "coord_dims" :      coord_dims,
@@ -60,7 +60,7 @@ class NoveltyLogger(ExperimentLogger):
     def __init__(self, splunk=True, **kwargs):
         super(NoveltyLogger, self).__init__(splunk=splunk, **kwargs)
 
-    def __call__(self, experiment_name, reference_dataset, anomaly_dataset, model, reference_apr=0, reference_auc=0, novelty_apr=0, novelty_auc=0):
+    def __call__(self, exp_name, reference_dataset, anomaly_dataset, model, reference_apr=0, reference_auc=0, novelty_apr=0, novelty_auc=0):
         """
         Example usage:
             NoveltyLogger()(__file__, repr(reference_dataset), repr(anomaly_dataset), repr(model), 0 ,0, 0, 0)
@@ -71,7 +71,7 @@ class NoveltyLogger(ExperimentLogger):
             > Anomaly(type="squares") # {}(type={}).format(Anomaly.__class__.__name__, "squares")
         """
         blob = {
-                "exp_name"          :      experiment_name,
+                "exp_name"          :      exp_name,
                 "reference_dataset" :      repr(reference_dataset),
                 "anomaly_dataset"   :      repr(anomaly_dataset),
                 "model"             :      repr(model),

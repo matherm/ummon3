@@ -5,6 +5,7 @@
 .DS_Store
 .ipynb_checkpoints
 **/__ummoncache__/**
+**/__ummoncache2__/**
 
 # Custom local pattern
 local*

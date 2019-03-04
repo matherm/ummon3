@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3') 
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import torch
 import torch.nn as nn
 import torch.utils.data
@@ -12,23 +5,30 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from .logger import Logger
 import ummon.utils as uu
+import time
+from .predictor import Predictor
 
-__all__ = ["MetaAnalyzer"]
+__all__ = ["Analyzer", "SupervisedAnalyzer", "ClassificationAnalyzer"]
 
-class MetaAnalyzer:
+class Analyzer():
     """
-    This class provides a generic analyzer for PyTorch-models. 
-    For specialized models like Regression or Classification this class musst be subclassed.
+    This class provides a generic analyzer for supervised PyTorch-models. For a given PyTorch-model it 
+    computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
+    
     
     Methods
     -------
+    evaluate()          : Evaluates a model with given validation dataset
+    inference()         : Computes model outputs
     compute_roc()       : [Not implemented yet]
-
+             
     """
-    
+    def __init__(self):
+        self.name = "ummon.Analyzer"
+   
+
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), after_eval_hook=None, batch_size=-1,
-        output_buffer=None):
+    def evaluate(model, loss_function, dataset, batch_size=-1, compute_accuracy=False, limit_batches=-1, logger=Logger()):
         """
         Evaluates a model with given validation dataset
         
@@ -38,85 +38,134 @@ class MetaAnalyzer:
                           The model
         loss_function   : nn.module
                           The loss function to evaluate
-        dataset         : torch.utils.data.Dataset OR tuple (X,y)
+        dataset         : torch.utils.data.Dataset OR tuple (X,y, (bs))
                           Dataset to evaluate
-        logger          : ummon.Logger (Optional)
-                          The logger to be used for output messages
-        after_eval_hook : OPTIONAL function(ctx, model, output.data, targets.data, loss.data)
-                          A hook that gets called after forward pass
         batch_size      : int
                           batch size used for evaluation (default: -1 == ALL)
+        compute_accuracy : bool
+                          specifies if the output gets classified
+        limit_batches   : int
+                          specified if only a limited number of batches shall be analyzed. Useful for testing a subset of the training data.
+        logger          : ummon.Logger (Optional)
+                          The logger to be used for output messages
         
         Return
         ------
         Dictionary
         A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
-        # Input validation
-        dataloader = SupervisedAnalyzer._data_validation(dataset, batch_size, logger)
-        assert uu.check_precision(dataloader.dataset, model)
-        
-        use_cuda = next(model.parameters()).is_cuda
-        evaluation_dict = {}
-        ctx = {}
-        loss_average = 0.
 
-        # Take time
+        dataloader = uu.gen_dataloader(dataset, batch_size=batch_size, has_labels=True, logger=logger)
         t = time.time()
+        loss_average, acc_average = 0., 0.
+        use_cuda = next(model.parameters()).is_cuda
+        device = "cuda" if use_cuda else "cpu"
         
-        for i, data in enumerate(dataloader, 0):
-                
+        for i, batch in enumerate(dataloader):
 
-                # Get the inputs
-                inputs, targets = data
-                
-                # Handle cuda
-                if use_cuda:
-                    inputs = inputs.cuda()
-                    targets = targets.cuda()
-                
-                # Execute Model
-                output = model(Variable(inputs))
-                
-                # Compute Loss
-                targets = Variable(targets)
-                loss = loss_function(output, targets).cpu()
+            # limit
+            if limit_batches == i:
+                break
+
+            # data
+            inputs, labels = uu.input_of(batch), uu.label_of(batch)
                
-                loss_average = MetaAnalyzer._online_average(loss, i + 1, loss_average)
-                
-                # Run hook
-                if after_eval_hook is not None:
-                    ctx = after_eval_hook(ctx, model, output.data, targets.data, loss.data)
-                
-                
-        evaluation_dict["training_accuracy"] = 0.0        
-        evaluation_dict["accuracy"] = 0.0
+            # Handle cuda
+            inputs, labels = uu.tuple_to(inputs, device), uu.tuple_to(labels, device)
+            output = model(inputs)
+
+            # Compute output
+            loss = loss_function(output, labels)
+            loss_average = uu.online_average(loss, i + 1, loss_average)
+
+            if compute_accuracy == True:
+                classes = Predictor.classify(output.cpu(), loss_function, logger)
+                acc = Predictor.compute_accuracy(classes, labels.cpu())
+                acc_average = uu.online_average(acc, i + 1, acc_average)
+        
+        # save results in dict
+        evaluation_dict = {}
+        evaluation_dict["accuracy"] = acc_average
         evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
-        evaluation_dict["detailed_loss"] = repr(loss_function)
+        evaluation_dict["detailed_loss"] = {"__repr__(loss)" : repr(loss_function)}
         
         return evaluation_dict
     
-    
-    # generate an evaluation string used by logging module
+    # output evaluation string for regression
     @staticmethod
     def evalstr(learningstate):
-        raise NotImplementedError("This class is superclass")
+        
+        # without validation data
+        if learningstate.has_validation_data():
+            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
+                learningstate.current_training_loss(), 
+                learningstate.current_lrate())
+        
+        # with validation data
+        else:
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}{}'.format(
+                learningstate.current_training_loss(), 
+                learningstate.current_validation_loss(),
+                learningstate.current_lrate(),
+                ' [BEST]' if learningstate.is_best_validation_model() else '')
+
+
+# Backward compatibility
+class SupervisedAnalyzer(Analyzer):
+    pass
+
+# Backward compatibility
+class ClassificationAnalyzer(SupervisedAnalyzer):
+    """
+    This class provides a generic analyzer for PyTorch classification models. For a given PyTorch-model it 
+    computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
-    
+    Methods
+    -------
+    evaluate()          : Evaluates a model with given validation dataset
+    """
+            
+    @staticmethod    
+    def evaluate(model, loss_function, dataset, logger=Logger(), batch_size=-1, limit_batches=-1):
+        """
+        Evaluates a model with given validation dataset
+        
+        Arguments
+        ---------
+        model           : nn.module
+                          The model
+        loss_function   : nn.module
+                          The loss function to evaluate
+        dataset         : torch.utils.data.Dataset OR tuple (X,y, (bs))
+                          Dataset to evaluate
+        logger          : ummon.Logger (Optional)
+                          The logger to be used for output messages
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
+        limit_batches    : int
+                          limits the number of evaluated batches (default: -1 == ALL)
+        
+        Return
+        ------
+        Dictionary
+        A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
+        """
+        return Analyzer.evaluate(model, loss_function, dataset, logger=logger, limit_batches=limit_batches, batch_size=batch_size, compute_accuracy=True)
+
     @staticmethod
-    def _online_average(data, count, avg):
-        # BACKWARD COMPATIBILITY FOR TORCH < 0.4
-        if type(data) is not float:
-            if type(data) == torch.Tensor:
-                data = data.item()
-            else:
-                data = data.data[0]
-        navg = avg + (data - avg) / count
-        return navg
-    
-    
-    @staticmethod
-    def compute_roc(model, dataset):
-        raise NotImplementedError
-        pass
+    def evalstr(learningstate):
+        # without validation data
+        if learningstate.has_validation_data():
+            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
+                learningstate.current_training_loss(), 
+                learningstate.current_lrate())
+        
+        # with validation data
+        else:
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
+                learningstate.current_training_loss(), 
+                learningstate.current_validation_loss(),
+                learningstate.current_validation_acc()*100,
+                learningstate.current_lrate(),
+                ' [BEST]' if learningstate.is_best_validation_model() else '')

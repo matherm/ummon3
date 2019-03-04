@@ -2,11 +2,11 @@ import logging, warnings, os, time, socket
 import numpy as np
 import torch
 import torchvision
-import ummon.utils as uu
 from torch.autograd import Variable
 from torch.nn.modules.loss import _Loss
 from platform import platform
 import ummon
+import ummon.utils
 import re, sys
 
 __all__ = [ 'Logger' ]
@@ -170,46 +170,24 @@ class Logger(logging.getLoggerClass()):
     
     
     # log one batch # 
-    def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict, profile):
+    def log_one_batch(self, epoch, batch, batches, loss, batchsize, time_dict):
         if batch % self.log_batch_interval == 0:
-            if profile == True:
-                self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks]'.format(
-                    epoch, batch, batches, loss, 
-                    int(time_dict["total"]), 
-                    int(time_dict["loader"]), 
-                    int(time_dict["model"] - time_dict["loader"]), 
-                    int(time_dict["loss"] - time_dict["model"]), 
-                    int(time_dict["backprop"] - time_dict["loss"]), 
-                    int(time_dict["hooks"] - time_dict["backprop"])))
-            else:
-                self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s]'.format(
-                    epoch, batch, batches, loss, 
-                    int(time_dict["total"])))
+            self.debug('Epoch: {} - {:05}/{:05} - Loss: {:04.5f}. [{:3} s]'.format(
+                epoch, batch, batches, loss, 
+                int(time_dict["total"])))
                 
     
     # log at end of epoch
     def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict, 
-        evalstr=None, profile=False, evaluation_dict = None):
+        evalstr=None, evaluation_dict = None):
         if epoch % self.log_epoch_interval == 0:
-            if profile:
-                self.info('Epoch: {} - {}. [{:3} s total | {:3} s loader | {:3} s model | {:3} s loss | {:3} s backprop | {:3} s hooks] @{} samples/s '.format(
-                    epoch, evalstr, 
-                    int(time_dict["total"]),
-                    int(time_dict["loader"]), 
-                    int(time_dict["model"] - time_dict["loader"]), 
-                    int(time_dict["loss"] - time_dict["model"]), 
-                    int(time_dict["backprop"] - time_dict["loss"]), 
-                    int(time_dict["hooks"] - time_dict["backprop"]),
-                    int((batches * batchsize/(time_dict["total"])))))
-                self.info('       Memory status : RAM {:.2f} GB, CUDA {} MB.'.format(uu.get_proc_memory_info()["mem"], uu.get_cuda_memory_info()))
-            else:
-                self.info('Epoch: {} - {}. [{}s] @{} samples/s '.format(
-                    epoch, evalstr, 
-                    int(time_dict["total"]),
-                    int((batches * batchsize/(time_dict["total"])))))
+            self.info('Epoch: {} - {}. [{}s] @{} samples/s '.format(
+                epoch, evalstr, 
+                int(time_dict["total"]),
+                int((batches * batchsize/(time_dict["total"])))))
             
             # Detailed loss information comming from either __repr__(loss) or after_eval_hook()
-            if evaluation_dict is not None and re.match(".*\d.*", str(evaluation_dict["detailed_loss"])):
+            if evaluation_dict is not None and re.match(".*\d\.\d.*", str(evaluation_dict["detailed_loss"])):
                 if type(evaluation_dict["detailed_loss"]) == dict:
                     for k, v in evaluation_dict["detailed_loss"].items():
                         if type(v) == str:
@@ -221,8 +199,8 @@ class Logger(logging.getLoggerClass()):
 
     
     # output description of learning task
-    def print_problem_summary(self, trainer, model, loss_function, optimizer, dataloader_train, 
-        dataset_validation = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):
+    def print_problem_summary(self, trainer, model, loss_function, optimizer, train_dataset, batch_size,
+        valid_dataset = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):
         
         if hasattr(loss_function, "size_average"):
             size_average = loss_function.size_average
@@ -237,7 +215,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('[Model]')
         for lin in model.__repr__().splitlines():
             self.debug(lin)
-        self.debug('{0:20}{1}'.format("Trainable params:", uu.count_parameters(model)))   
+        self.debug('{0:20}{1}'.format("Trainable params:", ummon.utils.count_parameters(model)))   
         
         self.debug(' ')
         self.debug('[Loss]')
@@ -247,27 +225,27 @@ class Logger(logging.getLoggerClass()):
         self.debug(' ')
         self.debug('[Data]')
         self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Training', 
-            uu.get_size_information(dataloader_train.dataset), 
-            uu.get_shape_information(dataloader_train.dataset), 
-            uu.get_type_information(dataloader_train.dataset),
-            uu.get_numerical_information(dataloader_train.dataset)))
+            ummon.utils.get_size_information(train_dataset), 
+            ummon.utils.get_shape_information(train_dataset), 
+            ummon.utils.get_type_information(train_dataset),
+            ummon.utils.get_numerical_information(train_dataset)))
         self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Validation', 
-            uu.get_size_information(dataset_validation), 
-            uu.get_shape_information(dataset_validation), 
-            uu.get_type_information(dataset_validation),
-            uu.get_numerical_information(dataset_validation))) 
+            ummon.utils.get_size_information(valid_dataset), 
+            ummon.utils.get_shape_information(valid_dataset), 
+            ummon.utils.get_type_information(valid_dataset),
+            ummon.utils.get_numerical_information(valid_dataset))) 
         if dataset_test is not None:
             self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Test', 
-                uu.get_size_information(dataset_test), 
-                uu.get_shape_information(dataset_test), 
-                uu.get_type_information(dataset_test),
-                uu.get_numerical_information(dataset_test)))
+                ummon.utils.get_size_information(dataset_test), 
+                ummon.utils.get_shape_information(dataset_test), 
+                ummon.utils.get_type_information(dataset_test),
+                ummon.utils.get_numerical_information(dataset_test)))
           
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1:.2e}'.format("lrate" , 
                    optimizer.state_dict()["param_groups"][0]["lr"]))
-        self.debug('{0:20}{1}'.format("batch_size" , dataloader_train.batch_size))
+        self.debug('{0:20}{1}'.format("batch_size" , batch_size))
         self.debug('{0:20}{1}'.format("epochs" , epochs))
         self.debug('{0:20}{1}'.format("combined_retraining" , combined_retraining))
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
@@ -289,21 +267,21 @@ class Logger(logging.getLoggerClass()):
         
         
     # output description of inference task
-    def print_summary(self, model,  dataset_validation = None):
+    def print_summary(self, model, validation_dataset = None):
         
         self.debug(' ')
         self.debug('[Model]')
         for lin in model.__repr__().splitlines():
             self.debug(lin)
-        self.debug('{0:20}{1}'.format("Trainable params:", uu.count_parameters(model)))   
+        self.debug('{0:20}{1}'.format("Trainable params:", ummon.utils.count_parameters(model)))   
         
         self.debug(' ')
         self.debug('[Data]')
         self.debug('{0:18}{1:8}    {2:18} {3} {4:18}'.format('Validation', 
-            uu.get_size_information(dataset_validation), 
-            uu.get_shape_information(dataset_validation), 
-            uu.get_type_information(dataset_validation)),
-            uu.get_numerical_information(dataset_validation))
+            ummon.utils.get_size_information(validation_dataset), 
+            ummon.utils.get_shape_information(validation_dataset), 
+            ummon.utils.get_type_information(validation_dataset)),
+            ummon.utils.get_numerical_information(validation_dataset))
        
         self.debug(' ')
         self.debug('[Parameters]')

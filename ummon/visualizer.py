@@ -55,7 +55,7 @@ class Visualizer:
     # internal function: prepare dataset and check it
     def _prepare_dataset(self, dataset, batch_size):
         if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
-            torch_dataset = uu.construct_dataset_from_tuple(Logger(), dataset, train=False)
+            torch_dataset = uu.construct_dataset_from_tuple(dataset)
         if isinstance(dataset, torch.utils.data.Dataset):
             torch_dataset = dataset
         if isinstance(dataset, torch.utils.data.DataLoader):
@@ -115,20 +115,14 @@ class Visualizer:
         for i, data in enumerate(dataloader, 0):
             
             # Get input mini batch
-            mini_batch = data
+            mini_batch, _ = data
             
             # Handle cuda
             if use_cuda:
-                if type(mini_batch) == tuple or type(mini_batch) == list:
-                    mini_batch = uu.tensor_tuple_to_cuda(mini_batch)
-                else:
-                    mini_batch = mini_batch.cuda()
+                mini_batch = uu.tensor_tuple_to_cuda(mini_batch)
             
             # forward pass through the network
-            if type(mini_batch) == tuple or type(mini_batch) == list:
-                mini_batch = uu.tensor_tuple_to_variables(mini_batch)
-            else:
-                mini_batch = Variable(mini_batch)
+            mini_batch = uu.tensor_tuple_to_variables(mini_batch)
             outp = (self._testnet(mini_batch)).data.numpy()
             
             # go through all mini batch entries
@@ -251,7 +245,7 @@ class Visualizer:
         for i in range(0, len(blocks)):
             
             # get image and unflatten it
-            img_flat = (dataloader.dataset[ua[i][2]]).data.numpy()
+            img_flat = (dataloader.dataset[ua[i][2]][0]).data.numpy()
             img = np.reshape(img_flat, self._insize)
             
             # copy image block into output tensor
@@ -328,7 +322,7 @@ class Visualizer:
             img_ndx = ua[i][2]
             
             # get flattened input image
-            img_flat = Variable(dataloader.dataset[img_ndx], requires_grad=True)
+            img_flat = Variable(dataloader.dataset[img_ndx][0], requires_grad=True)
             
             # generate an empty image the size of the network output and set max to 1
             if self._outsize[0] == 1 and self._outsize[1] == 1: # flattened output layer

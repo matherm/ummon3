@@ -22,7 +22,7 @@ class Predictor:
     """
 
     @staticmethod
-    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), supress_tuple=False, use_cuda=False):
+    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger()):
         """
         Computes the output of a model for a given dataset
         
@@ -39,10 +39,6 @@ class Predictor:
                           combined loss like CrossEntropy was used during training.
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
-        supress_tuple   : boolean
-                          When dataset returns tuples everything except the first is ignored.
-        use_cuda        : boolean
-                          Uses cuda when available
         
         Return
         ------
@@ -50,46 +46,22 @@ class Predictor:
         The output
         """
         # simple interface: training and test data given as numpy arrays
+        dataloader = uu.gen_dataloader(dataset, has_labels=False, batch_size=batch_size, logger=logger)
         assert isinstance(model, nn.Module)
-        if isinstance(dataset, np.ndarray) or uu.istensor(dataset):
-            torch_dataset = uu.construct_dataset_from_tuple(logger, dataset, train=False)
-        if isinstance(dataset, torch.utils.data.Dataset):
-            torch_dataset = dataset
-        if isinstance(dataset, torch.utils.data.DataLoader):
-            dataloader = dataset
-            torch_dataset = dataloader.dataset
-        else:
-            bs = len(torch_dataset) if batch_size == -1 else batch_size
-            dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)  
-        assert uu.check_precision(torch_dataset, model)
+        assert uu.check_precision(dataloader, model)
+        
+        use_cuda = next(model.parameters()).is_cuda
+        device = "cuda" if use_cuda else "cpu"
         
         model.eval()
-        model = model.cuda() if use_cuda and torch.cuda.is_available() else model.cpu()
-        use_cuda = next(model.parameters()).is_cuda
         outbuf = []
         for i, data in enumerate(dataloader, 0):
             
                 # Get the inputs
-                inputs = data
+                inputs = uu.input_of(data)
                 
-                # Supress tuples in case we want to predict labeled data
-                if supress_tuple == True:
-                    if type(inputs) == tuple or type(inputs) == list:
-                        inputs = data[0]
-                
-                 # Handle cuda
-                if use_cuda:
-                    if type(inputs) == tuple or type(inputs) == list:
-                        inputs = uu.tensor_tuple_to_cuda(inputs)
-                    else:
-                        inputs = inputs.cuda()
-                
-                # Execute Model
-                if type(inputs) == tuple or type(inputs) == list:
-                    inputs = uu.tensor_tuple_to_variables(inputs)
-                else:
-                    inputs = Variable(inputs)
-                
+                # Handle cuda
+                inputs = uu.tuple_to(inputs, device)
                 output = model(inputs)
                 
                 # Apply output transforms

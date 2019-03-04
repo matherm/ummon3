@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import types
 import torch.nn as nn
 import torch.utils.data
 import ummon.utils as uu
@@ -10,10 +11,11 @@ from torch.utils.data.dataset import Subset
 from .logger import Logger
 from .schedulers import *
 from .trainingstate import *
+from .analyzer import Analyzer
 
-__all__ = ["MetaTrainer"]
+__all__ = ["Trainer", "SupervisedTrainer", "ClassificationTrainer", "UnsupervisedTrainer", "SiameseTrainer"]
 
-class MetaTrainer:
+class Trainer:
     """
     This class provides a generic trainer for training PyTorch-models.
     For specialized use in Regression or Classification this class needs to be subclassed.
@@ -44,16 +46,6 @@ class MetaTrainer:
     combined_training_epochs : int
                         OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
                             after the usal training cycle (default 0).                        
-    use_cuda          : bool
-                        OPTIONAL Shall cuda be used as computational backend (default False)
-    profile           : bool
-                        OPTIONAL Activates some advanced timing and profiling logs (default False)
-    after_backward_hook :   OPTIONAL function(output.data, targets.data, loss.data)
-                            A hook that gets called after backward pass during training (default None)
-    after_eval_hook     :   OPTIONAL function(ctx, output.data, targets.data, loss.data)
-                            A hook that gets called after forward pass during evaluation (default None)
-    after_epoch_hook    : OPTIONAL function()
-                            A hook that gets called after epoch (default None)
     
     Methods
     -------
@@ -72,24 +64,16 @@ class MetaTrainer:
         self.model = args[1]
         assert isinstance(self.model, nn.Module)
         self.criterion = args[2]
-        assert isinstance(self.criterion, nn.Module)
+        assert isinstance(self.criterion, nn.Module) or isinstance(self.criterion, types.LambdaType)
         self.optimizer = args[3]
         assert isinstance(self.optimizer, torch.optim.Optimizer)
         
         # defaults
-        self.trainingstate = Trainingstate()
+        self.trainingstate = Trainingstate(filename=None, model_keep_epochs=False)
         self.scheduler = None
-        self.analyzer = None # needs to be implemented by subclass
-        self.model_filename = "/dev/null/model.pth.tar"
-        self.model_keep_epochs = False
         self.precision = np.float32
         self.convergence_eps = np.finfo(np.float32).min
         self.combined_training_epochs = False
-        self.use_cuda = False
-        self.profile = False
-        self.after_eval_hook = None
-        self.after_backward_hook = None
-        self.after_epoch_hook = None
         
         # optional arguments
         for key in kwargs:
@@ -97,6 +81,10 @@ class MetaTrainer:
                 if not isinstance(kwargs[key], Trainingstate):
                     raise TypeError('{} is not a training state'.format(type(kwargs[key]).__name__))
                 self.trainingstate = kwargs[key]
+                if 'model_filename' in kwargs.keys():
+                    self.trainingstate.filename = str(kwargs["model_filename"]).split(self.trainingstate.extension)[0]            
+                if 'model_keep_epochs' in kwargs.keys():     
+                    self.trainingstate.model_keep_epochs = int(kwargs["model_keep_epochs"])
             elif key == 'scheduler':
                 if not isinstance(kwargs[key], torch.optim.lr_scheduler._LRScheduler) and not \
                     isinstance(kwargs[key], StepLR_earlystop):
@@ -104,30 +92,21 @@ class MetaTrainer:
                 if isinstance(kwargs[key], StepLR_earlystop) and 'trainingstate' not in kwargs.keys():
                     raise ValueError('StepLR_earlystop needs an external Trainingstate (you provided None).')
                 self.scheduler = kwargs[key]
-            elif key == 'model_filename':
-                model_filename = str(kwargs[key])
-                self.model_filename = model_filename.split(self.trainingstate.extension)[0]
-            elif key == 'model_keep_epochs':
-                self.model_keep_epochs = int(kwargs[key])
             elif key == 'precision':
                 assert kwargs[key] == np.float32 or kwargs[key] == np.float64
                 self.precision = kwargs[key]
             elif key == 'convergence_eps':
                 self.convergence_eps = float(kwargs[key])
             elif key == 'combined_training_epochs':
-                if "/dev/null" in self.model_filename:
+                if self.trainingstate.filename is None:
                     raise ValueError('Combined retraining needs a model_filename to load the best model after training. (you provided None).')
                 self.combined_training_epochs = int(kwargs[key])
+            elif key == 'model_keep_epochs':
+                self.trainingstate.model_keep_epochs = int(kwargs[key])
+            elif key == 'model_filename':
+                self.trainingstate.filename = str(kwargs[key]).split(self.trainingstate.extension)[0]            
             elif key == 'use_cuda':
-                self.use_cuda = bool(kwargs[key])
-            elif key == 'profile':
-                self.profile = bool(kwargs[key])
-            elif key == 'after_backward_hook':
-                self.after_backward_hook = kwargs[key]
-            elif key == 'after_eval_hook':
-                self.after_eval_hook = kwargs[key]
-            elif key == 'after_epoch_hook':
-                self.after_epoch_hook = kwargs[key]
+                self.cuda = kwargs[key]
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
@@ -144,17 +123,98 @@ class MetaTrainer:
                 self.trainingstate.load_scheduler_(self.scheduler)
         
         # Computational configuration
+        self.use_cuda = next(self.model.parameters()).is_cuda
         if self.use_cuda:
             if not torch.cuda.is_available():
                 self.logger.error('CUDA is not available on your system.')
         self.model = Trainingstate.transform_model(self.model, self.optimizer, 
             self.precision, self.use_cuda)
+
+
+    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1, analyzer=Analyzer):
+        """
+        Fits a model with given training and validation dataset
+        
+        Arguments
+        ---------
+        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
+                                The dataloader that provides the training data
+        epochs              :   int
+                                Epochs to train
+        validation_set      :   torch.utils.data.Dataset OR tuple (X,y) OR torch.utils.data.DataLoader
+                                The validation dataset
+        eval_interval       :   int
+                                Evaluation interval for validation dataset in epochs
+        eval_batch_size     :   OPTIONAL int
+                                batch size used for evaluation (default: -1 == ALL)
+        Analyzer (ummon.Analyzer) : A training type specific analyzer.
+        """
+        
+        # INPUT VALIDATION
+        epochs = int(epochs)
+        if epochs < 1:
+            self.logger.error('Number of epochs must be > 0.', ValueError)
+        dataloader_training = uu.gen_dataloader(dataloader_training, has_labels=True, logger=self.logger)
+        batches = len(dataloader_training)
+        
+        if eval_batch_size == -1:
+            eval_batch_size = dataloader_training.batch_size
+        
+        dataloader_validation = uu.gen_dataloader(validation_set, batch_size=eval_batch_size, has_labels=True, logger=self.logger)
+        
+        # PROBLEM SUMMARY
+        self._problem_summary(epochs, dataloader_training, dataloader_validation, self.scheduler)
+        
+        for epoch in range(self.epoch, self.epoch + epochs):
+        
+            # EPOCH PREPARATION
+            time_dict = self._prepare_epoch()
+            
+            # COMPUTE ONE EPOCH                
+            for batch, data in enumerate(dataloader_training, 0):
+                
+                # time dataloader
+                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
+                
+                # Get the inputs
+                inputs, targets = self._get_batch(data)
+                
+                # switch on training mode
+                self.model.train()
+                
+                output, time_dict = self._forward_one_batch(inputs, time_dict)
+                loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
+                
+                # Backpropagation
+                time_dict = self._backward_one_batch(loss, time_dict, output, targets)
+                
+                # switch back to evaluation mode
+                self.model.eval()
     
-    
-    # This depends on the learning problem => needs to be defined by subclass
-    def _data_validation(self, dataloader_training, validation_set):
-        raise NotImplementedError("This class is superclass.")
-    
+                # Reporting
+                time_dict = self._finish_one_batch(batch, batches, epoch, loss.item(),
+                    dataloader_training.batch_size, time_dict)
+                
+            # Evaluate
+            self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
+                dataloader_validation, dataloader_training, eval_batch_size)
+            
+            # SAVE MODEL
+            self.trainingstate.save_state()
+                     
+            # CHECK TRAINING CONVERGENCE
+            if self._has_converged():
+                break
+            
+            # ANNEAL LEARNING RATE
+            if self.scheduler: 
+                try:
+                    self.scheduler.step()
+                except StepsFinished:
+                    break
+                
+        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
+        self._combined_retraining(dataloader_training, validation_set, eval_batch_size) 
     
     def _prepare_epoch(self):
         """
@@ -171,7 +231,6 @@ class MetaTrainer:
                      "model"    : 0,
                      "loss"     : 0,
                      "backprop" : 0,
-                     "hooks"    : 0,
                      "total"    : 0}
         
         
@@ -197,7 +256,6 @@ class MetaTrainer:
         output = self.model(inputs)
         
         # time model
-        if self.use_cuda: torch.cuda.synchronize()
         time_dict["model"] = time_dict["model"] + (time.time() - time_dict["t"])
        
         return output, time_dict
@@ -243,7 +301,6 @@ class MetaTrainer:
                         loss = self.criterion(output, targets.view_as(output).float())
         
         # time loss
-        if self.use_cuda: torch.cuda.synchronize()
         time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
         return loss, time_dict
       
@@ -270,23 +327,15 @@ class MetaTrainer:
         loss.backward()
         
         # time backprop
-        if self.use_cuda: torch.cuda.synchronize()
         time_dict["backprop"] = time_dict["backprop"] + (time.time() - time_dict["t"])
         
-        # Run hooks
-        if self.after_backward_hook is not None:
-            self.after_backward_hook(output.data, targets.data, loss.cpu().data)
-        
-        # time hooks
-        if self.use_cuda: torch.cuda.synchronize()
-        time_dict["hooks"] = time_dict["hooks"] + (time.time() - time_dict["t"])
         
         # Take gradient descent
         self.optimizer.step()
         
         return time_dict
 
-    def _finish_one_batch(self, batch, batches, epoch, avg_training_loss, training_batchsize, time_dict):
+    def _finish_one_batch(self, batch, batches, epoch, training_loss, training_batchsize, time_dict):
         """
         Finishes a batch and updates moving average loss. Last it logs the current state.
         
@@ -305,69 +354,14 @@ class MetaTrainer:
         
         """
         # total time
-        if self.use_cuda: torch.cuda.synchronize()
         time_dict["total"] = time_dict["total"] + (time.time() - time_dict["t"])
-        
+
         # Log status
-        self.logger.log_one_batch(epoch + 1, batch + 1, batches, avg_training_loss, training_batchsize, time_dict, self.profile)
+        self.logger.log_one_batch(epoch + 1, batch + 1, batches, training_loss, training_batchsize, time_dict)
         
         # Reset time
         time_dict["t"] = time.time()
         return time_dict
-        
-
-    def _moving_average(self, t, ma, value, buffer):
-        """
-        Helper method for computing moving averages.
-        
-        Arguments
-        ---------
-        * t (int) : The timestep
-        * ma (float) : Current moving average
-        * value (float) : Current value
-        * buffer (List<float>) : The buffer of size N
-        
-        Return
-        ------
-        * moving_average (float) : The new computed moving average.
-        
-        """
-        # BACKWARD COMPATIBILITY FOR TORCH < 0.4
-        if type(value) is not float:
-            if type(value) == torch.Tensor:
-                value = value.item()
-            else:
-                value = value.data[0]
-        
-        n = buffer.shape[0]
-        if ma is None:
-            moving_average = value
-            buffer += value
-        else:
-            moving_average = ma + (value / n) - (buffer[t % n] / n)
-        buffer[t % n] = value
-        return moving_average
-    
-    
-    def _input_params_validation(self, epochs):
-        """
-        Validates the given parameters
-        
-        Arguments
-        ---------
-        *epochs (int) : The number of scheduled epochs.
-        
-        Return
-        ------
-        *epochs (int) : Same as input or corrected versions of input.
-        *eval_interval(int) : Same as input or corrected versions of input.
-        """
-        # check parameters
-        epochs = int(epochs)
-        if epochs < 1:
-            self.logger.error('Number of epochs must be > 0.', ValueError)
-        
-        return epochs    
     
     
     def _has_converged(self):
@@ -385,9 +379,9 @@ class MetaTrainer:
                 return True
         
         return False
+
     
-    
-    def _problem_summary(self, epochs, dataloader_training, validation_set, scheduler = None):
+    def _problem_summary(self, epochs, dataloader_training, dataloader_validation, scheduler = None):
         """
         Prints the problem summary
         
@@ -395,12 +389,12 @@ class MetaTrainer:
         ---------
         *epochs (int) : The number of scheduled epochs.
         *dataloader_training (torch.utils.data.Dataloader) : A dataloader holding the training data.
-        *validation_set (torch.utils.data.Dataset) : A dataset holding the validation data
+        *dataloader_validation (torch.utils.data.Dataloader) : A dataset holding the validation data
         """
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         early_stopping = isinstance(scheduler, StepLR_earlystop)
         self.logger.print_problem_summary(self, self.model, self.criterion, self.optimizer, 
-            dataloader_training, validation_set, epochs, early_stopping, self.combined_training_epochs)
+            dataloader_training.dataset, dataloader_training.batch_size, dataloader_validation.dataset, epochs, early_stopping, self.combined_training_epochs)
         
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
@@ -418,8 +412,7 @@ class MetaTrainer:
     def _evaluate_training(self, Analyzer, batch, batches, 
                   time_dict, 
                   epoch,  
-                  validation_set, 
-                  avg_training_loss,
+                  dataloader_validation, 
                   dataloader_training,
                   eval_batch_size):
         """
@@ -433,71 +426,72 @@ class MetaTrainer:
         *time_dict (dict) : Dictionary that is used for profiling executing time.
         *epoch (int) : The current epoch.
         *eval_interval (int) : The interval in epochs for evaluation against validation dataset.
-        *validation_set (torch.utils.data.Dataset) : Validation data.
-        *avg_training_loss (float) : the current training loss
+        *dataloader_validation (torch.utils.data.Dataloader) : Validation data.
         *dataloader_training : The training data
         *eval_batch_size (int) : A custom batch size to be used during evaluation
         
         """
         
         # EVALUATE ON TRAINING SET
-        n_training_samples = np.min([len(dataloader_training.dataset), 200])
-        rbatch_train = Subset(dataloader_training.dataset, np.random.permutation(n_training_samples))
+        validation_loss = None
         evaluation_dict_train = Analyzer.evaluate(self.model, 
                                                 self.criterion, 
-                                                rbatch_train,
-                                                self.logger, 
-                                                self.after_eval_hook,
-                                                eval_batch_size)
+                                                dataloader_training,
+                                                batch_size=eval_batch_size,
+                                                limit_batches=200,
+                                                logger=self.logger)
         
         # Log epoch
-        if validation_set is not None:
+        if dataloader_validation is not None:
             
                 # MODEL EVALUATION
                 evaluation_dict = Analyzer.evaluate(self.model, 
                                                     self.criterion, 
-                                                    validation_set, 
-                                                    self.logger, 
-                                                    self.after_eval_hook,
-                                                    eval_batch_size)
-                
+                                                    dataloader_validation, 
+                                                    batch_size=eval_batch_size,
+                                                    limit_batches=-1,
+                                                    logger=self.logger)
+        
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                                        training_loss = avg_training_loss, 
+                                        training_loss = evaluation_dict_train["loss"], 
                                         training_accuracy = evaluation_dict_train["accuracy"],
-                                        training_batchsize = dataloader_training.batch_size,
                                         training_dataset = dataloader_training.dataset,
+                                        training_batchsize = dataloader_training.batch_size,
                                         trainer_instance = type(self),
                                         precision = self.precision,
                                         detailed_loss = evaluation_dict["detailed_loss"],
                                         validation_loss = evaluation_dict["loss"],
                                         validation_accuracy = evaluation_dict["accuracy"],  
-                                        validation_dataset = validation_set,
+                                        validation_dataset = dataloader_validation.dataset,
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler,
                                         combined_retraining = self.combined_training_epochs)
+                validation_loss = evaluation_dict["loss"]
                                 
         else: # no validation set
             
             evaluation_dict = evaluation_dict_train
             
             self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
-                training_loss = avg_training_loss, 
+                training_loss = evaluation_dict_train["loss"], 
                 training_accuracy = evaluation_dict_train["accuracy"],
                 training_batchsize = dataloader_training.batch_size,
                 training_dataset = dataloader_training.dataset,
                 trainer_instance = type(self),
                 precision = self.precision,
                 detailed_loss = repr(self.criterion))
+
         
         self.logger.log_epoch(epoch + 1, batch + 1, 
                               batches, 
-                              avg_training_loss, 
+                              evaluation_dict_train["loss"], 
                               dataloader_training.batch_size, 
                               time_dict,
                               Analyzer.evalstr(self.trainingstate), 
-                              self.profile,
                               evaluation_dict)
+
+        return validation_loss
     
     
     def _combined_retraining(self, dataloader_training, validation_set, eval_batch_size):
@@ -519,172 +513,68 @@ class MetaTrainer:
                 self.logger.warn("Combined retraining needs validation data.")
             else:                
                 # combine the two datasets
-                dataloader_combined = self._add_dataset_to_loader(dataloader_training, validation_set)   
+                uu.add_dataset_to_loader_(dataloader_training, validation_set)   
                 
                 # give some information about what we are going to do
                 self.logger.info('Combined retraining...')  
                 
                 # get current state
                 combined_training_epochs = self.combined_training_epochs
-                model_filename = self.model_filename
-                model_keep_epochs = self.model_keep_epochs
+                model_filename = self.trainingstate.filename
+                model_keep_epochs = self.trainingstate.model_keep_epochs
                 self.scheduler = None
-                
-                # modify state so that recursion is not infinite, and filenames are correct
-                self.combined_training_epochs = 0
-                self.model_filename = str(self.model_filename + self.trainingstate.combined_retraining_pattern)
-                self.model_keep_epochs = True
                 
                 # reset to best validation model
                 self.trainingstate.load_weights_best_validation_(self.model, self.optimizer)
                 
+                # modify state so that recursion is not infinite, and filenames are correct
+                self.combined_training_epochs = 0
+                self.trainingstate.filename = str(model_filename + self.trainingstate.combined_retraining_pattern)
+                self.trainingstate.model_keep_epochs = True
+                
                 # do actual retraining
-                self.fit(dataloader_combined, 
+                self.fit(dataloader_training, 
                          epochs=combined_training_epochs, 
                          validation_set=validation_set, 
                          eval_batch_size=eval_batch_size)
                 
                 # restore previous state
                 self.combined_training_epochs = combined_training_epochs
-                self.model_filename = model_filename
-                self.model_keep_epochs = model_keep_epochs
+                self.trainingstate.filename = model_filename
+                self.trainingstate.model_keep_epochs = model_keep_epochs
     
-    def _add_dataset_to_loader(self, dataloader, merge_dataset):
-        """
-        Adds a dataset to an existing dataloader
-        
-        dataloader (torch.utils.data.DataLoader) : A new instance of a dataloader that contains the merged dataset
-        """
-        dataset_origin = dataloader.dataset
-        dataset_merged = ConcatDataset([dataset_origin, merge_dataset])
-        dataloader_merged = DataLoader(dataset_merged, 
-                                       batch_size=dataloader.batch_size, 
-                                       shuffle=True, 
-                                       num_workers=dataloader.num_workers)
-        return dataloader_merged
         
     # prepares one batch for processing (can be overwritten by sibling)
     def _get_batch(self, data):
+
+        inputs, targets = uu.input_of(data), uu.label_of(data)
         
         # Get the inputs
-        inputs, targets = Variable(data[0]), Variable(data[1])
+        inputs, targets = uu.tensor_tuple_to_variables(inputs), uu.tensor_tuple_to_variables(targets)
         
         # Handle cuda
         if self.use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
+            inputs, targets = uu.tensor_tuple_to_cuda(inputs), uu.tensor_tuple_to_cuda(targets)
         
         return inputs, targets
-    
-    
-    def _get_output_for_buffer(self, output, targets, batch):
-        """
-        Prepares the output tuple for buffering and later evaluation.
         
-        """
-        if type(output) == tuple or type(output) == list:
-            output = tuple([t.data.clone() for t in output])  
-        else:
-            output = output.data.clone()
-            
-        if type(targets) == tuple or type(targets) == list:
-            targets = tuple([t.data.clone() for t in targets])  
-        else:
-            targets = targets.data.clone()
         
-        return output, targets, batch
-        
+# Backward compatibility
+class SupervisedTrainer(Trainer):
+    pass
+
+# Backward compatibility
+class UnsupervisedTrainer(Trainer):
+    pass
+
+# Backward compatibility
+class SiameseTrainer(Trainer):
+    pass
+
+from .analyzer import ClassificationAnalyzer
+class ClassificationTrainer(Trainer):
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
-        """
-        Fits a model with given training and validation dataset
-        
-        Arguments
-        ---------
-        dataloader_training :   torch.utils.data.DataLoader OR tuple (X,y,batch)
-                                The dataloader that provides the training data
-        epochs              :   int
-                                Epochs to train
-        validation_set      :   torch.utils.data.Dataset OR tuple (X,y)
-                                The validation dataset
-        eval_interval       :   int
-                                Evaluation interval for validation dataset in epochs
-        eval_batch_size     :   OPTIONAL int
-                                batch size used for evaluation (default: -1 == ALL)
-        """
-        
-        # INPUT VALIDATION
-        dataloader_training, validation_set, batches = self._data_validation(
-            dataloader_training, validation_set)
-        epochs = self._input_params_validation(epochs)
-        if eval_batch_size == -1:
-            eval_batch_size = dataloader_training.batch_size
-        
-        # PROBLEM SUMMARY
-        self._problem_summary(epochs, dataloader_training, validation_set, self.scheduler)
-        
-        for epoch in range(self.epoch, self.epoch + epochs):
-        
-            # EPOCH PREPARATION
-            time_dict = self._prepare_epoch()
-            
-            # Moving average
-            n, avg_training_loss = 5, None
-            training_loss_buffer= np.zeros(n, dtype=np.float32)
-            
-            # COMPUTE ONE EPOCH                
-            for batch, data in enumerate(dataloader_training, 0):
-                
-                # time dataloader
-                time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
-                
-                # Get the inputs
-                inputs, targets = self._get_batch(data)
-                
-                # switch on training mode
-                self.model.train()
-                
-                output, time_dict = self._forward_one_batch(inputs, time_dict)
-                loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
-                
-                # Backpropagation
-                time_dict = self._backward_one_batch(loss, time_dict, output, targets)
-                
-                # switch back to evaluation mode
-                self.model.eval()
-                
-                # Loss averaging
-                avg_training_loss = self._moving_average(batch, avg_training_loss, 
-                    loss.cpu(), training_loss_buffer)
-                
-                # Reporting
-                time_dict = self._finish_one_batch(batch, batches, epoch, avg_training_loss,
-                    dataloader_training.batch_size, time_dict)
-                
-            # Evaluate
-            self._evaluate_training(self.analyzer, batch, batches, time_dict, epoch,  
-                validation_set, avg_training_loss, dataloader_training, eval_batch_size)
-            
-            # EPOCH HOOK
-            if self.after_epoch_hook is not None:
-                self.after_epoch_hook()
-            
-            # SAVE MODEL
-            self.trainingstate.save_state(self.model_filename, self.model_keep_epochs)
-                     
-            # CHECK TRAINING CONVERGENCE
-            if self._has_converged():
-                break
-            
-            # ANNEAL LEARNING RATE
-            if self.scheduler: 
-                try:
-                    self.scheduler.step()
-                except StepsFinished:
-                    break
-                
-        # DO COMBINED RETRAINING WITH BEST VALIDATION MODEL
-        self._combined_retraining(dataloader_training, validation_set, eval_batch_size)
-        
-        
+        return super().fit(dataloader_training, epochs, validation_set, eval_batch_size, ClassificationAnalyzer)
         
         

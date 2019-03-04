@@ -20,15 +20,12 @@ import ummon.utils as uu
 import ummon.logger
 import ummon.analyzer
 import ummon.trainer
-import ummon.supervised
-import ummon.unsupervised
 import ummon.schedulers
-import ummon.trainingstate
 import ummon.visualizer
 import ummon.modules
 import ummon.features
 import ummon.functionals
-import ummon.tools
+import ummon.trainingstate
 
 version = ummon.__version__.version
 __version__ = version
@@ -48,12 +45,9 @@ def system_info():
         print("---------------------------------")
 
 from .schedulers import *
-from .trainingstate import *
 from .trainer import *
-from .unsupervised import *
-from .supervised import *
-from .logger import *
 from .trainingstate import *
+from .logger import *
 from .analyzer import *
 from .visualizer import *
 from .predictor import *
@@ -69,9 +63,9 @@ from .modules.batchnorm import *
 from .modules.imgproc import *
 from .modules.vgg19 import *
 from .modules.gram import *
-from ummon.transformations.imagetransforms import *
-from ummon.features.psTMfeatures import *
-from ummon.features.swEVMfeatures import *
-from ummon.features.vgg19features import *
-from ummon.features.featurecache import *
-from .datasets.generic import *
+from .transformations.imagetransforms import *
+from .features.psTMfeatures import *
+from .features.swEVMfeatures import *
+from .features.vgg19features import *
+from .features.featurecache import *
+from .datasets import *

@@ -4,7 +4,7 @@ import torch.nn as nn
 import copy
 from torch.optim import Optimizer
 
-from .logger import Logger
+from ummon.logger import Logger
 
 
 __all__ = [ 'StepLR_earlystop', 'StepsFinished' ]
@@ -138,7 +138,7 @@ class StepLR_earlystop(object):
         model and stop training if last step reached.
         '''
         self.logger.info('Current best performance for learning rate {:1.5f}: {:4.5f}.'.format(
-            self.trs.state["lrate[]"][-1][1], self.best))
+            self.trs.current_lrate(), self.best))
         self.num_bad_epochs = 0
         self.num_epochs_in_step = 0
         self.cur_step += 1
@@ -160,7 +160,7 @@ class StepLR_earlystop(object):
         self.num_epochs_in_step += 1
         
         # new best value
-        metrics = self.trs['validation_loss[]'][-1][1] # get current validation loss
+        metrics = self.trs.current_validation_loss() # get current validation loss
         if self.mode == 'min' and metrics < self.best:
             self.best = metrics
             self.num_bad_epochs = 0
@@ -224,4 +224,4 @@ class StepLR_earlystop(object):
             'lr': self.lr
         }
 
-from .trainingstate import Trainingstate
+from ..trainingstate import Trainingstate
