@@ -16,18 +16,7 @@ from math import log
 from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
-import ummon.utils as uu
-from ummon.schedulers import *
-from ummon.trainingstate import *
-from ummon.trainer import *
-from ummon.unsupervised import *
-from ummon.supervised import *
-from ummon.logger import *
-from ummon.trainingstate import *
-from ummon.analyzer import *
-from ummon.visualizer import *
-from ummon.modules.container import *
-from ummon.modules.linear import *
+from ummon import *
 
 # set fixed seed for reproducible results
 torch.manual_seed(4)

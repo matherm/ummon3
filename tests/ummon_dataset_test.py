@@ -20,7 +20,7 @@ import ummon.utils as uu
 from ummon.analyzer import *
 from ummon.modules.container import *
 from ummon.trainingstate import *
-from ummon.datasets.generic import *
+from ummon.datasets import *
 
 from torchvision import transforms
 

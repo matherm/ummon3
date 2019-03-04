@@ -1,9 +1,7 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
-#############################################################################################
+#---------------------------------------------------------------
+import os, sys 
+sys.path.insert(0, os.getcwd()) # enables $ python examples/[EXAMPLE].py
+#---------------------------------------------------------------
 '''
 This script creates a basic 3-layer linear network with sigmoid activation functions and
 30 hidden neurons. On MNIST, the 30-10-network reaches around 96 % correct on the 

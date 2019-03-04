@@ -1,9 +1,7 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  # for python basicusage.py
-sys.path.insert(0,'../ummon3')     # for python examples/basicusage.py
-#############################################################################################
+#---------------------------------------------------------------
+import os, sys 
+sys.path.insert(0, os.getcwd()) # enables $ python examples/[EXAMPLE].py
+#---------------------------------------------------------------
 
 """
 
@@ -23,10 +21,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ummon.trainingstate import Trainingstate
-from ummon.logger import Logger
-from ummon.supervised import SupervisedTrainer
-
+from ummon import *
 #
 # SET inital seed for reproducibility 
 np.random.seed(17)
@@ -83,7 +78,7 @@ def example(argv = DefaultValues()):
         model = Net()  
         
         # CHOOSE LOSS-Function
-        criterion = nn.MSELoss(size_average = False)
+        criterion = nn.MSELoss(reduction="sum")
         
         # INSTANTIATE OPTIMIZER
         optimizer = torch.optim.SGD(model.parameters(), lr=argv.lrate/argv.batch_size)

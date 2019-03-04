@@ -1,10 +1,3 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-sys.path.insert(0,'../../ummon3')  
-sys.path.insert(0,'../ummon3')     
-#############################################################################################
-
 import unittest
 import logging
 import os
@@ -16,15 +9,12 @@ from math import log
 from torch.autograd import Variable
 from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import DataLoader
+import tools.stateviewer
 import ummon.utils as uu
-import ummon.tools.stateviewer
+from ummon.trainingstate import *
 from ummon.schedulers import *
-from ummon.trainingstate import *
 from ummon.trainer import *
-from ummon.unsupervised import *
-from ummon.supervised import *
 from ummon.logger import *
-from ummon.trainingstate import *
 from ummon.analyzer import *
 from ummon.visualizer import *
 from ummon.modules.container import *
@@ -84,12 +74,12 @@ class TestTools(unittest.TestCase):
                      validation_accuracy = 0, 
                      validation_dataset = dataset_valid,
                      args = { "args" : 1 , "argv" : 2})
-        ts.save_state(model)
+        ts.save_state()
     
     def test_stateviewer(self):
         TestTools._sample_state(model="test.pth.tar")
-        ummon.tools.stateviewer.view("test")
-        ummon.tools.stateviewer.view("test.pth.tar")
+        tools.stateviewer.view("test")
+        tools.stateviewer.view("test.pth.tar")
 
 if __name__ == '__main__':
     import argparse

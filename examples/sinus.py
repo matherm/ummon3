@@ -1,12 +1,7 @@
-#############################################################################################
-# Append the path to ummon3 to PATH-Variable so that ummon can be imported during development
-import sys
-
-import logging
-
-sys.path.insert(0, '../../ummon3')  # for python basicusage.py
-sys.path.insert(0, '../ummon3')  # for python examples/basicusage.py
-#############################################################################################
+#---------------------------------------------------------------
+import os, sys 
+sys.path.insert(0, os.getcwd()) # enables $ python examples/[EXAMPLE].py
+#---------------------------------------------------------------
 
 """
 
@@ -31,7 +26,6 @@ import math
 import matplotlib.pyplot as plt
 from ummon.logger import Logger
 from ummon.trainingstate import Trainingstate
-from ummon.supervised import *
 from ummon import *
 
 #

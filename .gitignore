@@ -9,6 +9,7 @@
 
 # Custom local pattern
 local*
+lib/
 
 # build files
 .eggs
