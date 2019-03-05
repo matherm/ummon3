@@ -48,15 +48,29 @@ class TestDatasets(unittest.TestCase):
     
  
     def test_in_ram_numpy_data_set(self):
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
-            )
 
         patches_reference = TensorDataset(torch.zeros(1000).view(10,10,10), torch.zeros(10))
         data_point = patches_reference[0]
         assert LoadDatasetIntoRam(patches_reference).data.shape[0] == 10
         assert LoadDatasetIntoRam(patches_reference).labels.shape[0] == 10
 
+
+    def test_pre_transform_dataset(self):
+        transform = transforms.Compose(
+            [transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
+            )
+
+        patches_reference = TensorDataset(torch.zeros(10*10*10*3).view(10, 3,10,10), torch.zeros(10))
+        path = "__ummoncache__/test/pretransformed"
+        ds_1 = PreTransformDataset(patches_reference, transform, workers=2, path=path)
+        ds_2 = PreTransformDataset(patches_reference, transform, workers=1, path=path)
+        [os.remove(os.path.join(path, f)) for f in os.listdir(path)]
+        assert np.allclose(ds_1[0][0].numpy(), ds_2[0][0].numpy(), rtol=0, atol=1e-5)
+
+        ds_2 = PreTransformDataset(patches_reference, transform, workers=1, path=path)
+        ds_1 = PreTransformDataset(patches_reference, transform, workers=10, path=path)
+        [os.remove(os.path.join(path, f)) for f in os.listdir(path)]
+        assert np.allclose(ds_1[0][0], ds_2[0][0], rtol=0, atol=1e-5)
 
 if __name__ == '__main__':
     import argparse
