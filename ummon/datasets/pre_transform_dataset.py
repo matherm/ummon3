@@ -92,14 +92,18 @@ class PreTransformDataset(Dataset):
             # Case batch processing                
                 for p_item in item:
                     if p_item is not None:
-                        if not torch.is_tensor(p_item[0]):
-                            data_list.append(torch.Tensor(p_item[0]))
+                        item_data = p_item[0]
+                        item_label = p_item[1]
+                        if not torch.is_tensor(item_data):
+                            data_list.append(torch.Tensor(item_data))
                         else:
-                            data_list.append(p_item[0])
-                        if not torch.is_tensor(p_item[1]):
-                            label_list.append(torch.Tensor(p_item[1]))
+                            data_list.append(item_data)
+                        if not torch.is_tensor(item_label):
+                            if type(item_label) == int:
+                                item_label = [item_label]
+                            label_list.append(torch.Tensor(item_label))
                         else:
-                            label_list.append(p_item[1])
+                            label_list.append(item_label)
             else:
             # Case single processing
                 if self.pre_filter is not None:
@@ -114,6 +118,8 @@ class PreTransformDataset(Dataset):
                     else:
                         data_list.append(item_data)
                     if not torch.is_tensor(item_label):
+                        if type(item_label) == int:
+                            item_label = [item_label]
                         label_list.append(torch.Tensor(item_label))
                     else:
                         label_list.append(item_label)
