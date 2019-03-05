@@ -57,7 +57,7 @@ class TestDatasets(unittest.TestCase):
 
     def test_pre_transform_dataset(self):
         transform = transforms.Compose(
-            [transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
+            [transforms.Normalize(mean=[0., 0., 0.], std=[1.0, 1.0, 1.0]), flatten_transform]
             )
         path = "__ummoncache__/test/pretransformed"
         data = torch.from_numpy(np.random.normal(0,1,size=10*10*10*3)).float().view(10, 3,10,10)
