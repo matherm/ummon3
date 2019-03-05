@@ -59,9 +59,10 @@ class TestDatasets(unittest.TestCase):
         transform = transforms.Compose(
             [transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), flatten_transform]
             )
-
-        patches_reference = TensorDataset(torch.zeros(10*10*10*3).view(10, 3,10,10), torch.zeros(10))
         path = "__ummoncache__/test/pretransformed"
+        data = torch.from_numpy(np.random.normal(0,1,size=10*10*10*3)).float().view(10, 3,10,10)
+        patches_reference = TensorDataset(data, torch.zeros(10))
+
         ds_1 = PreTransformDataset(patches_reference, transform, workers=2, path=path)
         ds_2 = PreTransformDataset(patches_reference, transform, workers=1, path=path)
         [os.remove(os.path.join(path, f)) for f in os.listdir(path)]

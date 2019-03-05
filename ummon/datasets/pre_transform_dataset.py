@@ -22,11 +22,12 @@ class PreTransformDataset(Dataset):
         self.pre_filter = pre_filter
 
         if hasattr(dataset, "transform"):
-            raise ValueError("Dataset also specifies transforms. Exiting..")
+            if dataset.transform is not None:
+                raise ValueError("Dataset also specifies transforms. Exiting..")
         
         # choose the right data partition to load
         self.str_pretransform = hash_obj(pre_transform)
-        self.str_pretransform += hash_obj(dataset[0][0])
+        self.str_pretransform += hash_obj(pre_transform(dataset[0][0]))
         self.filename_labels = "{}_labels.pt".format(os.path.join(path, self.str_pretransform))
         self.filename_data   = "{}_data.pt".format(os.path.join(path, self.str_pretransform))
 
@@ -37,7 +38,7 @@ class PreTransformDataset(Dataset):
             torch.save(labels, self.filename_labels)
 
         self.data, self.labels = torch.load(self.filename_data), torch.load(self.filename_labels)
-        
+
     def __repr__(self):
         return "{}({}, pre_transform={})".format(self.__class__.__name__, repr(self.dataset), str(self.pre_transform).replace("\n", ""))
     
@@ -81,8 +82,14 @@ class PreTransformDataset(Dataset):
             # Case batch processing                
                 for p_item in item:
                     if p_item is not None:
-                        data_list.append(p_item[0])
-                        label_list.append(p_item[1])
+                        if not torch.is_tensor(p_item[0]):
+                            data_list.append(torch.Tensor(p_item[0]))
+                        else:
+                            data_list.append(p_item[0])
+                        if not torch.is_tensor(p_item[1]):
+                            label_list.append(torch.Tensor(p_item[1]))
+                        else:
+                            label_list.append(p_item[1])
             else:
             # Case single processing
                 if self.pre_filter is not None:
@@ -90,10 +97,15 @@ class PreTransformDataset(Dataset):
                         continue
 
                 if self.pre_transform is not None:
-                    item = self.pre_transform(item[0])
-                
-                data_list.append(item[0])
-                label_list.append(item[1])
+                    item = self.pre_transform(item[0])       
+                    if not torch.is_tensor(item[0]):
+                        data_list.append(torch.Tensor(item[0]))
+                    else:
+                        data_list.append(item[0])
+                    if not torch.is_tensor(item[1]):
+                        label_list.append(torch.Tensor(item[1]))
+                    else:
+                        label_list.append(item[1])
 
         if isinstance(ds, DataLoader):
             torch.multiprocessing.set_sharing_strategy('file_descriptor')
