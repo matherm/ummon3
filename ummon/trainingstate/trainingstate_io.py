@@ -15,10 +15,8 @@ class Trainingstate(TrainingStateDict):
         self.force_weights_to_cpu = force_weights_to_cpu
         self.model_keep_epochs = model_keep_epochs
         self.filename = filename 
-        if self.filename is not None and ("/dev/null/" in self.filename or "" == self.filename or " " == self.filename):
-            self.filename = None 
 
-        if filename is not None:
+        if self.filename is not None:
             if self.extension not in filename:
                 self.filename = str(filename + self.extension)
             if os.path.exists(self.filename):
@@ -51,7 +49,7 @@ class Trainingstate(TrainingStateDict):
         Saves the state to file and maintaines a copy of the best validation and training model.
         
         """
-        if self.filename is None:
+        if self.filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
             return
 
         filename = self.filename

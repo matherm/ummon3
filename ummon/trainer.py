@@ -393,8 +393,9 @@ class Trainer:
         """
         # PRINT SOME INFORMATION ABOUT THE SCHEDULED TRAINING
         early_stopping = isinstance(scheduler, StepLR_earlystop)
+        validation_dataset = dataloader_validation.dataset if dataloader_validation is not None else None
         self.logger.print_problem_summary(self, self.model, self.criterion, self.optimizer, 
-            dataloader_training.dataset, dataloader_training.batch_size, dataloader_validation.dataset, epochs, early_stopping, self.combined_training_epochs)
+            dataloader_training.dataset, dataloader_training.batch_size, validation_dataset, epochs, early_stopping, self.combined_training_epochs)
         
         # training startup message
         self.logger.info('Begin training: {} epochs.'.format(epochs))    
@@ -576,5 +577,3 @@ class ClassificationTrainer(Trainer):
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
         return super().fit(dataloader_training, epochs, validation_set, eval_batch_size, ClassificationAnalyzer)
-        
-        

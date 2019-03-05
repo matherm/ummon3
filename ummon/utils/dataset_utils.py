@@ -29,17 +29,23 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     # simple interface: training and test data given as numpy arrays
     if type(dataset) == tuple:
         data = dataset
-        if len(dataset) != 2 and len(dataset) != 3:
-            logger.error('Training data must be provided as a tuple (X, y, (bs)) or as PyTorch DataLoader.',TypeError)
+        if len(dataset) != 1 and len(dataset) != 2 and len(dataset) != 3:
+            logger.error('Training data must be provided as a tuple (X, (y), (bs)) or as PyTorch DataLoader.', TypeError)
         elif has_labels == True and len(dataset) == 3:
             #case (X, y, bs)
             batch_size = data[2]
             new_tuple = (data[0],data[1])
             torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
         elif has_labels == True and len(dataset) == 2:
-            #case (X, y)
-            new_tuple = (data[0], data[1])
-            torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+            if type(data[1]) == int:
+                #case (X, bs)
+                batch_size = data[1]
+                new_tuple = (data[0],)
+                torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+            else:    
+                #case (X, y)
+                new_tuple = (data[0], data[1])
+                torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
         elif has_labels == False and len(dataset) == 2:
             #case (X, bs)
             batch_size = data[1]
@@ -65,6 +71,8 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
         return dataset
 
+    if dataset is None:
+        return dataset
 
     if type(dataset) == list:
         dataloader = [dataset]
@@ -132,7 +140,8 @@ def construct_dataset_from_tuple(data_tuple, logger=Logger()):
     if (type(data_tuple) == tuple and len(data_tuple) == 1) or type(data_tuple) == np.ndarray or istensor(data_tuple):
         if type(data_tuple) == tuple:
             Xtr = data_tuple[0]
-        Xtr = data_tuple
+        else:            
+            Xtr = data_tuple
         if istensor(Xtr):
             Xtr = Xtr.detach().numpy()
         x = torch.from_numpy(Xtr)
