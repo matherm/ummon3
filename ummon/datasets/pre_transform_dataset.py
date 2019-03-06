@@ -6,7 +6,6 @@ from zipfile  import ZipFile
 import numpy as np
 import torch
 
-from torch_cluster import knn
 from torch.utils.data import DataLoader, Dataset
 
 class PreTransformDataset(Dataset):
