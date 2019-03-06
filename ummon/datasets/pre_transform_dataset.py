@@ -157,4 +157,7 @@ def accquire_lock(LOCK = ".pre_processing_lock"):
         f.write("locking preprocessing...")
 
 def release_lock(LOCK = ".pre_processing_lock"):
-    os.remove(LOCK)
+    try:
+        os.remove(LOCK)
+    except:
+        pass
