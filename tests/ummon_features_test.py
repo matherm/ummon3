@@ -37,20 +37,24 @@ class TestUmmonFeatures(unittest.TestCase):
         x = torch.zeros(3*32*32).reshape(3,32,32)
         
         # TEST EXTRACTOR
-        y =  FeatureCache(VGG19Features(),cachedir="./")(x)        
-        y =  FeatureCache(VGG19Features(),cachedir="./", clearcache=False)(x)        
-        FeatureCache(VGG19Features(),cachedir="./")
+        y =  FeatureCache(VGG19Features(),cachedir="./__ummoncache__/test/")(x)        
+        y =  FeatureCache(VGG19Features(),cachedir="./__ummoncache__/test/", clearcache=False)(x)        
+        FeatureCache(VGG19Features(),cachedir="./__ummoncache__/test/")
         assert y.size(0) == 512 and y.size(1) == 2 and y.size(2) == 2
         
         # TEST Gram
-        y =  FeatureCache(VGG19Features(gram=True),cachedir="./")(x)        
-        y =  FeatureCache(VGG19Features(gram=True),cachedir="./", clearcache=False)(x)
-        FeatureCache(VGG19Features(gram=True),cachedir="./")
+        y =  FeatureCache(VGG19Features(gram=True),cachedir="./__ummoncache__/test/")(x)        
+        y =  FeatureCache(VGG19Features(gram=True),cachedir="./__ummoncache__/test/", clearcache=False)(x)
+        FeatureCache(VGG19Features(gram=True),cachedir="./__ummoncache__/test/")
         assert y.size(0) == 512 == y.size(1)
 
         # TEST random init
         y =  VGG19Features(gram=True, pretrained=False)(x)
         assert y.size(0) == 512 == y.size(1)
+
+        # Clearcache
+        FeatureCache(VGG19Features(gram=True),cachedir="./__ummoncache__/test/", clearcache=True)
+        
         
         
     def test_portilla_simoncelli_features(self):

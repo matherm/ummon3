@@ -73,6 +73,7 @@ class TestDatasets(unittest.TestCase):
         [os.remove(os.path.join(path, f)) for f in os.listdir(path)]
         assert np.allclose(ds_1[0][0], ds_2[0][0], rtol=0, atol=1e-5)
 
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
