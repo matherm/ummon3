@@ -240,12 +240,16 @@ class TrainingStateDict():
         return self.state["training_accuracy[]"][-1][1]
 
     def is_best_validation_model(self):
+        if self.state is None:
+            return False
         if len(self.state["validation_loss[]"]) == 0:
                 return False
         is_best = self.current_validation_loss() == self.best_validation_loss()
         return is_best
         
     def is_best_training_model(self):
+        if self.state is None:
+            return False
         if len(self.state["training_loss[]"]) == 0:
                 return False
         is_best = self.current_training_loss() == self.best_training_loss()

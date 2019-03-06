@@ -292,14 +292,16 @@ class TestUmmon(unittest.TestCase):
         print('\n')
         
         # create net
-        batch = 4
+        batch = 8
         eta = 0.1/batch
         cnet = Sequential(
             ('line0', Linear([3], 2, 'xavier_normal_'))
         )
-        loss = nn.BCEWithLogitsLoss(reduction='sum')
+        
+        # pytorch disregards the constant 0.5, so we need to add it to the loss
+        loss = lambda x,y : 0.5*nn.BCEWithLogitsLoss(reduction='sum')(x,y)
         opt = torch.optim.SGD(cnet.parameters(), lr=eta)
-        w = cnet.line0.w
+        w = cnet.line0.w.copy()
         b = cnet.line0.b.copy()
         b = b.reshape((2, 1))
         
@@ -311,19 +313,20 @@ class TestUmmon(unittest.TestCase):
         y0[:batch,0] = np.ones((batch), dtype=np.float32)
         y0[batch:,1] = np.ones((batch), dtype=np.float32)
         
-        for i in range(2):
-            
-            # compute reference forward path
-            x1 = x0[i*batch:(i+1)*batch,:].transpose()
-            y1 = (np.dot(w, x1) + np.tile(b, (1, batch))).transpose()
-            y2 = sigmoid(y1)
-            
-            # reference backward path
-            dL = 0.5*(y2 - y0[i*batch:(i+1)*batch,:])
-            db = dL.sum(axis=0).reshape(2,1)
-            b = b - eta*db
-            dW = np.dot(dL.transpose(), x0[i*batch:(i+1)*batch,:])
-            w = w - eta*dW
+        for e in range(1):
+            for i in range(2):
+                
+                # compute reference forward path
+                x1 = x0[i*batch:(i+1)*batch,:].transpose()
+                y1 = (np.dot(w, x1) + np.tile(b, (1, batch))).transpose()
+                y2 = sigmoid(y1)
+                
+                # reference backward path
+                dL = 0.5*(y2 - y0[i*batch:(i+1)*batch,:])
+                db = dL.sum(axis=0).reshape(2,1)
+                b = b - eta*db
+                dW = np.dot(dL.transpose(), x0[i*batch:(i+1)*batch,:])
+                w = w - eta*dW
         
         print('Ref. weight matrix:')
         print(w)
@@ -342,9 +345,9 @@ class TestUmmon(unittest.TestCase):
         print(w0)
         print('bias:')
         print(b0)
+   
         assert np.allclose(w, w0, 0, 1e-1)
         assert np.allclose(b, b0, 0, 1e-1)
-    
     
     # test flatten
     def test_flatten(self):

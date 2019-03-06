@@ -329,7 +329,6 @@ class Trainer:
         # time backprop
         time_dict["backprop"] = time_dict["backprop"] + (time.time() - time_dict["t"])
         
-        
         # Take gradient descent
         self.optimizer.step()
         
@@ -521,8 +520,6 @@ class Trainer:
                 
                 # get current state
                 combined_training_epochs = self.combined_training_epochs
-                model_filename = self.trainingstate.filename
-                model_keep_epochs = self.trainingstate.model_keep_epochs
                 self.scheduler = None
                 
                 # reset to best validation model
@@ -530,8 +527,7 @@ class Trainer:
                 
                 # modify state so that recursion is not infinite, and filenames are correct
                 self.combined_training_epochs = 0
-                self.trainingstate.filename = str(model_filename + self.trainingstate.combined_retraining_pattern)
-                self.trainingstate.model_keep_epochs = True
+                self.trainingstate.add_combined_retraining_pattern()
                 
                 # do actual retraining
                 self.fit(dataloader_training, 
@@ -541,8 +537,8 @@ class Trainer:
                 
                 # restore previous state
                 self.combined_training_epochs = combined_training_epochs
-                self.trainingstate.filename = model_filename
-                self.trainingstate.model_keep_epochs = model_keep_epochs
+                self.trainingstate.remove_combined_retraining_pattern()
+
     
         
     # prepares one batch for processing (can be overwritten by sibling)

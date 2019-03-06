@@ -14,14 +14,23 @@ class Trainingstate(TrainingStateDict):
         self.combined_retraining_pattern = "_comb_retrn"
         self.force_weights_to_cpu = force_weights_to_cpu
         self.model_keep_epochs = model_keep_epochs
+        self.model_keep_epochs_backup = model_keep_epochs
         self.filename = filename 
-        
         if self.filename is not None:
             if self.extension not in filename:
                 self.filename = str(filename + self.extension)
             if os.path.exists(self.filename):
                 self.load_state_(self.filename, force_weights_to_cpu)
 
+
+    def add_combined_retraining_pattern(self):
+        short_name = self.filename.split(self.extension)[0]
+        self.filename = str(short_name + self.combined_retraining_pattern + self.extension)
+        self.model_keep_epochs = True
+    
+    def remove_combined_retraining_pattern(self):
+        self.filename = self.filename.replace(self.combined_retraining_pattern, "")
+        self.model_keep_epochs = self.model_keep_epochs_backup
 
     def load_state_(self, filename, force_weights_to_cpu=True):
         """
@@ -35,7 +44,6 @@ class Trainingstate(TrainingStateDict):
         
         """
         assert filename is not None
-        
         if force_weights_to_cpu:
             state = torch.load(filename, map_location=lambda storage, loc: storage)
         else:
@@ -71,8 +79,7 @@ class Trainingstate(TrainingStateDict):
         filename = self.filename
         filename = filename.replace(train_pattern, '').replace(valid_pattern, '')
         short_filename = filename.split(extension)[0]
-        
-        
+                
         # CREATE FOLDERS
         if "/" in filename and not os.path.exists(filename[0:filename.rfind("/")]):
             os.makedirs(filename[0:filename.rfind("/")])
@@ -109,7 +116,8 @@ class Trainingstate(TrainingStateDict):
         assert isinstance(model, nn.Module)
         assert self.filename is not None
 
-        self.load_state_(str(self.filename + self.train_pattern + self.extension), self.force_weights_to_cpu)
+        short_name = self.filename.split(self.extension)[0]
+        self.load_state_(str(short_name + self.train_pattern + self.extension), self.force_weights_to_cpu)
         self.load_weights_(model, optimizer)           
     
     def load_weights_best_validation_(self, model, optimizer=None):
@@ -129,7 +137,8 @@ class Trainingstate(TrainingStateDict):
         assert isinstance(model, nn.Module)
         assert self.filename is not None
         
-        self.load_state_(str(self.filename + self.valid_pattern + self.extension), self.force_weights_to_cpu)
+        short_name = self.filename.split(self.extension)[0]
+        self.load_state_(str(short_name + self.valid_pattern + self.extension), self.force_weights_to_cpu)
         self.load_weights_(model, optimizer)           
     
         
