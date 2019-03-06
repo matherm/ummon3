@@ -152,6 +152,7 @@ class TrainingStateDict():
                          "detailed_loss[]" : detailed_loss_info,
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "combined_retraining" : self.state["combined_retraining"],
+                         "id" : self.state["id"],
                          "args[]" : args
                           }
 
@@ -207,6 +208,7 @@ class TrainingStateDict():
                          "detailed_loss[]" : [(epoch, detailed_loss)],
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "combined_retraining" : combined_retraining,
+                         "id" : hash(np.random.uniform(0,1000000)),
                          "args[]" : [args]
                           }
             return state

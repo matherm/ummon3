@@ -1581,6 +1581,45 @@ class TestUmmon(unittest.TestCase):
         assert ts2["validation_loss[]"][-1][0] == ts["validation_loss[]"][-1][0]
         assert ts2["lrate[]"][-1][1] == ts["lrate[]"][-1][1]
         assert ts2["model_trainable_params"] == ts["model_trainable_params"]
+
+        # Test filename collisions
+        ts1 = Trainingstate("collision.pth")
+        ts1.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_dataset = dataset_valid,
+                     args = { "args" : 1 , "argv" : 2})
+        ts1.save_state()
+        ts1.save_state()
+        
+        ts2 = Trainingstate("collision.pth")
+        ts2.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_dataset = dataset_valid,
+                     args = { "args" : 1 , "argv" : 2})
+        ts2.save_state()
+        ts2.save_state()
+
+        assert sum([1 for f in os.listdir(".") if f.startswith("collision")]) == 3
+
+        ts3 = Trainingstate()
+        ts3.filename = "collision.pth"
+        ts3.update_state(0, Net(), criterion, optimizer, 0, 
+                     validation_loss = 0, 
+                     training_accuracy = 0,
+                     training_batchsize = 0,
+                     validation_accuracy = 0, 
+                     validation_dataset = dataset_valid,
+                     args = { "args" : 1 , "argv" : 2})
+        ts3.save_state()
+        ts3.save_state()
+
+        assert sum([1 for f in os.listdir(".") if f.startswith("collision")]) == 6
         
         files = os.listdir(".")
         dir = "."

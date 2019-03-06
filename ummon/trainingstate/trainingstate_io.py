@@ -15,7 +15,7 @@ class Trainingstate(TrainingStateDict):
         self.force_weights_to_cpu = force_weights_to_cpu
         self.model_keep_epochs = model_keep_epochs
         self.filename = filename 
-
+        
         if self.filename is not None:
             if self.extension not in filename:
                 self.filename = str(filename + self.extension)
@@ -52,20 +52,31 @@ class Trainingstate(TrainingStateDict):
         if self.filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
             return
 
-        filename = self.filename
-        extension = self.extension
+        if self.state is None:
+            return
+
+        if self.extension not in self.filename:
+            self.filename = str(self.filename + self.extension)
+
+        if os.path.exists(self.filename):
+            if torch.load(self.filename)["id"] != self.state["id"]:
+                # We have really a collision, lets put the id into the filename
+                short_name = self.filename.split(self.extension)[0]
+                self.filename = "{}_{}{}".format(short_name, self.state["id"], self.extension)
+
+        keep_epochs = self.model_keep_epochs
         train_pattern = self.train_pattern
         valid_pattern = self.valid_pattern
-        keep_epochs = self.model_keep_epochs
+        extension = self.extension
+        filename = self.filename
+        filename = filename.replace(train_pattern, '').replace(valid_pattern, '')
+        short_filename = filename.split(extension)[0]
+        
         
         # CREATE FOLDERS
         if "/" in filename and not os.path.exists(filename[0:filename.rfind("/")]):
             os.makedirs(filename[0:filename.rfind("/")])
 
-        # UPDATE NAME            
-        filename = filename.replace(train_pattern, '').replace(valid_pattern, '')
-        
-        short_filename = filename.split(extension)[0]
         if keep_epochs:
             epoch = self.state["lrate[]"][-1][0]
             filename = short_filename + "_epoch_" + str(epoch) + extension
