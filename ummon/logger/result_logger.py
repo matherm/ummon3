@@ -1,5 +1,7 @@
 from ..utils.sftp_helpers import SFTP
 import os
+import subprocess
+import time
 
 class ExperimentLogger():
 
@@ -8,20 +10,35 @@ class ExperimentLogger():
         self.splunk = splunk
 
     def __call__(self, **kwargs):
-        self.write_dict_to_file(**kwargs)
+        self.write_dict_to_file(self.logfname, **kwargs)
         if self.splunk:
-            self.copy_file_to_splunk()
+            self.write_dict_to_splunk(**kwargs)
 
-    def copy_file_to_splunk(self):            
+    def write_dict_to_splunk(self, **blob):            
         try:
+            temp_file = ".splunk_{}.plain".format(str(time.time()).replace(".",""))
+            remote_filename = "{}_{}.plain".format(self.logfname, str(time.time()).replace(".",""))
+            # Delete existing tempfile
+            if os.path.exists(temp_file): 
+                os.remove(temp_file)
+            # Write tempfile
+            self.write_dict_to_file(temp_file, **blob)
+            # Copy tempfile
             con = SFTP(host="141.37.176.200", port=22, user="clusteruser", password="ios")
-            con.put(self.logfname, os.path.join("/home_ext/clusteruser/index/", self.logfname))
+            con.put(temp_file, os.path.join("/home_ext/clusteruser/index/", remote_filename))
             con.close()
+            # Remove tempfile
+            if os.path.exists(temp_file): 
+                os.remove(temp_file)
+
         except:
             print("Could not write to Splunk-Server.")
 
-    def write_dict_to_file(self, **blob):
-        with open(self.logfname , "a") as f:
+    def write_dict_to_file(self, logfile, **blob):
+        if not os.path.exists(os.path.dirname(logfile)):
+            if not os.path.dirname(logfile) == '':
+                os.makedirs(os.path.dirname(logfile)) 
+        with open(logfile , "a") as f:
             line = []
             for k,v in blob.items(): 
                 line.append("{}={}, ".format(k, v).replace("\n",""))

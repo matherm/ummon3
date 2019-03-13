@@ -32,3 +32,4 @@ ummon_*.npy
 # IDEs and logs
 **/.vscode/**
 *.log
+*.plain
