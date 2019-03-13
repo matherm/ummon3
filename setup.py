@@ -68,6 +68,7 @@ class TestPerformance(install):
     def run(self):
        tests.performance()
         
+print(find_packages())        
 setup(
       name = 'ummon',
       version = __version__,
