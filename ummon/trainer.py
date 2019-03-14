@@ -166,6 +166,9 @@ class Trainer:
         self._problem_summary(epochs, dataloader_training, dataloader_validation, self.scheduler)
         
         for epoch in range(self.epoch, self.epoch + epochs):
+
+            # switch on training mode
+            self.model.train()
         
             # EPOCH PREPARATION
             time_dict = self._prepare_epoch()
@@ -177,10 +180,7 @@ class Trainer:
                 time_dict["loader"] = time_dict["loader"] + (time.time() - time_dict["t"])
                 
                 # Get the inputs
-                inputs, targets = self._get_batch(data)
-                
-                # switch on training mode
-                self.model.train()
+                inputs, targets = self._get_batch(data)                
                 
                 output, time_dict = self._forward_one_batch(inputs, time_dict)
                 loss,   time_dict = self._loss_one_batch(output, targets, time_dict)
@@ -188,14 +188,12 @@ class Trainer:
                 # Backpropagation
                 time_dict = self._backward_one_batch(loss, time_dict, output, targets)
                 
-                # switch back to evaluation mode
-                self.model.eval()
-    
                 # Reporting
                 time_dict = self._finish_one_batch(batch, batches, epoch, loss.item(),
                     dataloader_training.batch_size, time_dict)
                 
             # Evaluate
+            self.model.eval()
             self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
                 dataloader_validation, dataloader_training, eval_batch_size)
             
@@ -431,7 +429,6 @@ class Trainer:
         *eval_batch_size (int) : A custom batch size to be used during evaluation
         
         """
-        
         # EVALUATE ON TRAINING SET
         validation_loss = None
         evaluation_dict_train = Analyzer.evaluate(self.model, 
@@ -490,6 +487,7 @@ class Trainer:
                               time_dict,
                               Analyzer.evalstr(self.trainingstate), 
                               evaluation_dict)
+
 
         return validation_loss
     

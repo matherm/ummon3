@@ -54,13 +54,12 @@ class Analyzer():
         Dictionary
         A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
-
         dataloader = uu.gen_dataloader(dataset, batch_size=batch_size, has_labels=True, logger=logger)
         t = time.time()
         loss_average, acc_average = 0., 0.
         use_cuda = next(model.parameters()).is_cuda
         device = "cuda" if use_cuda else "cpu"
-        
+                
         for i, batch in enumerate(dataloader):
 
             # limit
