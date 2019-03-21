@@ -228,14 +228,18 @@ class TrainingStateDict():
          return self.state[item]
 
     def current_validation_loss(self):
+        if len(self.state['validation_loss[]']) == 0:
+            return None
         return self.state['validation_loss[]'][-1][1]
 
     def current_training_loss(self):
         return self.state["training_loss[]"][-1][1]
 
     def current_validation_acc(self):
+        if len(self.state['validation_loss[]']) == 0:
+            return None
         return self.state['validation_accuracy[]'][-1][1]
-
+        
     def current_training_acc(self):
         return self.state["training_accuracy[]"][-1][1]
 

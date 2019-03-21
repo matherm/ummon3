@@ -161,6 +161,8 @@ class StepLR_earlystop(object):
         
         # new best value
         metrics = self.trs.current_validation_loss() # get current validation loss
+        if metrics is None:
+            metrics = self.trs.current_training_loss() # get current training loss
         if self.mode == 'min' and metrics < self.best:
             self.best = metrics
             self.num_bad_epochs = 0
