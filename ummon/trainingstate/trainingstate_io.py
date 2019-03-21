@@ -43,7 +43,9 @@ class Trainingstate(TrainingStateDict):
                                                 that converts CUDA floats to CPU floats (default True)
         
         """
-        assert filename is not None
+        if filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
+            return
+        
         if force_weights_to_cpu:
             state = torch.load(filename, map_location=lambda storage, loc: storage)
         else:
