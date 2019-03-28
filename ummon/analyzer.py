@@ -71,7 +71,7 @@ class Analyzer():
                
             # Handle cuda
             inputs, labels = uu.tuple_to(inputs, device), uu.tuple_to(labels, device)
-            output = model(inputs)
+            output = model(inputs).detach()
 
             # Compute output
             loss = loss_function(output, labels)

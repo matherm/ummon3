@@ -62,7 +62,7 @@ class Predictor:
                 
                 # Handle cuda
                 inputs = uu.tuple_to(inputs, device)
-                output = model(inputs)
+                output = model(inputs).detach()
                 
                 # Apply output transforms
                 if output_transform is not None:
