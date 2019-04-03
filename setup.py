@@ -13,6 +13,8 @@ import torch
 import torchvision
 import shutil
 
+install_requires = ["paramiko" , "psutils", 'numpy>=1.5.0', "scipy", "torchvision"]
+
 
 """
 ummon3: IOS Neural Network Package
@@ -86,7 +88,7 @@ setup(
           'Programming Language :: Python',
       ],
       platforms=["OS Independent"],
-      install_requires=['numpy>=1.5.0', "scipy", "torchvision"],
+      install_requires=install_requires,
       python_requires='>=3.5',
       setup_requires=[
         'numpy',
