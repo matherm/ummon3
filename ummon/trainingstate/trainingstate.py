@@ -2,6 +2,7 @@ from .trainingstate_dict import TrainingStateDict
 import torch, os, shutil
 import torch.nn as nn
 import numpy as np
+import warnings
 
 class Trainingstate(TrainingStateDict):
 
@@ -43,8 +44,8 @@ class Trainingstate(TrainingStateDict):
                                                 that converts CUDA floats to CPU floats (default True)
         
         """
-        if filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
-            return
+        if filename is None or "/dev/null/" in filename or "" == filename or " " == filename:
+            raise FileNotFoundError
         
         if force_weights_to_cpu:
             state = torch.load(filename, map_location=lambda storage, loc: storage)
@@ -100,7 +101,19 @@ class Trainingstate(TrainingStateDict):
         if self.is_best_validation_model():
             shutil.copyfile(filename, str(short_filename + valid_pattern + extension))
             
-    
+    def maybe_load_best_available_model_self(self, model, optimizer=None):
+        try:
+            # Try to load best validation model
+            self.load_weights_best_validation_(model, optimizer)
+        except FileNotFoundError:
+            try:
+                # Try to load best training model
+                self.load_weights_best_training_(model, optimizer)
+            except FileNotFoundError:
+                # Do nothing
+                pass
+
+
     def load_weights_best_training_(self, model, optimizer=None):
         """
         Loads the persisted weights into a given model.
@@ -116,10 +129,17 @@ class Trainingstate(TrainingStateDict):
         
         """
         assert isinstance(model, nn.Module)
-        assert self.filename is not None
-
+        
+        if self.filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
+            raise FileNotFoundError
+        
         short_name = self.filename.split(self.extension)[0]
-        self.load_state_(str(short_name + self.train_pattern + self.extension), self.force_weights_to_cpu)
+        file_name = str(short_name + self.train_pattern + self.extension)
+    
+        if not os.path.exists(file_name):
+            raise FileNotFoundError
+        
+        self.load_state_(file_name, self.force_weights_to_cpu)
         self.load_weights_(model, optimizer)           
     
     def load_weights_best_validation_(self, model, optimizer=None):
@@ -137,10 +157,17 @@ class Trainingstate(TrainingStateDict):
         
         """
         assert isinstance(model, nn.Module)
-        assert self.filename is not None
-        
+
+        if self.filename is None or "/dev/null/" in self.filename or "" == self.filename or " " == self.filename:
+            raise FileNotFoundError
+
         short_name = self.filename.split(self.extension)[0]
-        self.load_state_(str(short_name + self.valid_pattern + self.extension), self.force_weights_to_cpu)
+        file_name = str(short_name + self.valid_pattern + self.extension)
+    
+        if not os.path.exists(file_name):
+            raise FileNotFoundError
+    
+        self.load_state_(file_name, self.force_weights_to_cpu)
         self.load_weights_(model, optimizer)           
     
         
