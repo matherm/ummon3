@@ -13,7 +13,7 @@ import torch
 import torchvision
 import shutil
 
-install_requires = ["paramiko" , "psutils", 'numpy>=1.5.0', "scipy", "torchvision"]
+install_requires = ["paramiko" , "psutil", 'numpy>=1.5.0', "scipy", "torchvision"]
 
 
 """

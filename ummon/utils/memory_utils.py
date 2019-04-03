@@ -1,4 +1,3 @@
-import os, psutil, subprocess
 import numpy as np
 import time
 import torch
@@ -7,6 +6,7 @@ from torch.autograd import Variable
 
 def get_proc_memory_info():
     try:
+        import os, psutil, subprocess
         process = psutil.Process(os.getpid())
         percentage = process.memory_percent()
         memory = process.memory_info()[0] / float(2 ** 30)
@@ -26,6 +26,7 @@ def get_cuda_memory_info():
         Values are memory usage as integers in MB.
     """
     try:
+        import os, psutil, subprocess
         if torch.cuda.is_available() == False:
             return 0.
         result = subprocess.check_output(
