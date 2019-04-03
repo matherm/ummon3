@@ -101,7 +101,7 @@ class Trainingstate(TrainingStateDict):
         if self.is_best_validation_model():
             shutil.copyfile(filename, str(short_filename + valid_pattern + extension))
             
-    def maybe_load_best_available_model_self(self, model, optimizer=None):
+    def maybe_load_best_available_model_(self, model, optimizer=None):
         try:
             # Try to load best validation model
             self.load_weights_best_validation_(model, optimizer)
