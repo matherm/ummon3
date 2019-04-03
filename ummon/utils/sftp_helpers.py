@@ -1,4 +1,3 @@
-import paramiko
 import getpass
 import os.path as path
 import os
@@ -11,6 +10,7 @@ BASE_DIR = "__sftpcache__"
 
 class SFTP():
     def __init__(self, host=HOST, port=PORT, user=None, password=None, base_dir=BASE_DIR):
+        import paramiko
         if path.exists(base_dir) == False: os.makedirs(base_dir)
 
         # Open a transport
