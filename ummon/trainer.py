@@ -106,7 +106,7 @@ class Trainer:
             elif key == 'model_filename':
                 self.trainingstate.filename = str(kwargs[key]).split(self.trainingstate.extension)[0]            
             elif key == 'use_cuda':
-                self.cuda = kwargs[key]
+                self.use_cuda = kwargs[key]
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
@@ -123,7 +123,9 @@ class Trainer:
                 self.trainingstate.load_scheduler_(self.scheduler)
         
         # Computational configuration
-        self.use_cuda = next(self.model.parameters()).is_cuda
+        if self.use_cuda == False:
+            self.use_cuda = next(self.model.parameters()).is_cuda
+
         if self.use_cuda:
             if not torch.cuda.is_available():
                 self.logger.error('CUDA is not available on your system.')
