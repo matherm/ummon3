@@ -74,6 +74,7 @@ class Trainer:
         self.precision = np.float32
         self.convergence_eps = np.finfo(np.float32).min
         self.combined_training_epochs = False
+        self.use_cuda = False
         
         # optional arguments
         for key in kwargs:
