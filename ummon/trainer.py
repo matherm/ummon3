@@ -123,12 +123,11 @@ class Trainer:
                 self.trainingstate.load_scheduler_(self.scheduler)
         
         # Computational configuration
-        if self.use_cuda == False:
-            self.use_cuda = next(self.model.parameters()).is_cuda
-
         if self.use_cuda:
             if not torch.cuda.is_available():
                 self.logger.error('CUDA is not available on your system.')
+        else:
+            self.use_cuda = next(self.model.parameters()).is_cuda
         self.model = Trainingstate.transform_model(self.model, self.optimizer, 
             self.precision, self.use_cuda)
 
