@@ -64,8 +64,12 @@ class Trainer:
         self.model = args[1]
         assert isinstance(self.model, nn.Module)
         self.criterion = args[2]
+        if self.criterion is None:
+            self.criterion = lambda X,y : X  # just replays model output
         assert isinstance(self.criterion, nn.Module) or isinstance(self.criterion, types.LambdaType)
         self.optimizer = args[3]
+        if self.optimizer is None:
+            self.optimizer = torch.optim.SGD([Variable(torch.zeros(0))], lr=0) # just does nothing
         assert isinstance(self.optimizer, torch.optim.Optimizer)
         
         # defaults
