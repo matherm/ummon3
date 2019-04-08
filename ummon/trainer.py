@@ -292,8 +292,7 @@ class Trainer:
             try:
                 # case: loss does not have targets e.g. entropy loss
                 loss = self.criterion(output)
-            except (ValueError, TypeError) as e:
-                    print(e)
+            except (ValueError, TypeError):
                     try:
                         # case: case targets are not formatted correctly
                         loss = self.criterion(output, targets.view_as(output))
