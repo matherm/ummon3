@@ -2620,6 +2620,60 @@ class TestUmmon(unittest.TestCase):
                 os.remove(os.path.join(dir,file))
  
 
+    def test_tuple_input_output(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        
+        # DEFINE a neural network
+        class SiameseOneClassClassifier(nn.Module):
+            def __init__(self, input_neurons):
+                super(SiameseOneClassClassifier, self).__init__()
+                num_in = input_neurons
+                num_hidden = num_in
+
+                self.fc1 = nn.Linear(num_in, num_hidden, bias=False)
+                self.act1 = nn.Sigmoid()
+                self.out_x = nn.Linear(num_hidden, 1, bias=False)
+                self.x = None
+                self.trainMode = True
+
+            def forward_once(self, x):
+                x = self.fc1(x)
+                x = self.act1(x)
+                self.x = self.out_x(x)
+                return self.x
+
+            def forward(self, input):
+                if self.trainMode:
+                    inputRef, inputNoise = input[0], input[1]
+                    outputRef = self.forward_once(inputRef)
+                    outputNoise = self.forward_once(inputNoise)
+                    return (outputRef, outputNoise)
+                else:
+                    predictionRef = input
+                    output = self.forward_once(predictionRef)
+                    return output
+
+
+        y = torch.from_numpy(np.zeros(20)).float()
+        X        = torch.from_numpy(np.zeros((20,100))).float()
+        X_shuffled   = torch.from_numpy(np.zeros((20,100))).float()
+
+        X = torch.utils.data.TensorDataset(X, y)
+        X_shuffled      = torch.utils.data.TensorDataset(X_shuffled, y)
+        training_set = SiameseDataset(X, X_shuffled)
+        
+        model = SiameseOneClassClassifier(input_neurons=training_set[0][0][0].shape[0])
+        criterion = lambda output, label: Variable(torch.zeros(1), requires_grad=True)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+        
+        # CREATE A CPU TRAINER
+        my_trainer = SiameseTrainer(Logger(loglevel=logging.ERROR), model, criterion, optimizer)
+        
+        # START TRAINING
+        my_trainer.fit(training_set, epochs=1)
+
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

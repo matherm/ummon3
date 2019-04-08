@@ -35,6 +35,14 @@ def tuple_to(tuple_like, device):
     else:
         return tuple([t.to(device) for t in tuple_like])
 
+
+def tuple_detach(tuple_like):
+    if type(tuple_like) != tuple and type(tuple_like) != list:
+        return tuple_like.detach()
+    else:
+        return tuple([t.detach() for t in tuple_like])
+
+
 def check_data(logger, X, y=[]):
     '''
     Internal function for checking the validity and size compatibility of the provided 
