@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: daniel
 # @Date:   2018-12-21 17:11:17
-# @Last Modified by:   Daniel
-# @Last Modified time: 2019-04-11 18:27:25
+# @Last Modified by:   daniel
+# @Last Modified time: 2019-04-12 13:02:13
 
 import torch
 import torch.nn as nn
@@ -11,7 +11,6 @@ import logging
 import copy
 import importlib
 import sys
-from collections import OrderedDict
 
 
 class QuantiNetWrapper(nn.Module):
@@ -23,6 +22,7 @@ class QuantiNetWrapper(nn.Module):
         quanti_param_net=stdParam(8),
         quanti_param_parameters=stdParam(8),
         modules_for_quanti=[nn.Conv2d, nn.Linear],
+        replace_modules={},  # {replace_type: replace_function(module, qp_net)}
         *net_args,
         **net_kwargs
     ):
@@ -43,6 +43,7 @@ class QuantiNetWrapper(nn.Module):
         self.supported_container = [torch.nn.Sequential]
         self.supported_container += [torch.nn.ModuleList]
         self.__modules_for_quanti = modules_for_quanti
+        self.__replace_modules = replace_modules
         if self.use_quantization:
             self.add_and_perform_quantization(
                 quanti_param_net,
@@ -100,10 +101,11 @@ class QuantiNetWrapper(nn.Module):
 
     def __add_quantization_r(self, module, res_container, qp_net):
         for name, _module in module.named_children():
-            if sum(1 for _ in _module.children()) != 0:
-                print("sum(1 for _ in module.children())",
-                      sum(1 for _ in module.children()))
-                _module = self.__add_quantization_r(_module, nn.Sequential(OrderedDict()), qp_net)
+            # if sum(1 for _ in _module.children()) != 0:
+            #     _module = self.__add_quantization_r(_module, nn.Sequential(), qp_net)
+
+            if type(_module) in self.__replace_modules.keys():
+                _module = self.__replace_modules[type(_module)](_module, qp_net)
             res_container.add_module(name, _module)
             if (type(_module) in self.__modules_for_quanti):
                 self.__idx += 1
