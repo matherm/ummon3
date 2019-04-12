@@ -11,6 +11,8 @@ import logging
 import copy
 import importlib
 import sys
+from collections import OrderedDict
+
 
 class QuantiNetWrapper(nn.Module):
     # wrapping_net: can be passed as module name, as string of module name, or as an instance
@@ -20,7 +22,7 @@ class QuantiNetWrapper(nn.Module):
         use_quantization=False,
         quanti_param_net=stdParam(8),
         quanti_param_parameters=stdParam(8),
-        modules_for_quanti=[nn.Conv2d, nn.ReLU, nn.Linear],
+        modules_for_quanti=[nn.Conv2d, nn.Linear],
         *net_args,
         **net_kwargs
     ):
@@ -77,57 +79,48 @@ class QuantiNetWrapper(nn.Module):
         c_list = []
         for n, m in self.net.named_modules():
             if type(m) in self.supported_container:
-                c_list.append(dict(name=n,c=m))
+                c_list.append(dict(name=n, c=m))
         if len(c_list) == 0:
             self.__log.error("no module conatiner found")
         self.__log.debug("Found {} containers".format(len(c_list)))
         return c_list
 
-    # qp := quantization parameter
-    def __add_quantization(self, qp_net):
-        for container in self.__finde_containers():
-            con = type(container['c'])()
-            con.add_module("quanti", Quantization(qp_net))
-            for i, (name, module) in enumerate(container['c'].named_modules()):
-                if not (type(module) in self.supported_container):
-                    print("name: {}, type{}".format(name, module))
-                    con.add_module(name, module)
-                    if (type(module) in self.__modules_for_quanti):
-                        con.add_module("quanti_"+str(i), Quantization(qp_net))
-            setattr(self.net, container['name'], con)
+    # # qp := quantization parameter
+    # def __add_quantization(self, qp_net):
+    #     for container in self.__finde_containers():
+    #         con = type(container['c'])()
+    #         con.add_module("quanti", Quantization(qp_net))
+    #         for i, (name, module) in enumerate(container['c'].named_modules()):
+    #             if not (type(module) in self.supported_container):
+    #                 print("name: {}, type{}".format(name, module))
+    #                 con.add_module(name, module)
+    #                 if (type(module) in self.__modules_for_quanti):
+    #                     con.add_module("quanti_"+str(i), Quantization(qp_net))
+    #         setattr(self.net, container['name'], con)
 
-    def __add_quantization_r(self, module, res_container):
-        for i, (name, module) in enumerate(module.named_modules()):
-            if not (type(module) in self.supported_container):
-                if sum(1 for _ in module.children()) != 0:
-                    module = self.__add_quantization_r(module,module)
-                res_container.add_module(name, module)
-                if (type(module) in self.__modules_for_quanti):
-                    res_container.add_module("quanti_"+str(i), Quantization(qp_net))
+    def __add_quantization_r(self, module, res_container, qp_net):
+        for name, _module in module.named_children():
+            if sum(1 for _ in _module.children()) != 0:
+                print("sum(1 for _ in module.children())",
+                      sum(1 for _ in module.children()))
+                _module = self.__add_quantization_r(_module, nn.Sequential(OrderedDict()), qp_net)
+            res_container.add_module(name, _module)
+            if (type(_module) in self.__modules_for_quanti):
+                self.__idx += 1
+                res_container.add_module(
+                    "quanti_" + str(self.__idx), Quantization(qp_net))
 
         return res_container
 
-
     def __add_quantization(self, qp_net):
+        self.__idx = 0
         for container in self.__finde_containers():
             con = type(container['c'])()
             con.add_module("quanti", Quantization(qp_net))
 
-
-            self.__add_quantization_r(container['c'])
-            
-            for i, (name, module) in enumerate(container['c'].named_modules()):
-                if not (type(module) in self.supported_container):
-                    print("name: {}, type{}".format(name, module))
-                    con.add_module(name, module)
-                    if (type(module) in self.__modules_for_quanti):
-                        con.add_module("quanti_"+str(i), Quantization(qp_net))
-
+            con = self.__add_quantization_r(container['c'], con, qp_net)
 
             setattr(self.net, container['name'], con)
-
-
-
 
     def __quantizeParamsInForward(self):
         """

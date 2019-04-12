@@ -72,7 +72,6 @@ class TestQuantizeForwardpath(object):
 
         self.__log.debug("net befor adding qunatization: {}".format(net))
         net.add_and_perform_quantization(**self.quanti_param)
-        self.__log.debug("net befor after qunatization: {}".format(net))
         net.remove_quantization()
         self.__log.debug("original net (should be the same as before adding quanti): {}".format(net))
 
@@ -87,7 +86,6 @@ class TestQuantizeForwardpath(object):
 
         self.__log.debug("net befor adding qunatization: {}".format(net))
         net.add_and_perform_quantization(**self.quanti_param)
-        self.__log.debug("net befor after qunatization: {}".format(net))
         net.remove_quantization()
         self.__log.debug("original net (should be the same as before adding quanti): {}".format(net))
 
@@ -102,7 +100,6 @@ class TestQuantizeForwardpath(object):
 
         self.__log.debug("net befor adding qunatization: {}".format(net))
         net.add_and_perform_quantization(**self.quanti_param)
-        self.__log.debug("net befor after qunatization: {}".format(net))
         net.remove_quantization()
         self.__log.debug("original net (should be the same as before adding quanti): {}".format(net))
 
