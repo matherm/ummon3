@@ -2,18 +2,16 @@
 # @Author: daniel
 # @Date:   2019-03-19 22:37:31
 # @Last Modified by:   Daniel
-# @Last Modified time: 2019-04-11 16:10:58
+# @Last Modified time: 2019-04-16 15:25:39
 import pytest
 import torch
 from torch import nn
-from .quantization import stdParam
-from .quanti_net import QuantiNetWrapper
+from ummon.quanti.quantization import stdParam
+from ummon.quanti.quanti_net import QuantiNetWrapper
 import os
 import logging
 
-logging.getLogger().setLevel(logging.NOTSET)
-
-# RUN python -m pytest quanti
+# RUN python -m pytest test_quanti.py
 
 
 class MyTestNet(nn.Module):
@@ -94,7 +92,7 @@ class TestQuantizeForwardpath(object):
         os.remove('./__MyTestNet.pth')
 
     def test_string(self):
-        net = QuantiNetWrapper(wrapping_net="quanti.test_quanti.MyTestNet")
+        net = QuantiNetWrapper(wrapping_net="tests.test_quanti.MyTestNet")
 
         torch.save(net.state_dict(), "./__MyTestNet.pth")
 

@@ -2,7 +2,7 @@
 # @Author: Daniel
 # @Date:   2019-04-10 14:30:56
 # @Last Modified by:   Daniel
-# @Last Modified time: 2019-04-11 14:36:15
+# @Last Modified time: 2019-04-16 13:37:42
 from torchvision.models.squeezenet import squeezenet1_0, squeezenet1_1
 import torch
 import torch.nn as nn
@@ -10,15 +10,14 @@ import copy
 from ummon.modules.gram import GramMatrix, GramDiag
 
 
-class SqueezeNetFeatures(nn.Module):
+class SqueezeNet(nn.Module):
 
-    def __init__(self, version=1.0, num_classes=1000, pretrained=False, layer="", cuda=False, gram=False, gram_diag=False, gram_diagonal_squared=False):
+    def __init__(self, version=1.0, num_classes=1000, pretrained=False, layer="", gram=False, gram_diag=False, gram_diagonal_squared=False):
         super().__init__()
         if version not in [1.0, 1.1]:
             raise ValueError("Unsupported SqueezeNet version {version}:"
                              "1.0 or 1.1 expected".format(version=version))
         self.num_classes = num_classes
-        self.__cuda = cuda
         # build layer names for selection
         if version == 1.0:
             pytorch_squeeze = squeezenet1_0(
@@ -82,20 +81,14 @@ class SqueezeNetFeatures(nn.Module):
             self.features.add_module(
                 "gram diagonal", GramDiag(gram_diagonal_squared))
 
-        # cuda support
-        if self.__cuda:
-            self = self.cuda()
-
     def forward(self, x):
-        x = x.cuda() if self.__cuda else x
-        x = self.features(x)
-        return x
+        return self.features(x)
 
 
 def test():
-    print(SqueezeNetFeatures(pretrained=True, layer="fire_7"))
-    print(SqueezeNetFeatures(pretrained=True, layer="fire_9"))
-    print(SqueezeNetFeatures(pretrained=True, layer="conv_10"))
+    print(SqueezeNet(pretrained=True, layer="fire_7"))
+    print(SqueezeNet(pretrained=True, layer="fire_9"))
+    print(SqueezeNet(pretrained=True, layer="conv_10"))
 
 
 if __name__ == '__main__':

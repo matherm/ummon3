@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: daniel
 # @Date:   2018-12-21 17:11:17
-# @Last Modified by:   daniel
-# @Last Modified time: 2019-04-12 18:06:36
+# @Last Modified by:   Daniel
+# @Last Modified time: 2019-04-16 15:09:21
 
 import torch
 import torch.nn as nn
@@ -124,7 +124,7 @@ class QuantiNetWrapper(nn.Module):
             if type(m) in self.__supported_container:
                 c_list.append(dict(name=n, c=m))
         if len(c_list) == 0:
-            self.__log.error("no module conatiner found")
+            self.__log.error("no conatiner found")
         self.__log.debug("Found {} containers".format(len(c_list)))
         return c_list
 
@@ -177,8 +177,15 @@ class QuantiNetWrapper(nn.Module):
         param_forward = stdParam(bitwith=qp_for_netparams.bitwith)
         self.quantization_f = Quantization(param_forward)
 
+        self.__log.debug("start changing models weights...")
+        self.__log.debug("used quantization parameters: {}".format(qp_for_netparams))
+
         q = Quantization(qp_for_netparams)
         for param in self.net.parameters():
+            # self.__log.debug("histogram: {}, min: {}, max: {}".format(param.cpu().histc(bins=10), param.min(), param.max()))
+            self.__log.debug("param  min: {}, max: {}".format(param.min(), param.max()))
             param.data = q(param.data)
+            # self.__log.debug("qunatizate histogram: {}, min: {}, max: {}".format(param.cpu().histc(bins=10), param.min(), param.max()))
+            self.__log.debug("quanti min: {}, max: {}".format(param.min(), param.max()))
             # used in VA script
             param.quanti_param = qp_for_netparams
