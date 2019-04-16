@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: daniel
 # @Date:   2018-12-21 16:09:20
-# @Last Modified by:   Daniel
-# @Last Modified time: 2019-04-11 15:06:07
+# @Last Modified by:   daniel
+# @Last Modified time: 2019-04-12 18:51:39
 from collections import UserDict
 import copy
 import numpy as np
@@ -14,11 +14,30 @@ __log = logging.getLogger('quanti_log')
 
 
 class stdParam(UserDict):
-    """A dictionary with attribute-style access. It maps attribute access to
-    the real dictionary.  """
-    my_keys = ('bitwith', 'mean', 'std', 'divisor', 'handle_overflow', 'rounding', 'clip_range')
+    """
+    A dictionary containing all quantization parameters with attribute-style
+    access. It maps attribute access to the real dictionary.
+    """
+    my_keys = ('bitwith', 'mean', 'std', 'divisor',
+               'handle_overflow', 'rounding', 'clip_range')
 
-    def __init__(self, bitwith, mean=0, std=1, divisor=1, handle_overflow=False, rounding=True, clip_range=dict(min=-1,max=1)):
+    ##
+    # @brief      Constructs the object.
+    ##
+    # @param      self             The object
+    # @param      bitwith          The simulated bitwith
+    # @param      mean             The mean of models weigts
+    # @param      std              The standard derivation of models weights
+    # @param      divisor          The divisor acts as an hyperparameter for
+    # weights transformation
+    # @param      handle_overflow  Apply a layer wise integer overflow (if
+    # False saturation is simulated)
+    # @param      rounding         Use floor or round for values between
+    # integer representation
+    # @param      clip_range       The clipping range (default: {min:-1,
+    # max:1})
+    ##
+    def __init__(self, bitwith, mean=0, std=1, divisor=1, handle_overflow=False, rounding=True, clip_range=dict(min=-1, max=1)):
         stdParam.__setattr__ = object.__setattr__
         stdParam.__getattr__ = object.__getattribute__
         my_dict = {'bitwith': bitwith,
@@ -58,21 +77,16 @@ def mean_std(parameters_iter):
         params.extend(param.data.detach().cpu().numpy().reshape(-1))
     std = np.std(np.array(params))
     mean = np.mean(np.array(params))
-    # plt.figure(1)
-    # plt.hist(np.array(params), 256)
-    # plt.show
     __log.debug(
         "standard deviation= {0}, mean= {1} of all weights and bias".format(std, mean))
     return mean.item(), std.item()
 
 
+##
+# @brief      Custom quantization function. Assuming a distribution shifting, a
+#             quantization and clipping using the clipping range.
+##
 class quantizationFunction(torch.autograd.Function):
-    """
-    custom quantisation function.
-    Assuming a normal distribution, the values are shifted.
-    Then quantized and clipped at the edges using the clipping range.
-    """
-
     @staticmethod
     def forward(ctx, input, param: stdParam):
         # print("forward")
@@ -93,16 +107,24 @@ class quantizationFunction(torch.autograd.Function):
         return grad_output, None
 
 
+##
+# @brief      Wrapped the quantization function in a pytorch module 
+#              if mean == 0 and std == 1 and divisor == 1 =>
+#                  distribution shifting will not be applied.
+#              Otherwise the following operation will be performed
+#                  - distribution shifting
+#                  - quantization
+#                  - clipping
+##
 class Quantization(torch.nn.Module):
-    """
-    applys quantization function.
-    if mean == 0 and std == 1 and divisor == 1, distribution shifting will not be applied.
-    Otherwise the following operation will be performed
-        - distribution shifting
-        - quantisation
-        - clipping
-    """
 
+    ##
+    ## @brief      Constructs the object.
+    ##
+    ## @param      self   The object
+    ## @param      param  the parameters of type stdParam which contains all
+    ##                    necessary quantization parameters
+    ##
     def __init__(self, param: stdParam):
         super(Quantization, self).__init__()
         self.param = param
