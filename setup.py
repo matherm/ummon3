@@ -25,8 +25,14 @@ This setup py is used to prepare everything for use.
 @author Matthias O. Franz, Matthias Heramnn, Michael Grunwald, Pascal Laube
 """
 
-import ummon
-__version__ = ummon.version
+def read_version(fname):
+    import re
+    verstrline = open(fname, "rt").read()
+    VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+    vrs = re.search(VSRE, verstrline, re.M).group(1)
+    return vrs
+    
+__version__ = read_version("ummon/__version__.py")    
 
 class Installation(install):
     """
