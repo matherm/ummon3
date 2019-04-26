@@ -49,6 +49,7 @@ class Installation(install):
         print("#   WELCOME to ummon3")
         print("#  ",__version__)
         print("########################\n")
+        import ummon
         ummon.system_info()
         
         print("\n To test your installation:")
