@@ -27,7 +27,7 @@ import ummon.features
 import ummon.functionals
 import ummon.trainingstate
 
-version = ummon.__version__.version
+version = ummon.__version__.__version__
 __version__ = version
 
 def system_info():
