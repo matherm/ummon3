@@ -2,7 +2,7 @@
 # @Author: daniel
 # @Date:   2018-12-21 17:11:17
 # @Last Modified by:   Daniel
-# @Last Modified time: 2019-04-16 15:09:21
+# @Last Modified time: 2019-05-14 10:49:33
 
 import torch
 import torch.nn as nn
@@ -174,7 +174,10 @@ class QuantiNetWrapper(nn.Module):
         @return     None
         """
         # save quatnization fuction for forwarding
-        param_forward = stdParam(bitwith=qp_for_netparams.bitwith)
+        param_forward = copy.deepcopy(qp_for_netparams)
+        param_forward.mean = 0
+        param_forward.std = 1.0
+        param_forward.divisor = 1.0
         self.quantization_f = Quantization(param_forward)
 
         self.__log.debug("start changing models weights...")
