@@ -3,6 +3,18 @@
 # @Date:   2019-05-13 16:10:48
 # @Last Modified by:   Daniel
 # @Last Modified time: 2019-05-14 15:20:19
+#--------------------------------------------------------------------
+# Downloads the model from iosds02-NAS
+import os
+from ummon.utils.sftp_helpers import SFTP
+server_path = "/Installer/pretrained-models/pytorch_mobilenet_params/mobilenet_sgd_rmsprop_69.526.tar"
+model_path = "~/.cache/mobilenet/mobilenet_sgd_rmsprop_69.526.tar"
+if not os.path.exists(model_path):
+    os.makedirs(model_path[:-1])
+    print("Downloading pretrained Mobilenet from {} to {}.".format(server_path, model_path))
+    sftp = SFTP(host="iosds02.ios.htwg-konstanz.de", port=22, user="ios-dataset-user", password="ios123")
+    sftp.get(src=server_path, dest=model_path)
+#--------------------------------------------------------------------
 
 import torch
 import torch.nn as nn
@@ -37,8 +49,7 @@ class MobileNet(nn.Module):
                  gram=False,
                  gram_diag=False,
                  gram_diagonal_squared=False,
-                 params_file=path.dirname(path.abspath(__file__)) +
-                 "/pytorch_mobilenet_params/mobilenet_sgd_rmsprop_69.526.tar"):
+                 params_file=model_path):
         super().__init__()
         if version not in [1]:
             raise ValueError("Unsupported MobileNet version {version}:"

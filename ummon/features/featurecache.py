@@ -13,12 +13,13 @@ import hashlib
 def props(cls):   
   return [i for i in cls.__dict__.keys() if i[:1] != '_']
 
-def hash_obj(obj):
+def hash_obj(obj, escape_char="_"):
     hashes = []
     for key in props(obj):
-        hash_key = hashlib.md5(key.encode('utf-8')).hexdigest()
-        hash_val = hashlib.md5(str(getattr(obj, key)).encode('utf-8')).hexdigest()
-        hashes.append(hash_key + hash_val)
+        if not key.startswith(escape_char):
+            hash_key = hashlib.md5(key.encode('utf-8')).hexdigest()
+            hash_val = hashlib.md5(str(getattr(obj, key)).encode('utf-8')).hexdigest()
+            hashes.append(hash_key + hash_val)
     hash_output = hashlib.md5("".join(hashes).encode("utf-8")).hexdigest()
     return hash_output
 

@@ -151,6 +151,13 @@ class SqueezeNetFeaturesQuanti():
                                 gram_diag=gram_diagonal,
                                 gram_diagonal_squared=gram_diagonal_squared,
                                 version=version)
+        self.bits = bits
+        self.nb_sigma = nb_sigma
+        self.gram = gram
+        self.gram_diagonal = gram_diagonal
+        self.gram_diagonal_squared = gram_diagonal_squared
+        self.features = features
+        self.pretrained = pretrained
 
         if cuda and torch.cuda.is_available():
             self.model = self.model.cuda()
