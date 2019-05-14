@@ -8,7 +8,7 @@
 import os
 from ummon.utils.sftp_helpers import SFTP
 server_path = "/Installer/pretrained-models/pytorch_mobilenet_params/mobilenet_sgd_rmsprop_69.526.tar"
-model_path = "~/.cache/mobilenet/mobilenet_sgd_rmsprop_69.526.tar"
+model_path = os.path.expanduser("~") + "/.cache/mobilenet/mobilenet_sgd_rmsprop_69.526.tar"
 if not os.path.exists(model_path):
     os.makedirs(model_path[:-1])
     print("Downloading pretrained Mobilenet from {} to {}.".format(server_path, model_path))
