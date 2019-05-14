@@ -2,7 +2,7 @@
 # @Author: daniel
 # @Date:   2018-12-21 17:11:17
 # @Last Modified by:   Daniel
-# @Last Modified time: 2019-05-14 10:49:33
+# @Last Modified time: 2019-05-14 14:31:14
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ import sys
 ##
 class QuantiNetWrapper(nn.Module):
     ##
-    # @brief      Constructs the object. #
+    # @brief      Constructs the object. remove_quantization function has not all functionalities  
     #
     # @param      self                     The object
     # @param      wrapping_net             can be passed as module name, as
@@ -120,7 +120,7 @@ class QuantiNetWrapper(nn.Module):
 
     def __finde_containers(self):
         c_list = []
-        for n, m in self.net.named_modules():
+        for n, m in self.net.named_children():
             if type(m) in self.__supported_container:
                 c_list.append(dict(name=n, c=m))
         if len(c_list) == 0:
@@ -131,7 +131,9 @@ class QuantiNetWrapper(nn.Module):
     def __add_quantization_r(self, module, res_container, qp_net):
         for name, _module in module.named_children():
             # if sum(1 for _ in _module.children()) != 0:
-            #     _module = self.__add_quantization_r(_module, nn.Sequential(), qp_net)
+                # _module = self.__add_quantization_r(_module, nn.Sequential(), qp_net)
+            if type(_module) in self.__supported_container :
+                _module = self.__add_quantization_r(_module, type(_module)(), qp_net)
             if type(_module) in self.__replace_modules.keys():
                 _module = self.__replace_modules[type(
                     _module)](_module, qp_net)
