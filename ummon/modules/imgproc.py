@@ -68,7 +68,7 @@ class Crop(nn.Module):
             return input[:,:, y0:y0+self.ycrop, x0:x0+self.xcrop]
             
         else: # training mode: random window
-            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype, device=input.device)
             for i in range(input.size()[0]): # go through mini batch and select varying subwindow
                 y0 = int(torch.randint(low=0, high=self.insize[1]-self.ycrop+1, size=(1,)).item())
                 y1 = y0 + self.ycrop
