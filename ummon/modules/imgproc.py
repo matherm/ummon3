@@ -137,7 +137,7 @@ class Whiten(nn.Module):
     
     # Forward path
     def forward(self, input):
-        output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+        output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype, device=input.device)
         for i in range(input.size()[0]):
             for j in range(self.insize[0]):
                 img = input[i,j,:,:]
@@ -209,7 +209,7 @@ class RandomFlipLR(nn.Module):
         if not self.training:
             return input
         else: # training: random flip
-            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype, device=input.device)
             for i in range(input.size()[0]):
                 rand = int(torch.randint(low=0, high=2, size=(1,)).item())
                 for j in range(self.insize[0]):
@@ -282,7 +282,7 @@ class RandomBrightness(nn.Module):
         if not self.training:
             return input
         else:
-            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype, device=input.device)
             for i in range(input.size()[0]):            
                 rand = 2.0*self.max_delta*(torch.rand(size=(1,)).item() - 0.5)
                 for j in range(self.insize[0]):
@@ -360,7 +360,7 @@ class RandomContrast(nn.Module):
         if not self.training:
             return input
         else:
-            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype)
+            output = torch.zeros(input.size()[0], *self.outsize, dtype=input.dtype, device=input.device)
             for i in range(input.size()[0]):            
                 contrast_fac = self.lower + (self.upper - self.lower)*torch.rand(size=(1,)).item()
                 for j in range(self.insize[0]):
