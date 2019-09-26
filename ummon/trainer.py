@@ -13,7 +13,7 @@ from .schedulers import *
 from .trainingstate import *
 from .analyzer import Analyzer
 
-__all__ = ["Trainer", "SupervisedTrainer", "ClassificationTrainer", "UnsupervisedTrainer", "SiameseTrainer"]
+__all__ = ["Trainer", "SupervisedTrainer", "ClassificationTrainer", "UnsupervisedTrainer", "SiameseTrainer", "KamikazeTrainer"]
 
 class Trainer:
     """
@@ -137,7 +137,7 @@ class Trainer:
             self.precision, self.use_cuda)
 
 
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1, analyzer=Analyzer):
+    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=1, eval_batch_size=-1, analyzer=Analyzer):
         """
         Fits a model with given training and validation dataset
         
@@ -199,12 +199,13 @@ class Trainer:
                     dataloader_training.batch_size, time_dict)
                 
             # Evaluate
-            self.model.eval()
-            self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
-                dataloader_validation, dataloader_training, eval_batch_size)
-            
-            # SAVE MODEL
-            self.trainingstate.save_state()
+            if (epoch + 1) % eval_interval == 0:
+                self.model.eval()
+                self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
+                    dataloader_validation, dataloader_training, eval_batch_size)
+                
+                # SAVE MODEL
+                self.trainingstate.save_state()
                      
             # CHECK TRAINING CONVERGENCE
             if self._has_converged():
@@ -543,7 +544,6 @@ class Trainer:
                 self.combined_training_epochs = combined_training_epochs
                 self.trainingstate.remove_combined_retraining_pattern()
 
-    
         
     # prepares one batch for processing (can be overwritten by sibling)
     def _get_batch(self, data):
@@ -577,3 +577,29 @@ class ClassificationTrainer(Trainer):
     
     def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
         return super().fit(dataloader_training, epochs, validation_set, eval_batch_size, ClassificationAnalyzer)
+
+class KamikazeTrainer(Trainer):
+
+    # prepares one batch for processing (can be overwritten by sibling)
+    def _get_batch(self, data):
+
+        if type(data) == list:
+            inputs, targets = data
+            if self.use_cuda:
+                inputs, targets = inputs.cuda(), targets.cuda()
+            return inputs, targets
+        else:
+            if self.use_cuda:
+                if hasattr(data, "cuda"):
+                    data = data.cuda()
+                elif hasattr(data, "to"):
+                    data = data.to("cuda")
+            return data, data
+
+    def _loss_one_batch(self, output, targets, time_dict):
+        
+        loss = self.criterion(output, targets)
+
+        time_dict["loss"] = time_dict["loss"] + (time.time() - time_dict["t"])
+
+        return loss, time_dict
