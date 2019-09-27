@@ -200,16 +200,23 @@ class Trainer:
                 
             # Evaluate
             if (epoch + 1) % eval_interval == 0:
+                
+                # CHECK NAN
+                if torch.isnan(loss):
+                    raise ValueError("Loss is NaN.")
+                
                 self.model.eval()
+                
                 self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
                     dataloader_validation, dataloader_training, eval_batch_size)
                 
                 # SAVE MODEL
                 self.trainingstate.save_state()
+
                      
-            # CHECK TRAINING CONVERGENCE
-            if self._has_converged():
-                break
+                # CHECK TRAINING CONVERGENCE
+                if self._has_converged():
+                    break
             
             # ANNEAL LEARNING RATE
             if self.scheduler: 
@@ -579,8 +586,15 @@ class ClassificationTrainer(Trainer):
         return super().fit(dataloader_training, epochs, validation_set, eval_batch_size, ClassificationAnalyzer)
 
 class KamikazeTrainer(Trainer):
+    """
+    The most simple trainer that simply pushes batches directly from the loader into the model.
+    This handling also applies to model outputs the loss function.
 
-    # prepares one batch for processing (can be overwritten by sibling)
+    Usage:
+        X = np.zeroes(2000,20)    
+        KamikazeTrainer().fit(model, X)
+    """
+
     def _get_batch(self, data):
 
         if type(data) == list:
