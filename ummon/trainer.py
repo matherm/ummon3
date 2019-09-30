@@ -582,8 +582,8 @@ class SiameseTrainer(Trainer):
 from .analyzer import ClassificationAnalyzer
 class ClassificationTrainer(Trainer):
     
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_batch_size=-1):
-        return super().fit(dataloader_training, epochs, validation_set, eval_batch_size, ClassificationAnalyzer)
+    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=1, eval_batch_size=-1):
+        return super().fit(dataloader_training, epochs, validation_set, eval_interval, eval_batch_size, ClassificationAnalyzer)
 
 class KamikazeTrainer(Trainer):
     """
