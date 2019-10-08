@@ -274,7 +274,13 @@ class Trainingstate(TrainingStateDict):
         This happens when the model is converted to CUDA or older weights are loaded.
         When this happens, the optimizer optimizes old weights as he does not have the current weights.
         Therefore we need to repoint the optimizers weights to the new model.
+
+        Update: 10/2019
+        This causes troubles when parts of the model are trained sequentially and is therefor ommited.
+        However, tests are ok. Maybe this is already fixed pytorch internally.
         """
+        return 
+
         # Delete the current weights
         del optimizer.param_groups[:]
     

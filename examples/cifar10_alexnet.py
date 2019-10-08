@@ -32,10 +32,10 @@ y2 = np.argmax(y2, axis=1).astype('int64')
 cnet = Sequential(
     ('unfla', Unflatten(        [3072],         [3,32,32])),
     ('crop0', Crop(             [3,32,32],      24, 24)),
-    ('flip0', RandomFlipLR(     [3,24,24])),
-    ('rndbr', RandomBrightness( [3,24,24],      63.0)),
-    ('rndco', RandomContrast(   [3,24,24],      0.2, 1.8)),
-    ('white', Whiten(           [3,24,24])),
+#    ('flip0', RandomFlipLR(     [3,24,24])),
+#    ('rndbr', RandomBrightness( [3,24,24],      63.0)),
+#    ('rndco', RandomContrast(   [3,24,24],      0.2, 1.8)),
+#    ('white', Whiten(           [3,24,24])),
     
     ('conv0', Conv(             [3,24,24],      [64,5,5], init='xavier_normal_', padding=2)),
     ('relu0', nn.ReLU()),
@@ -56,8 +56,8 @@ cnet = Sequential(
     
     ('line2', Linear(           [192],          10, init='xavier_normal_')),
 )
-print(cnet)
 
+cnet.cuda()
 
 # loss (size_averaging is numerically unstable)
 loss = nn.CrossEntropyLoss(reduction='sum') # inside net: combination of softmax and llh
@@ -77,7 +77,7 @@ opt = torch.optim.SGD(params, lr=eta/mbs)
 # training state
 trs = Trainingstate()
 
-with Logger(loglevel=10, logdir='CIFAR10', log_batch_interval=40) as lg:
+with Logger(loglevel=10, logdir='examples/CIFAR10', log_batch_interval=40) as lg:
     
     # scheduler
     scd = StepLR_earlystop(opt, trs, cnet, step_size = 30, nsteps=3, logger=lg, patience=50)
