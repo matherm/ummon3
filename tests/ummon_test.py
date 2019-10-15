@@ -2674,6 +2674,55 @@ class TestUmmon(unittest.TestCase):
         my_trainer.fit(training_set, epochs=1)
 
 
+    def test_predict_losses(self):
+        np.random.seed(17)
+        torch.manual_seed(17)
+        #
+        # DEFINE a neural network
+        class Net(nn.Module):
+        
+            def __init__(self):
+                super(Net, self).__init__()
+                self.fc1 = nn.Linear(1, 10)
+                self.fc2 = nn.Linear(10, 1)
+                
+                # Initialization
+                def weights_init_normal(m):
+                    if type(m) == nn.Linear:
+                        nn.init.normal_(m.weight, mean=0, std=0.1)
+                self.apply(weights_init_normal)
+        
+            def forward(self, x):
+                x = self.fc1(x)
+                x = self.fc2(x)
+                return x
+    
+        
+        x_valid = torch.from_numpy(np.random.normal(0, 0.1, 10).reshape(10,1))
+        dataset_valid = TensorDataset(x_valid.float(), x_valid.float())
+        
+        x = torch.from_numpy(np.random.normal(0, 0.1, 1000).reshape(1000,1))
+        dataset = TensorDataset(x.float(), x.float())
+        dataloader_training = DataLoader(dataset, batch_size=5, shuffle=True, sampler=None, batch_sampler=None)
+        
+        model = Net()
+        criterion = nn.MSELoss(reduction='sum')
+
+        # CREATE A TRAINER
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0001)
+        my_trainer = KamikazeTrainer(Logger(loglevel=logging.ERROR), model, criterion, optimizer)
+        
+        # START TRAINING
+        my_trainer.fit(dataloader_training=dataloader_training,
+                                        epochs=1,
+                                        validation_set=dataset_valid)
+
+        criterion = nn.MSELoss(reduction='none')
+        losses = Predictor.predict_loss(model, criterion, dataset, 2)
+
+        assert losses.shape[0] == x.shape[0]
+        assert losses.shape[1] == 1
+
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()

@@ -79,6 +79,72 @@ class Predictor:
             return full_output.numpy()
         else:
             return full_output
+
+    @staticmethod
+    def predict_loss(model, loss, dataset, batch_size = -1, output_transform=None, logger=Logger()):
+        """
+        Computes the output of a model for a given dataset
+        
+        Arguments
+        ---------
+        model           : nn.module
+                          The model
+        loss            : nn.Module
+                          The loss function as func(x, y)
+        dataset         : torch.utils.data.Dataset OR numpy X or torch.Tensor or torch.utils.data.DataLoader
+                          Dataset to evaluate
+        batch_size      : int
+                          batch size used for evaluation (default: -1 == ALL)
+        output_transform: nn.functionals
+                          A functional that gets applied to the output. This can be useful when
+                          combined loss like CrossEntropy was used during training.
+        logger          : ummon.Logger (Optional)
+                          The logger to be used for output messages
+        
+        Return
+        ------
+        torch.tensor
+        The losses (N, 1)
+        """
+        # simple interface: training and test data given as numpy arrays
+        dataloader = uu.gen_dataloader(dataset, has_labels=True, batch_size=batch_size, logger=logger)
+        assert isinstance(model, nn.Module)
+        assert uu.check_precision(dataloader, model)
+        
+        use_cuda = next(model.parameters()).is_cuda
+        device = "cuda" if use_cuda else "cpu"
+        
+        model.eval()
+        outbuf = []
+        for i, data in enumerate(dataloader, 0):
+            
+                # Get the inputs
+                inputs, labels = uu.input_of(data), uu.label_of(data)
+                
+                # Handle cuda
+                inputs, labels = uu.tuple_to(inputs, device), uu.tuple_to(labels, device)
+                output = uu.tuple_detach(model(inputs))
+                
+                # Apply output transforms
+                if output_transform is not None:
+                    if output_transform.__name__ == 'softmax':
+                        output = output_transform(output, dim = 1)
+                    else:
+                        output = output_transform(output)
+
+                # Apply loss function
+                output = loss(output, labels)                
+
+                # Save output for later evaluation
+                outbuf.append(output.data.view(-1, 1))
+                
+        model.train()
+        full_output = torch.cat(outbuf, dim=0).cpu()
+        if type(dataset) == np.ndarray:
+            return full_output.numpy()
+        else:
+            return full_output
+
     
     
      # Get index of class with max probability
