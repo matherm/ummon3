@@ -98,6 +98,7 @@ class StepLR_earlystop(object):
         
         # init scheduler state
         self.last_epoch = 0
+        self.num_epochs_since_last_eval = 0
         self.lr = []
         for param_group in self.optimizer.param_groups:
             self.lr.append(float(param_group['lr']))
@@ -159,24 +160,30 @@ class StepLR_earlystop(object):
         self.last_epoch += 1
         self.num_epochs_in_step += 1
         
-        # new best value
-        metrics = self.trs.current_validation_loss() # get current validation loss
-        if metrics is None:
-            metrics = self.trs.current_training_loss() # get current training loss
-        if self.mode == 'min' and metrics < self.best:
-            self.best = metrics
-            self.num_bad_epochs = 0
-        elif self.mode == 'max' and metrics > self.best:
-            self.best = metrics
-            self.num_bad_epochs = 0
+        # Check if there was an evaluation run since the last time we checked
+        last_eval_epoch = self.trs.current_epoch()
+        if last_eval_epoch < self.last_epoch:
+            self.num_epochs_since_last_eval += 1
         else:
-            self.num_bad_epochs += 1
-        
-        # early stopping
-        if self.num_bad_epochs >= self.patience:
-            self.logger.info("No improvement since {} epochs. Stopping early and reloading current best model.".format(
-                        self.patience))
-            self._next_lrstep()
+            # new best value
+            metrics = self.trs.current_validation_loss() # get current validation loss
+            if metrics is None:
+                metrics = self.trs.current_training_loss() # get current training loss
+            if self.mode == 'min' and metrics < self.best:
+                self.best = metrics
+                self.num_bad_epochs = 0
+            elif self.mode == 'max' and metrics > self.best:
+                self.best = metrics
+                self.num_bad_epochs = 0
+            else:
+                self.num_bad_epochs += 1 + self.num_epochs_since_last_eval
+            self.num_epochs_since_last_eval = 0
+            
+            # early stopping
+            if self.num_bad_epochs >= self.patience:
+                self.logger.info("No improvement since {} epochs. Stopping early and reloading current best model.".format(
+                            self.patience))
+                self._next_lrstep()
         
         # end of current learning rate reached => go to next learning rate
         if self.num_epochs_in_step == self.step_size:
@@ -197,6 +204,7 @@ class StepLR_earlystop(object):
         self.gamma = state_dict['gamma']
         self.patience = state_dict['patience']
         self.last_epoch = state_dict['last_epoch']
+        self.num_epochs_since_last_eval = state_dict['num_epochs_since_last_eval']
         self.best = state_dict['best']
         self.num_bad_epochs = state_dict['num_bad_epochs']
         self.num_epochs_in_step = state_dict['num_epochs_in_step']
@@ -219,6 +227,7 @@ class StepLR_earlystop(object):
             'gamma': self.gamma,
             'patience': self.patience,
             'last_epoch': self.last_epoch,
+            'num_epochs_since_last_eval': self.num_epochs_since_last_eval,
             'best': self.best,
             'num_bad_epochs': self.num_bad_epochs,
             'num_epochs_in_step': self.num_epochs_in_step,

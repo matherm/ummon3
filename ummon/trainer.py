@@ -199,7 +199,7 @@ class Trainer:
                     dataloader_training.batch_size, time_dict)
                 
             # Evaluate
-            if (epoch + 1) % eval_interval == 0:
+            if epoch % eval_interval == 0:
                 
                 # CHECK NAN
                 if torch.isnan(loss):
@@ -212,7 +212,6 @@ class Trainer:
                 
                 # SAVE MODEL
                 self.trainingstate.save_state()
-
                      
                 # CHECK TRAINING CONVERGENCE
                 if self._has_converged():

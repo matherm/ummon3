@@ -32,10 +32,10 @@ y2 = np.argmax(y2, axis=1).astype('int64')
 cnet = Sequential(
     ('unfla', Unflatten(        [3072],         [3,32,32])),
     ('crop0', Crop(             [3,32,32],      24, 24)),
-#    ('flip0', RandomFlipLR(     [3,24,24])),
-#    ('rndbr', RandomBrightness( [3,24,24],      63.0)),
-#    ('rndco', RandomContrast(   [3,24,24],      0.2, 1.8)),
-#    ('white', Whiten(           [3,24,24])),
+    ('flip0', RandomFlipLR(     [3,24,24])),
+    ('rndbr', RandomBrightness( [3,24,24],      63.0)),
+    ('rndco', RandomContrast(   [3,24,24],      0.2, 1.8)),
+    ('white', Whiten(           [3,24,24])),
     
     ('conv0', Conv(             [3,24,24],      [64,5,5], init='xavier_normal_', padding=2)),
     ('relu0', nn.ReLU()),

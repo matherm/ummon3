@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
@@ -81,7 +82,11 @@ class Analyzer():
                 classes = Predictor.classify(output.cpu(), loss_function, logger)
                 acc = Predictor.compute_accuracy(classes, labels.cpu())
                 acc_average = uu.online_average(acc, i + 1, acc_average)
-        
+
+        # NaN check        
+        if np.isnan(loss_average):
+                raise ValueError(str(self.name + ". Loss is NaN"))
+
         # save results in dict
         evaluation_dict = {}
         evaluation_dict["accuracy"] = acc_average
