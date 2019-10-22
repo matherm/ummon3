@@ -490,7 +490,8 @@ class Trainer:
                 training_dataset = dataloader_training.dataset,
                 trainer_instance = type(self),
                 precision = self.precision,
-                detailed_loss = repr(self.criterion))
+                detailed_loss = repr(self.criterion),
+                scheduler = self.scheduler)
 
         
         self.logger.log_epoch(epoch + 1, batch + 1, 
