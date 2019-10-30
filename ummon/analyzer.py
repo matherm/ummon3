@@ -85,7 +85,7 @@ class Analyzer():
 
         # NaN check        
         if np.isnan(loss_average):
-                raise ValueError("Loss is NaN")
+            raise ValueError("Loss is NaN. Was {}".format(loss_average))
 
         # save results in dict
         evaluation_dict = {}

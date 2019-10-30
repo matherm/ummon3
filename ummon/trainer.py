@@ -199,11 +199,7 @@ class Trainer:
                     dataloader_training.batch_size, time_dict)
                 
             # Evaluate
-            if epoch % eval_interval == 0:
-                
-                # CHECK NAN
-                if torch.isnan(loss):
-                    raise ValueError("Loss is NaN.")
+            if epoch % eval_interval == 0 and not torch.isnan(loss):
                 
                 self.model.eval()
                 
