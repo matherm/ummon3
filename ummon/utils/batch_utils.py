@@ -6,7 +6,7 @@ def label_of(data_obj):
     try:
         from torch_geometric.data import Data
         if isinstance(data_obj, Data):
-            return data_obj
+            return data_obj.y
     except NameError:
         pass
     raise NotImplementedError("Datatype not known. Type was {}.".format(type(data_obj)))

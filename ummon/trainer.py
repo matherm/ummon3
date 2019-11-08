@@ -212,6 +212,9 @@ class Trainer:
                 # CHECK TRAINING CONVERGENCE
                 if self._has_converged():
                     break
+
+            if torch.isnan(loss) and epoch == 0:
+                raise Exception("Loss was NaN in 1st epoch.")
             
             # ANNEAL LEARNING RATE
             if self.scheduler: 
