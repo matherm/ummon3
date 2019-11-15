@@ -5,9 +5,11 @@ import time
 
 class ExperimentLogger():
 
-    def __init__(self, logfname = "_results.plain", splunk=False):
+    def __init__(self, logfname = "_results.plain", splunk=False, escape=True):
         self.logfname = logfname
         self.splunk = splunk
+        self.escape_char = ""
+        self.escaped_chars = ["|", "(", ")", " ", "[", "]", "@"]
 
     def __call__(self, **kwargs):
         self.write_dict_to_file(self.logfname, **kwargs)
@@ -41,6 +43,8 @@ class ExperimentLogger():
         with open(logfile , "a") as f:
             line = []
             for k,v in blob.items(): 
+                for c in self.escaped_chars:
+                    k = k.replace(c, self.escape_char)
                 line.append("{}={}, ".format(k, v).replace("\n",""))
             f.write("".join(line)[:-2] + "\n")
 
