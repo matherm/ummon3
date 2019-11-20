@@ -74,7 +74,7 @@ class Predictor:
                 outbuf.append(output.data)
                 
         model.train()
-        full_output = torch.cat(outbuf, dim=0).cpu()
+        full_output = torch.cat(outbuf, dim=0).to('cpu')
         if type(dataset) == np.ndarray:
             return full_output.numpy()
         else:
@@ -139,7 +139,7 @@ class Predictor:
                 outbuf.append(output.data.view(-1, 1))
                 
         model.train()
-        full_output = torch.cat(outbuf, dim=0).cpu()
+        full_output = torch.cat(outbuf, dim=0).to('cpu')
         if type(dataset) == np.ndarray:
             return full_output.numpy()
         else:

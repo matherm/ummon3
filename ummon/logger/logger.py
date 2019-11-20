@@ -250,7 +250,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('{0:20}{1}'.format("combined_retraining" , combined_retraining))
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
         self.debug('{0:20}{1}'.format("early_stopping" , early_stopping))
-        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
+        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).to('cpu').data.numpy().dtype))
         for i,line in enumerate(optimizer.__repr__().splitlines()):
             if i == 0:
                 self.debug('{0:20}{1}'.format("optimizer" , line.replace(" (","")))
@@ -286,7 +286,7 @@ class Logger(logging.getLoggerClass()):
         self.debug(' ')
         self.debug('[Parameters]')
         self.debug('{0:20}{1}'.format("using_cuda"  , next(model.parameters()).is_cuda))
-        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).cpu().data.numpy().dtype))
+        self.debug('{0:20}{1}'.format("precision" , next(model.parameters()).to('cpu').data.numpy().dtype))
         self.debug('')
       
     

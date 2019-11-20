@@ -79,8 +79,8 @@ class Analyzer():
             loss_average = uu.online_average(loss, i + 1, loss_average)
 
             if compute_accuracy == True:
-                classes = Predictor.classify(output.cpu(), loss_function, logger)
-                acc = Predictor.compute_accuracy(classes, labels.cpu())
+                classes = Predictor.classify(output.to('cpu'), loss_function, logger)
+                acc = Predictor.compute_accuracy(classes, labels.to('cpu'))
                 acc_average = uu.online_average(acc, i + 1, acc_average)
 
         # NaN check        

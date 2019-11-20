@@ -288,7 +288,7 @@ class Trainer:
         """
         if type(output) != tuple and type(output) != list and targets is not None and type(targets) != list and type(targets) != tuple:
                 if targets.is_cuda or output.is_cuda:
-                    output, targets = output.cuda(), targets.cuda()
+                    output, targets = output.to('cuda'), targets.to('cuda')
                     
         if (type(output) == tuple or type(output) == list) and targets is not None:
             if output[0].is_cuda or output[1].is_cuda:
@@ -599,12 +599,12 @@ class KamikazeTrainer(Trainer):
         if type(data) == list:
             inputs, targets = data
             if self.use_cuda:
-                inputs, targets = inputs.cuda(), targets.cuda()
+                inputs, targets = inputs.to('cuda'), targets.to('cuda')
             return inputs, targets
         else:
             if self.use_cuda:
                 if hasattr(data, "cuda"):
-                    data = data.cuda()
+                    data = data.to('cuda')
                 elif hasattr(data, "to"):
                     data = data.to("cuda")
             return data, data

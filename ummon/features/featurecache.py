@@ -87,7 +87,7 @@ class FeatureCache():
         if is_numpy:
             input_raw_data = x.data.tobytes()
         else:
-            input_raw_data = x.detach().cpu().numpy().data.tobytes()
+            input_raw_data = x.detach().to('cpu').numpy().data.tobytes()
         fname = "".join(self.unique_transformation_hash) + "_" + str(hash(input_raw_data))
         path = str(self.cachedir + "/ummon_" + fname + ".npy")
         
@@ -97,7 +97,7 @@ class FeatureCache():
             if is_numpy and not self.force_tensor:
                 return cached_raw_data
             elif is_cuda:
-                return torch.from_numpy(cached_raw_data).cuda()
+                return torch.from_numpy(cached_raw_data).to('cuda')
             else:
                 return torch.from_numpy(cached_raw_data)
         else:
@@ -108,6 +108,6 @@ class FeatureCache():
         y = self.transform(x)
         
         ## Handle cache put
-        np.save(path, y.cpu().detach().numpy())
+        np.save(path, y.to('cpu').detach().numpy())
                 
         return y

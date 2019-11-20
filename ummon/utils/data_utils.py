@@ -25,9 +25,9 @@ def tensor_tuple_to_cpu(the_tuple):
 
 def tensor_tuple_to_data(the_tuple):
     if type(the_tuple) != tuple and type(the_tuple) != list:
-        return the_tuple.detach().cpu().data
+        return the_tuple.detach().to('cpu').data
     else:
-        return tuple([t.detach().cpu().data for t in the_tuple])            
+        return tuple([t.detach().to('cpu').data for t in the_tuple])
 
 def tuple_to(tuple_like, device):
     if type(tuple_like) != tuple and type(tuple_like) != list:

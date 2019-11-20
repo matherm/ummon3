@@ -187,10 +187,10 @@ class QuantiNetWrapper(nn.Module):
 
         q = Quantization(qp_for_netparams)
         for param in self.net.parameters():
-            # self.__log.debug("histogram: {}, min: {}, max: {}".format(param.cpu().histc(bins=10), param.min(), param.max()))
+            # self.__log.debug("histogram: {}, min: {}, max: {}".format(param.to('cpu').histc(bins=10), param.min(), param.max()))
             self.__log.debug("param  min: {}, max: {}".format(param.min(), param.max()))
             param.data = q(param.data)
-            # self.__log.debug("qunatizate histogram: {}, min: {}, max: {}".format(param.cpu().histc(bins=10), param.min(), param.max()))
+            # self.__log.debug("qunatizate histogram: {}, min: {}, max: {}".format(param.to('cpu').histc(bins=10), param.min(), param.max()))
             self.__log.debug("quanti min: {}, max: {}".format(param.min(), param.max()))
             # used in VA script
             param.quanti_param = qp_for_netparams

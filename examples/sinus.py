@@ -51,7 +51,7 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc21(x))
         x = self.fc3(x)
-        return x.cpu()
+        return x.to('cpu')
 
 #
 # GENERATE Sinus X and Y values

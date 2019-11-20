@@ -70,7 +70,7 @@ class MobileNetFeatures():
                                version=version)
 
         if cuda and torch.cuda.is_available():
-            self.model = self.model.cuda()
+            self.model = self.model.to('cuda')
         self.model = self.model.eval()
 
     def __call__(self, x):
@@ -80,10 +80,10 @@ class MobileNetFeatures():
         x = x.unsqueeze(0)
 
         if self.__cuda and torch.cuda.is_available():
-            x = x.cuda()
+            x = x.to('cuda')
 
         feature = self.model(x)
-        feature = feature.detach().cpu().view(-1).contiguous()
+        feature = feature.detach().to('cpu').view(-1).contiguous()
         return feature
 
 
@@ -150,7 +150,7 @@ class MobileNetFeaturesQuanti():
                                version=version)
 
         if cuda and torch.cuda.is_available():
-            self.model = self.model.cuda()
+            self.model = self.model.to('cuda')
         self.model = self.model.eval()
 
         dist = 1 / 2**(bits - 1)
@@ -189,8 +189,8 @@ class MobileNetFeaturesQuanti():
         x = x.unsqueeze(0)
 
         if self.__cuda and torch.cuda.is_available():
-            x = x.cuda()
+            x = x.to('cuda')
 
         feature = self.model(x)
-        feature = feature.detach().cpu().view(-1).contiguous()
+        feature = feature.detach().to('cpu').view(-1).contiguous()
         return feature

@@ -74,7 +74,7 @@ class stdParam(UserDict):
 def mean_std(parameters_iter):
     params = []
     for param in parameters_iter:
-        params.extend(param.data.detach().cpu().numpy().reshape(-1))
+        params.extend(param.data.detach().to('cpu').numpy().reshape(-1))
     std = np.std(np.array(params))
     mean = np.mean(np.array(params))
     __log.debug(

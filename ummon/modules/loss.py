@@ -71,20 +71,20 @@ class VisualAttentionLoss(nn.CrossEntropyLoss):
         assert rewards[0].dtype == torch.float32
         
         # GOTO CPU
-        output = output.cpu()
-        labels = labels.cpu()
+        output = output.to('cpu')
+        labels = labels.to('cpu')
         if saved_baselines[0].is_cuda:
-            saved_baselines = [sb.cpu() for sb in saved_baselines]
+            saved_baselines = [sb.to('cpu') for sb in saved_baselines]
         if saved_ln_pis[0].is_cuda:
-            saved_ln_pis = [ln_pi.cpu() for ln_pi in saved_ln_pis]
+            saved_ln_pis = [ln_pi.to('cpu') for ln_pi in saved_ln_pis]
         if rewards[0].is_cuda:
-            rewards = [r.cpu() for r in rewards]
+            rewards = [r.to('cpu') for r in rewards]
                 
         # CLASSIFIER
         if labels.dim() > 1:
             labels = labels.view(labels.size(0))
         criterion = nn.CrossEntropyLoss(size_average = self.size_average)
-        classification_loss = criterion(output, labels).cpu()
+        classification_loss = criterion(output, labels).to('cpu')
         
         # REINFORCE LOSS
         pred = output.data.max(1, keepdim=True)[1]

@@ -78,7 +78,7 @@ class VGG19Features():
             self.vgg19.apply(self.random_weight_init)
 
         # Cuda
-        self.vgg19 =  self.vgg19.cuda() if self.cuda and torch.cuda.is_available() else self.vgg19
+        self.vgg19 =  self.vgg19.to('cuda') if self.cuda and torch.cuda.is_available() else self.vgg19
         
         #Eval mode
         self.vgg19.eval()
@@ -106,7 +106,7 @@ class VGG19Features():
         x = x.unsqueeze(0)
   
         if self.cuda and torch.cuda.is_available():
-            x = x.cuda()
+            x = x.to('cuda')
             
         result = []
         for name, layer in self.vgg19._modules.items():
@@ -153,15 +153,15 @@ class VGG19Features():
 
                 if len(self.features) == 1:
                     # get first item, preserve shape
-                    result = y.cpu()[0].detach()
+                    result = y.to('cpu')[0].detach()
                     break;
                 else:
                     # get first item, not perserving shape
-                    result.append(y.cpu().view(-1).detach())
+                    result.append(y.to('cpu').view(-1).detach())
                     if len(result) == len(self.features):
                         break;
         
         if len(self.features) == 1:
             return result
         else:    
-            return torch.cat(result).cpu()
+            return torch.cat(result).to('cpu')

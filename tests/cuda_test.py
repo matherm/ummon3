@@ -12,10 +12,10 @@ class TestCuda(unittest.TestCase):
             CPU = torch.IntTensor(1000, 1000).zero_()
             torch.cuda.synchronize()
             for i in range(2):
-                GPU = CPU.cuda()
-                CPU = GPU.cpu()
+                GPU = CPU.to('cuda')
+                CPU = GPU.to('cpu')
             torch.cuda.synchronize()
-            self.assertTrue(numpy.allclose(CPU.numpy(),GPU.cpu().numpy()))
+            self.assertTrue(numpy.allclose(CPU.numpy(),GPU.to('cpu').numpy()))
 
 if __name__ == '__main__':
     unittest.main()

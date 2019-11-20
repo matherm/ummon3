@@ -22,8 +22,8 @@ def performance():
         torch.cuda.synchronize()
         t = time.time()
         for i in range(20):
-            GPU = CPU.cuda()
-            CPU = GPU.cpu()
+            GPU = CPU.to('cuda')
+            CPU = GPU.to('cpu')
         torch.cuda.synchronize()
         print("{0:.2f}".format(32*3000*3000*20*2/(1e9*(time.time() - t))), "Gbit/s")
 
@@ -40,7 +40,7 @@ def performance():
         print("Test CUDA-Throughput")
         print("--------------------")
         SEED = torch.from_numpy(numpy.random.randn(10000,10000)).float()
-        GPU =  (torch.FloatTensor(10000, 10000).zero_() + SEED).cuda()
+        GPU =  (torch.FloatTensor(10000, 10000).zero_() + SEED).to('cuda')
         torch.cuda.synchronize()
         GPU = torch.matmul(GPU,GPU)
         torch.cuda.synchronize()

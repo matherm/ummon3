@@ -249,9 +249,9 @@ class Trainingstate(TrainingStateDict):
             pass
         if use_cuda:
             assert torch.cuda.is_available() == True
-            model = model.cuda()
+            model = model.to('cuda')
         else:
-            model = model.cpu()
+            model = model.to('cpu')
 
         if optimizer is not None:
             Trainingstate.update_optimizer_weights_(model, optimizer)
@@ -259,9 +259,9 @@ class Trainingstate(TrainingStateDict):
                 for k, v in state.items():
                     if torch.is_tensor(v):
                         if use_cuda:
-                            state[k] = v.cuda()
+                            state[k] = v.to('cuda')
                         else:
-                            state[k] = v.cpu()
+                            state[k] = v.to('cpu')
 
         return model
     

@@ -57,7 +57,7 @@ cnet = Sequential(
     ('line2', Linear(           [192],          10, init='xavier_normal_')),
 )
 
-cnet.cuda()
+cnet.to('cuda')
 
 # loss (size_averaging is numerically unstable)
 loss = nn.CrossEntropyLoss(reduction='sum') # inside net: combination of softmax and llh
