@@ -2,7 +2,7 @@
 # @Author: Daniel Dold
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel Dold
-# @Last Modified time: 2019-11-20 16:14:14
+# @Last Modified time: 2019-11-20 17:15:55
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -106,8 +106,10 @@ class GeometricMetrics():
 class IoU(GeometricMetrics):
     """Compute the Intersection over Union (IoU) of two arbitrary 2d-/ 3d cuboids
     Usage:  iou = IoU()
-            iou(cuboid_1, cuboid_2)
-
+            iou(cuboids_1: list, cuboids_2: list)  # cuboids wrapped in list
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
     Attributes:
         func (TYPE): function used in parent class
     """
@@ -124,7 +126,11 @@ class IoU(GeometricMetrics):
 
 class MeanDistanceError(GeometricMetrics):
     """Compute the geometric distance of two cuboids
-
+    Usage:  dist = MeanDistanceError()
+            dist(cuboids_1: list, cuboids_2: list) # cuboids wrapped in list
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
     Attributes:
         func (TYPE): function used in parent class
     """
