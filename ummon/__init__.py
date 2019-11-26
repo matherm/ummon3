@@ -31,7 +31,7 @@ try:
         print("SYSTEM INFORMATION (", socket.gethostname(), ")")
         print("---------------------------------")
         print("Platform:", platform())
-        print("ummon3:", version)
+        print("ummon3:", ummon.__version__)
         print("Python:", sys.version.split('\n'))
         print("CuDNN:", torch.backends.cudnn.version())
         print("CUDA:", torch.version.cuda)
