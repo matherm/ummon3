@@ -9,6 +9,8 @@ Ummon is a neural network library based on PyTorch. The package is available as:
     from ummon import *
 
 '''
+from .__version__ import __version__
+
 try:
     import torch
     import torchvision
@@ -16,7 +18,7 @@ try:
     import numpy
     import sys
     from platform import platform
-    import ummon.utils as uu
+    import ummon.utils
     import ummon.logger
     import ummon.analyzer
     import ummon.trainer
@@ -69,11 +71,3 @@ try:
 
 except Exception as e:
     print("Some ummon dependencies are not installed, ERROR: ", e)
-
-def read_version(fname):
-    import re
-    verstrline = open(fname, "rt").read()
-    VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-    vrs = re.search(VSRE, verstrline, re.M).group(1)
-    return vrs
-__version__ = read_version("ummon/__version__.py")
