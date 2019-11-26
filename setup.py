@@ -4,14 +4,14 @@ from setuptools.command.test import test
 from setuptools import find_packages
 # IMPORT DEPENDENCIES
 import os
-import time
-import subprocess
-import sys
-import socket
-import numpy
-import torch
-import torchvision
-import shutil
+# import time
+# import subprocess
+# import sys
+# import socket
+# import numpy
+# import torch
+# import torchvision
+# import shutil
 
 install_requires = ["paramiko" , "psutil", 'numpy>=1.5.0', "scipy", "torchvision"]
 
@@ -72,10 +72,10 @@ class Installation(install):
         print("\tprint(ummon.version)")   
         print("\tummon.system_info()")   
 
-import tests
-class TestPerformance(install):
-    def run(self):
-       tests.performance()
+# import tests
+# class TestPerformance(install):
+#     def run(self):
+       # tests.performance()
         
 print(find_packages())        
 setup(
@@ -104,7 +104,7 @@ setup(
         ],
       test_suite="tests",
       packages=find_packages(),
-      cmdclass={ 'install':  Installation,
-                 'performance' : TestPerformance}
+      cmdclass={'install':  Installation}
+                 # 'performance' : TestPerformance}
   )
 
