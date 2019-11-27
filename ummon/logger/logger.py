@@ -157,7 +157,7 @@ class Logger(logging.getLoggerClass()):
         self.debug('Numpy               {}'.format(np.__version__))
         self.debug('Torch               {}'.format(torch.__version__))
         self.debug('Torchvision         {}'.format(torchvision.__version__))
-        self.debug('ummon               {}'.format(ummon.version))
+        self.debug('ummon               {}'.format(ummon.__version__))
         self.debug(' ')
     
     

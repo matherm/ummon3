@@ -180,6 +180,9 @@ class Predictor:
     
     @staticmethod
     def compute_accuracy(classes, targets):
+        if not isinstance(targets, torch.Tensor):
+            targets = targets.y
+
         assert targets.shape[0] == classes.shape[0]
               
         # Classification one-hot coded targets are first converted in class labels
