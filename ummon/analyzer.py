@@ -85,7 +85,7 @@ class Analyzer():
 
         # NaN check        
         if np.isnan(loss_average):
-            raise ValueError("Loss is NaN. Was {}".format(loss_average))
+                raise ValueError("Loss is NaN")
 
         # save results in dict
         evaluation_dict = {}
@@ -167,10 +167,9 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         
         # with validation data
         else:
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(trn/val):{:.2f}%/{:.2f}%, lr={:1.5f}{}'.format(
+            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
                 learningstate.current_training_loss(), 
                 learningstate.current_validation_loss(),
-                learningstate.current_training_acc()*100,
                 learningstate.current_validation_acc()*100,
                 learningstate.current_lrate(),
                 ' [BEST]' if learningstate.is_best_validation_model() else '')
