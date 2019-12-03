@@ -72,11 +72,11 @@ class Installation(install):
         print("\tprint(ummon.version)")   
         print("\tummon.system_info()")   
 
-# import tests
-# class TestPerformance(install):
-#     def run(self):
-       # tests.performance()
-        
+import tests
+class TestPerformance(install):
+     def run(self):
+        tests.performance()
+
 print(find_packages())        
 setup(
       name = 'ummon',
@@ -104,7 +104,7 @@ setup(
         ],
       test_suite="tests",
       packages=find_packages(),
-      cmdclass={'install':  Installation}
-                 # 'performance' : TestPerformance}
+      cmdclass={'install':  Installation,
+                 'performance' : TestPerformance}
   )
 
