@@ -9,7 +9,7 @@ The package requires Python 3 and just needs the standard packages `numpy`, `sci
 
     conda create -n ummon3 python=3.6 anaconda 
     source activate ummon3
-    conda install pytorch torchvision -c pytorch
+    conda install pytorch==1.2.0 torchvision -c pytorch
 	
 On Windows there exist prebuilt libraries with cuda support packaged by peterjc123.
 Install on Windows via
@@ -154,12 +154,8 @@ in Anaconda
 
 Test your installation by calling 
 
-    python3 setup.py test
+    pytest tests or python setup.py test
     
-Test your performance by calling 
-
-    python3 setup.py performance
-
 The module should be available as:
 
     import ummon
@@ -168,8 +164,7 @@ The module should be available as:
 ## Start using ummon
 Validate your installation:
 
-    import ummon.tests
-    ummon.tests.validation()
+    pytest tests
 
 Test your system performance:
 

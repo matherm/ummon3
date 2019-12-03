@@ -5,8 +5,7 @@
 # @Last Modified time: 2019-11-20 16:12:35
 import numpy as np
 from scipy.spatial.transform import Rotation
-from ummon.metrics import *
-from ummon.metrics.geometric_metrics import halfspace_representation, intersection
+from ummon.metrics.geometric_metrics import halfspace_representation, intersection, IoU
 import pytest
 import logging
 
