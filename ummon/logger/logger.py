@@ -176,28 +176,17 @@ class Logger(logging.getLoggerClass()):
                 epoch, batch, batches, loss, 
                 int(time_dict["total"])))
                 
-    
+
     # log at end of epoch
-    def log_epoch(self, epoch, batch, batches, loss, batchsize, time_dict, 
-        evalstr=None, evaluation_dict = None):
+    def log_epoch(self, epoch, batch, batches, batchsize, time_dict, trainingstate):
+
         if epoch % self.log_epoch_interval == 0:
             self.info('Epoch: {} - {}. [{}s] @{} samples/s '.format(
-                epoch, evalstr, 
+                epoch, trainingstate.evalstr(), 
                 int(time_dict["total"]),
                 int((batches * batchsize/(time_dict["total"])))))
-            
-            # Detailed loss information comming from either __repr__(loss) or after_eval_hook()
-            if evaluation_dict is not None and re.match(".*\d\.\d.*", str(evaluation_dict["detailed_loss"])):
-                if type(evaluation_dict["detailed_loss"]) == dict:
-                    for k, v in evaluation_dict["detailed_loss"].items():
-                        if type(v) == str:
-                            self.debug("       >> loss details: {:20} {}".format(k, v))
-                        else:
-                            self.debug("       >> loss details: {:20} {:.2f}".format(k, v))
-                else:
-                    self.debug('       __repr__(loss): {}'.format(evaluation_dict["detailed_loss"]))
 
-    
+
     # output description of learning task
     def print_problem_summary(self, trainer, model, loss_function, optimizer, train_dataset, batch_size,
         valid_dataset = None, epochs = 0, early_stopping = False, combined_retraining = 0, dataset_test = None):

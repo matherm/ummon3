@@ -10,6 +10,7 @@ from scipy.spatial import HalfspaceIntersection, ConvexHull
 from scipy.spatial.qhull import QhullError
 import logging
 import os
+from .base import *
 
 __all__ = ['IoU', 'MeanDistanceError']
 
@@ -93,7 +94,7 @@ def intersection(cuboid1: dict, cuboid2: dict) -> float:
     return hull.volume
 
 
-class GeometricMetrics():
+class GeometricMetrics(OnlineMetric):
     def __call__(self, output: list, target: list):
         results = [self.func(c1, c2) for c1, c2 in zip(output, target)]
         return results

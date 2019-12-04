@@ -2197,6 +2197,8 @@ class TestUmmon(unittest.TestCase):
         
         
     def test_classification(self):
+        from ummon.metrics.accuracy import classify, compute_accuracy
+        
         np.random.seed(17)
         torch.manual_seed(17)
         #
@@ -2240,8 +2242,8 @@ class TestUmmon(unittest.TestCase):
             optimizer, trainingstate=trs, model_filename="testcase",  model_keep_epochs=False, precision=np.float64)
         my_trainer.fit(dataloader_training=dataloader_trainingdata, epochs=2, validation_set=dataset_valid)
         output = Predictor.predict(model, x_valid.numpy())
-        predicts = Predictor.classify(output)
-        accuracy = Predictor.compute_accuracy(predicts, y_valid)
+        predicts = classify(output)
+        accuracy = compute_accuracy(predicts, y_valid)
         assert accuracy > 0.48
 
         files = os.listdir(".")

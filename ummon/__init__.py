@@ -68,6 +68,7 @@ try:
     from .features.vgg19features import *
     from .features.featurecache import *
     from .datasets import *
+    from .metrics import *
 
 except Exception as e:
     print("Some ummon dependencies are not installed, ERROR: ", e)

@@ -39,7 +39,7 @@ class Net(nn.Module):
         # Initialization
         def weights_init_normal(m):
             if type(m) == nn.Linear:
-                nn.init.normal(m.weight, mean=0, std=0.1)
+                nn.init.normal_(m.weight, mean=0, std=0.1)
         self.apply(weights_init_normal)
     
     def forward(self, x):

@@ -71,7 +71,7 @@ class Predictor:
                     else:
                         output = output_transform(output)
                 # Save output for later evaluation
-                outbuf.append(output.data)
+                outbuf.append(output)
                 
         model.train()
         full_output = torch.cat(outbuf, dim=0).to('cpu')
@@ -144,61 +144,19 @@ class Predictor:
             return full_output.numpy()
         else:
             return full_output
-
-    
     
      # Get index of class with max probability
     @staticmethod
     def classify(output, loss_function = None, logger = Logger()):
-        """
-        Return
-        ------
-        classes (torch.LongTensor) - Shape [B x 1]
-        """
-        if isinstance(output, np.ndarray):
-            output = torch.from_numpy(output)
-        
-        if loss_function is not None:
-            # Evaluate non-linearity in case of a combined loss-function like CrossEntropy
-            if isinstance(loss_function, torch.nn.BCEWithLogitsLoss):
-                output = torch.sigmoid(Variable(output)).data
-            
-            if isinstance(loss_function, torch.nn.CrossEntropyLoss):
-                output = F.softmax(Variable(output), dim=1).data
-
-        # Case single output neurons (e.g. one-class-svm sign(output))
-        if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
-            # makes zeroes positive
-            classes = (output - 1e-12).sign().long()  
-                
-        # One-Hot-Encoding
-        if (output.dim() > 1 and output.size(1) > 1):
-            classes = output.max(1, keepdim=True)[1]
-
-        return classes
+        from ummon.metrics.accuracy import classify
+        import warnings
+        warnings.warn("Deprecated Predictor.classify(). Please use ummon.metrics.accuracy.classify()")
+        return classify(output, loss_function = None, logger = Logger())
     
     
     @staticmethod
     def compute_accuracy(classes, targets):
-        if not isinstance(targets, torch.Tensor):
-            targets = targets.y
-
-        assert targets.shape[0] == classes.shape[0]
-              
-        # Classification one-hot coded targets are first converted in class labels
-        if targets.dim() > 1 and targets.size(1) > 1:
-            targets = targets.max(1, keepdim=True)[1]
-       
-        if not isinstance(targets, torch.LongTensor):
-            targets = targets.long()
-        
-        # number of correctly classified examples
-        correct = classes.eq(targets.view_as(classes))
-        sum_correct = correct.sum()
-        
-        if type(sum_correct) == torch.Tensor:
-            sum_correct = sum_correct.item()
-        
-        # accuracy
-        accuracy = sum_correct / len(targets)
-        return accuracy
+        from ummon.metrics.accuracy import compute_accuracy
+        import warnings
+        warnings.warn("Deprecated Predictor.compute_accuracy(). Please use ummon.metrics.accuracy.compute_accuracy()")
+        return compute_accuracy(classes, targets)

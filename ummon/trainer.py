@@ -137,7 +137,7 @@ class Trainer:
             self.precision, self.use_cuda)
 
 
-    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=1, eval_batch_size=-1, analyzer=Analyzer):
+    def fit(self, dataloader_training, epochs=1, validation_set=None, eval_interval=1, eval_batch_size=-1, analyzer=Analyzer, metrics=[]):
         """
         Fits a model with given training and validation dataset
         
@@ -154,6 +154,7 @@ class Trainer:
         eval_batch_size     :   OPTIONAL int
                                 batch size used for evaluation (default: -1 == ALL)
         Analyzer (ummon.Analyzer) : A training type specific analyzer.
+        metrics (ummon.metrics) : a list of metrics
         """
         
         # INPUT VALIDATION
@@ -204,7 +205,7 @@ class Trainer:
                 self.model.eval()
                 
                 self._evaluate_training(analyzer, batch, batches, time_dict, epoch,  
-                    dataloader_validation, dataloader_training, eval_batch_size)
+                    dataloader_validation, dataloader_training, eval_batch_size, metrics)
                 
                 # SAVE MODEL
                 self.trainingstate.save_state()
@@ -424,7 +425,8 @@ class Trainer:
                   epoch,  
                   dataloader_validation, 
                   dataloader_training,
-                  eval_batch_size):
+                  eval_batch_size,
+                  metrics):
         """
         Evaluates the current training state against agiven analyzer
         
@@ -439,6 +441,7 @@ class Trainer:
         *dataloader_validation (torch.utils.data.Dataloader) : Validation data.
         *dataloader_training : The training data
         *eval_batch_size (int) : A custom batch size to be used during evaluation
+        *metrics (list) : a list of ummon.metrics
         
         """
         # EVALUATE ON TRAINING SET
@@ -448,7 +451,8 @@ class Trainer:
                                                 dataloader_training,
                                                 batch_size=eval_batch_size,
                                                 limit_batches=200,
-                                                logger=self.logger)
+                                                logger=self.logger,
+                                                metrics=metrics)
         
         # Log epoch
         if dataloader_validation is not None:
@@ -459,7 +463,8 @@ class Trainer:
                                                     dataloader_validation, 
                                                     batch_size=eval_batch_size,
                                                     limit_batches=-1,
-                                                    logger=self.logger)
+                                                    logger=self.logger,
+                                                    metrics=metrics)
         
                 # UPDATE TRAININGSTATE
                 self.trainingstate.update_state(epoch + 1, self.model, self.criterion, self.optimizer, 
@@ -475,7 +480,9 @@ class Trainer:
                                         validation_dataset = dataloader_validation.dataset,
                                         samples_per_second = evaluation_dict["samples_per_second"],
                                         scheduler = self.scheduler,
-                                        combined_retraining = self.combined_training_epochs)
+                                        combined_retraining = self.combined_training_epochs,
+                                        evaluation_dict_train=evaluation_dict_train,
+                                        evaluation_dict_eval=evaluation_dict)
                 validation_loss = evaluation_dict["loss"]
                                 
         else: # no validation set
@@ -490,16 +497,15 @@ class Trainer:
                 trainer_instance = type(self),
                 precision = self.precision,
                 detailed_loss = repr(self.criterion),
-                scheduler = self.scheduler)
+                scheduler = self.scheduler,
+                evaluation_dict_train=evaluation_dict_train)
 
         
         self.logger.log_epoch(epoch + 1, batch + 1, 
                               batches, 
-                              evaluation_dict_train["loss"], 
                               dataloader_training.batch_size, 
                               time_dict,
-                              Analyzer.evalstr(self.trainingstate), 
-                              evaluation_dict)
+                              self.trainingstate)
 
 
         return validation_loss

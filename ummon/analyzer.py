@@ -8,6 +8,8 @@ from .logger import Logger
 import ummon.utils as uu
 import time
 from .predictor import Predictor
+from .metrics.accuracy import Accuracy
+from .metrics.base import *
 
 __all__ = ["Analyzer", "SupervisedAnalyzer", "ClassificationAnalyzer"]
 
@@ -16,20 +18,17 @@ class Analyzer():
     This class provides a generic analyzer for supervised PyTorch-models. For a given PyTorch-model it 
     computes statistical information about the model, e.g. accuracy, loss, ROC, etc.
     
-    
+
     Methods
     -------
     evaluate()          : Evaluates a model with given validation dataset
-    inference()         : Computes model outputs
-    compute_roc()       : [Not implemented yet]
              
     """
-    def __init__(self):
+    def __init__(self, metrics=None):
         self.name = "ummon.Analyzer"
    
-
     @staticmethod    
-    def evaluate(model, loss_function, dataset, batch_size=-1, compute_accuracy=False, limit_batches=-1, logger=Logger()):
+    def evaluate(model, loss_function, dataset, batch_size=-1, compute_accuracy=False, limit_batches=-1, logger=Logger(), metrics=[]):
         """
         Evaluates a model with given validation dataset
         
@@ -49,6 +48,8 @@ class Analyzer():
                           specified if only a limited number of batches shall be analyzed. Useful for testing a subset of the training data.
         logger          : ummon.Logger (Optional)
                           The logger to be used for output messages
+        metrics:           list (ummon.metrics)
+                           A list of metrics that are computed during the evaluation and returned inside the dict
         
         Return
         ------
@@ -58,9 +59,23 @@ class Analyzer():
         dataloader = uu.gen_dataloader(dataset, batch_size=batch_size, has_labels=True, logger=logger)
         t = time.time()
         loss_average, acc_average = 0., 0.
+
+        if compute_accuracy == True:
+            import warnings
+            warnings.warn("compute_accuracy==True is deprecated. Use metrics=[Accuracy()] instead.")
+            metrics.append(Accuracy())
+        
+        # initialize the running averages
+        compute_online_metrics = len(metrics) > 0
+        if compute_online_metrics:
+            metrics_dict = {repr(m): 0. for m in metrics if isinstance(m, OnlineMetric)}
+
+        compute_offline_metrics = any([True for m in metrics if isinstance(m, OfflineMetric)])
+        if compute_offline_metrics:
+            outbuf, labelbuf = [], []        
+
         use_cuda = next(model.parameters()).is_cuda
         device = "cuda" if use_cuda else "cpu"
-                
         for i, batch in enumerate(dataloader):
 
             # limit
@@ -76,12 +91,15 @@ class Analyzer():
 
             # Compute output
             loss = loss_function(output, labels)
-            loss_average = uu.online_average(loss, i + 1, loss_average)
+            loss_average = uu.online_average(loss, i+1, loss_average)
 
-            if compute_accuracy == True:
-                classes = Predictor.classify(output.to('cpu'), loss_function, logger)
-                acc = Predictor.compute_accuracy(classes, labels.to('cpu'))
-                acc_average = uu.online_average(acc, i + 1, acc_average)
+            if compute_online_metrics:
+                # Iterates the metrics and updates the running averages
+                metrics_dict = {repr(m): uu.online_average(m(output, labels), i+1, metrics_dict[repr(m)]) for m in metrics if isinstance(m, OnlineMetric) }
+            
+            # Save output for later evaluation
+            if compute_offline_metrics:
+                outbuf.append(output), labelbuf.append(labels) 
 
         # NaN check        
         if np.isnan(loss_average):
@@ -89,30 +107,19 @@ class Analyzer():
 
         # save results in dict
         evaluation_dict = {}
-        evaluation_dict["accuracy"] = acc_average
+        evaluation_dict["accuracy"] = metrics_dict[repr(Accuracy())] if compute_accuracy else 0.
         evaluation_dict["samples_per_second"] = len(dataloader) / (time.time() - t)
         evaluation_dict["loss"] = loss_average
         evaluation_dict["detailed_loss"] = {"__repr__(loss)" : repr(loss_function)}
+
+        if compute_online_metrics:
+            evaluation_dict = {**evaluation_dict, **metrics_dict}
+        
+        if compute_offline_metrics:
+            metrics_dict = {repr(m): m(outbuf, labelbuf) for m in metrics if isinstance(m, OfflineMetric)}
+            evaluation_dict = {**evaluation_dict, **metrics_dict}
         
         return evaluation_dict
-    
-    # output evaluation string for regression
-    @staticmethod
-    def evalstr(learningstate):
-        
-        # without validation data
-        if learningstate.has_validation_data():
-            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
-                learningstate.current_training_loss(), 
-                learningstate.current_lrate())
-        
-        # with validation data
-        else:
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, lr={:1.5f}{}'.format(
-                learningstate.current_training_loss(), 
-                learningstate.current_validation_loss(),
-                learningstate.current_lrate(),
-                ' [BEST]' if learningstate.is_best_validation_model() else '')
 
 
 # Backward compatibility
@@ -131,7 +138,7 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
     """
             
     @staticmethod    
-    def evaluate(model, loss_function, dataset, logger=Logger(), batch_size=-1, limit_batches=-1):
+    def evaluate(model, loss_function, dataset, logger=Logger(), batch_size=-1, limit_batches=-1, metrics=[]):
         """
         Evaluates a model with given validation dataset
         
@@ -155,21 +162,4 @@ class ClassificationAnalyzer(SupervisedAnalyzer):
         Dictionary
         A dictionary containing keys `loss`, `accuracy`, ´samples_per_second`, `detailed_loss`, 'args[]`
         """
-        return Analyzer.evaluate(model, loss_function, dataset, logger=logger, limit_batches=limit_batches, batch_size=batch_size, compute_accuracy=True)
-
-    @staticmethod
-    def evalstr(learningstate):
-        # without validation data
-        if learningstate.has_validation_data():
-            return 'loss (trn): {:4.5f}, lr={:1.5f}'.format(
-                learningstate.current_training_loss(), 
-                learningstate.current_lrate())
-        
-        # with validation data
-        else:
-            return 'loss(trn/val):{:4.5f}/{:4.5f}, acc(val):{:.2f}%, lr={:1.5f}{}'.format(
-                learningstate.current_training_loss(), 
-                learningstate.current_validation_loss(),
-                learningstate.current_validation_acc()*100,
-                learningstate.current_lrate(),
-                ' [BEST]' if learningstate.is_best_validation_model() else '')
+        return Analyzer.evaluate(model, loss_function, dataset, logger=logger, limit_batches=limit_batches, batch_size=batch_size, metrics=[Accuracy()] + metrics)

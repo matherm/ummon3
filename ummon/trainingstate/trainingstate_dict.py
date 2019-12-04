@@ -49,6 +49,8 @@ class TrainingStateDict():
                      samples_per_second = None,
                      scheduler = None,
                      combined_retraining = False,
+                     evaluation_dict_train = None,
+                     evaluation_dict_eval = None,
                      args = {}):
         """
         Updates the trainingstate with the given parameters.
@@ -78,6 +80,8 @@ class TrainingStateDict():
                                             samples_per_second = samples_per_second,
                                             scheduler = scheduler,
                                             combined_retraining = combined_retraining,
+                                            evaluation_dict_train = evaluation_dict_train,
+                                            evaluation_dict_eval = evaluation_dict_eval,
                                             args = args)
         else:
             # APPEND STATE
@@ -153,6 +157,8 @@ class TrainingStateDict():
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "combined_retraining" : self.state["combined_retraining"],
                          "id" : self.state["id"],
+                         "evaluation_dict_train[]" : [*self.state["evaluation_dict_train[]"], evaluation_dict_train],
+                         "evaluation_dict_eval[]" :  [*self.state["evaluation_dict_eval[]"], evaluation_dict_eval],
                          "args[]" : args
                           }
 
@@ -170,6 +176,8 @@ class TrainingStateDict():
                      samples_per_second = None,
                      scheduler = None,
                      combined_retraining = False,
+                     evaluation_dict_train = {},
+                     evaluation_dict_eval = {},
                      args = {}):
             if validation_accuracy is not None and validation_loss is not None and validation_dataset is not None:
                 validation_accuracy_list = [(epoch, validation_accuracy, len(validation_dataset))]
@@ -209,6 +217,8 @@ class TrainingStateDict():
                          "scheduler_state" : scheduler.state_dict() if isinstance(scheduler, StepLR_earlystop) else None,
                          "combined_retraining" : combined_retraining,
                          "id" : hash(np.random.uniform(0,1000000)),
+                         "evaluation_dict_train[]" : [evaluation_dict_train],
+                         "evaluation_dict_eval[]" : [evaluation_dict_eval],
                          "args[]" : [args]
                           }
             return state
@@ -226,6 +236,50 @@ class TrainingStateDict():
     
     def __getitem__(self, item):
          return self.state[item]
+
+    def evalstr(self):
+            # Some entries inside of the evaluation dict is not meant to be printed.
+            blacklist = ['accuracy', 'samples_per_second', 'loss', 'detailed_loss']
+
+            # without validation data
+            if not self.has_validation_data():
+                train_dict = self.current_evaluation_dict_train()
+                evstr = [f"{k}(trn):{train_dict[k]:.2f}" for k in train_dict if k not in blacklist]
+                evstr = ", ".join(evstr)
+                if len(evstr) > 0:
+                        evstr = " " + evstr + ","
+                return 'loss(trn):{:4.5f},{} lr={:1.5f}'.format(
+                    self.current_training_loss(), 
+                    evstr,
+                    self.current_lrate())
+            
+            # with validation data
+            else:
+                eval_dict = self.current_evaluation_dict_eval()
+                train_dict = self.current_evaluation_dict_train()
+                evstr = [f"{k}(trn/val):{train_dict[k]:.2f}/{eval_dict[k]:.2f}" for k in train_dict if k not in blacklist]
+                evstr = ", ".join(evstr)
+                if len(evstr) > 0:
+                    evstr = " " + evstr + ","
+
+                return 'loss(trn/val):{:4.5f}/{:4.5f},{} lr={:1.5f}{}'.format(
+                    self.current_training_loss(), 
+                    self.current_validation_loss(),
+                    evstr,
+                    self.current_lrate(),
+                    ' [BEST]' if self.is_best_validation_model() else '')
+                    
+    def current_evaluation_dict_eval(self, key=None):
+        if key is None:
+            return self.state['evaluation_dict_eval[]'][-1]
+        else:
+            return self.state['evaluation_dict_eval[]'][-1][key]
+    
+    def current_evaluation_dict_train(self, key=None):
+        if key is None:
+            return self.state['evaluation_dict_train[]'][-1]
+        else:
+            return self.state['evaluation_dict_train[]'][-1][key]
 
     def current_validation_loss(self):
         if len(self.state['validation_loss[]']) == 0:
@@ -278,7 +332,7 @@ class TrainingStateDict():
         return self.state['lrate[]'][-1][0]
 
     def has_validation_data(self):
-        return self.state["validation_loss[]"] == []
+        return self.state["validation_loss[]"] != []
 
     def get_summary(self):
         """
