@@ -12,6 +12,8 @@ import logging
 import os
 import sklearn.metrics
 from .base import *
+from enum import Enum
+from sklearn.preprocessing import label_binarize
 
 __all__ = ['IoU', 'MeanDistanceError']
 
@@ -101,7 +103,18 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
     return intersect / union
 
 
-def find_correspondences(outputs: list, targets: list, threshold: float) -> np.ndarray:
+class Order(Enum):
+    OVERLAP = 1
+    CONFIDENCE_SCORE = 2
+
+
+def to_one_vs_all(num_classes: int, class_id: int, confidence_score=1.0) -> list:
+    l = [0 for _ in range(num_classes)]
+    l[class_id] = confidence_score
+    return l
+
+
+def find_correspondences(outputs: list, targets: list, classes: list, threshold: float, order: Order) -> list:
     """
     Computes the y_pred/y_true matrix by finding the correct target for each output. Each output counts to it's
     largest overlapping target. Multiple detections of the same object are considered as a false detection.
@@ -111,44 +124,86 @@ def find_correspondences(outputs: list, targets: list, threshold: float) -> np.n
     If a output has not matching target, it counts as an FP (True, False).
 
     Args:
-        outputs (list): list of predicted cuboids
-        targets (list): list of target cuboids
+        outputs (list): list of predicted cuboids (dict)
+        targets (list): list of target cuboids (dict)
     Returns:
         np.ndarray (N, 2): array with y_pred(N, 0) and y_true(N, 1), either True or False.
     """
-    y_pred_true = []
+    y_true = []
+    y_score = []
 
-    num_target = len(targets)
-    num_output = len(outputs)
+    # get all class ids
+    #classes = np.unique(np.concatenate(np.array([cuboid['class_id'] for cuboid in targets]),
+    #                                   np.array([cuboid['class_id'] for cuboid in outputs])))
 
-    # calculate all ious
-    ious = np.zeros((num_target, num_output))
-    for i_target, cuboid_target in enumerate(targets):
-        for i_output, cuboid_output in enumerate(outputs):
-            ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
+    num_classes = len(classes)
 
-    targets_found = set()  # indices of found targets
-    output_found = set()  # indices of found predictions
-    iou_argsort_target = np.argsort(ious, axis=0)  # sort that each output counts to it's largest overlap target
-    for target_i in reversed(range(num_output)):  # iterate reverse to start with largest iou (from argsort)
-        for pred_i in range(num_target):
-            target_max_i = iou_argsort_target[target_i, pred_i]
+    for class_id in classes:
+        outputs_class = [c for c in outputs if c['class_id'] == class_id]
+        targets_class = [c for c in targets if c['class_id'] == class_id]
 
-            # to count as correct detection area of overlap must exceed the threshold
-            if ious[target_max_i, pred_i] > threshold and pred_i not in output_found:
-                targets_found.add(target_max_i)
-                output_found.add(i_output)
-                y_pred_true += [[1, 1]]  # tp
-                break
+        num_output = len(outputs_class)
+        num_target = len(targets_class)
+        print(num_output)
+        print(num_target)
 
-    targets_i = set(range(num_output))
-    output_i = set(range(num_target))
-    targets_not_matching = targets_i - targets_found  # targets with no matching detection
-    y_pred_true += [[0, 1] for _ in range(len(targets_not_matching))]  # fn
-    output_not_matching = output_i - output_found  # predictions with not matching targets
-    y_pred_true += [[1, 0] for _ in range(len(output_not_matching))]  # fp
+        # calculate all ious
+        ious = np.zeros((num_target, num_output))
+        for i_target, cuboid_target in enumerate(targets_class):
+            for i_output, cuboid_output in enumerate(outputs_class):
+                ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
 
-    return np.array(y_pred_true, dtype=bool)
+        targets_found = set()  # indices of found targets
+        output_found = set()  # indices of found predictions
+        if order == Order.CONFIDENCE_SCORE:
+            confidence_scores = np.array([cuboid['confidence_score'] for cuboid in outputs_class])
+            confidence_scores_argsort = np.argsort(confidence_scores)
+        elif order == Order.OVERLAP:
+            iou_argsort_target = np.argsort(ious, axis=0)  # sort that each output counts to it's largest overlap target
+
+        for output_i in reversed(range(num_output)):  # iterate reverse to start with largest iou/confidence (from argsort)
+            for target_i in range(num_target):
+                if order == Order.CONFIDENCE_SCORE:
+                    t = target_i
+                    o = confidence_scores_argsort[output_i]  # output_max_i
+                elif order == Order.OVERLAP:
+                    t = iou_argsort_target[target_i, output_i]  # target_max_i
+                    o = output_i
+
+                print(ious[t, o])
+                # to count as correct detection area of overlap must exceed the threshold
+                if ious[t, o] > threshold and t not in targets_found:
+                    targets_found.add(t)
+                    output_found.add(o)
+                    if order == Order.CONFIDENCE_SCORE:
+                        s = confidence_scores[confidence_scores_argsort[output_i]]
+                    elif order == Order.OVERLAP:
+                        s = 1.0
+                    print(s)
+                    y_score += [to_one_vs_all(num_classes, class_id, s)]
+                    y_true += [to_one_vs_all(num_classes, class_id, 1.0)]
+                    print("b")
+                    print(y_score)
+                    print(y_true)
+                    #y_pred_true += [[class_id, class_id]]  # tp
+                    break
+
+        targets_i = set(range(num_output))
+        outputs_i = set(range(num_target))
+        targets_not_matching = targets_i - targets_found  # targets with no matching detection
+        y_score += [[0 for _ in range(num_classes)] for _ in targets_not_matching]
+        y_true += [to_one_vs_all(num_classes, class_id, 1.0) for _ in targets_not_matching]
+        #y_pred_true += [[0, class_id] for _ in range(len(targets_not_matching))]  # fn
+
+        outputs_not_matching = outputs_i - output_found  # predictions with not matching targets
+        if order == Order.CONFIDENCE_SCORE:
+            y_score += [to_one_vs_all(num_classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
+        elif order == Order.OVERLAP:
+            y_score += [to_one_vs_all(num_classes, class_id, 1.0) for _ in outputs_not_matching]
+        y_true += [[0 for _ in range(num_classes)] for _ in outputs_not_matching]
+        #y_pred_true += [[class_id, 0] for _ in range(len(output_not_matching))]  # fp
+
+    return y_score, y_true
 
 
 class GeometricMetrics(OnlineMetric):
@@ -161,12 +216,12 @@ class GeometricMetrics(OnlineMetric):
         return cls.__name__
 
 
-class BinaryAPSklearn(GeometricMetrics):
+class APSklearn(GeometricMetrics):
     """
     Calculates the AP score with the function from Sklearn.
     At the moment it works only for binary detection without confidence scores.
-    Usage:  ap = BinaryAPSklearn()
-            ap(output_batch: list, target_batch: list) # list of list with cuboids
+    Usage:  ap = APSklearn()
+            ap(output_batch: list, target_batch: list) # list of list with cuboids or true binary labels
     Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
                                     'd' -> dimension of cuboid array[length,width, ... n]
                                     'r' -> rotation of cuboid as 3x3 rot matrix
@@ -174,14 +229,27 @@ class BinaryAPSklearn(GeometricMetrics):
         func (TYPE): function used in parent class
     """
 
-    def __init__(self):
+    def __init__(self, classes, find_corres=True, threshold=0.5, order=Order.CONFIDENCE_SCORE):
         self.func = self.average_precision_sklearn
+        self.classes = classes
+        self.find_corres = find_corres
+        self.threshold = threshold
+        self.order = order
 
-    @staticmethod
-    def average_precision_sklearn(output: list, target: list):
-        y_pred_true = find_correspondences(output, target, 0.5)
-        y_pred, y_true = y_pred_true[:, 0], y_pred_true[:, 1]
-        return sklearn.metrics.average_precision_score(y_true, y_pred)
+    def average_precision_sklearn(self, output: list, target: list):
+        if self.find_corres:
+            y_score, y_true = find_correspondences(output, target, self.classes, self.threshold, self.order)
+            y_score = np.array(y_score)
+            y_true = np.array(y_true)
+            print(y_score)
+            print(y_true)
+        else:
+            y_score = output
+            y_true = target
+
+        print(y_true[:, 1])
+        print(y_score[:, 1])
+        return sklearn.metrics.average_precision_score(y_true[:, 1], y_score[:, 1])
 
 
 class IoU(GeometricMetrics):
@@ -230,17 +298,21 @@ if __name__ == '__main__':
     # prepare demo data
     out = [dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm()),
+                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                class_id=1),
            dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm())
+                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                class_id=1)
            ]
     target = [dict(c=np.array([0., 1., 2.]),
                    d=np.array([4., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm()),
+                   r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                   class_id=1),
               dict(c=np.array([0., 1.5, 2.]),
                    d=np.array([8., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 20, 30], degrees=True).as_dcm())
+                   r=Rotation.from_euler('xyz', [45, 20, 30], degrees=True).as_dcm(),
+                   class_id=1)
               ]
     # usage example
     m = MeanDistanceError()
@@ -249,10 +321,12 @@ if __name__ == '__main__':
     result = {repr(m): m(out, target) for m in metrics}
     print(result)
 
-    metrics = [BinaryAPSklearn()]
+    # 1.0
+    metrics = [APSklearn([0, 1], order=Order.OVERLAP)]
     result = {repr(m): m([[out[0]]], [[target[0]]]) for m in metrics}
     print(result)
 
-    metrics = [BinaryAPSklearn()]
+    # 0.583
+    metrics = [APSklearn([0, 1], order=Order.OVERLAP)]
     result = {repr(m): m([out], [target]) for m in metrics}
     print(result)
