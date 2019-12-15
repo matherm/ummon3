@@ -104,8 +104,9 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
 
 
 class Order(Enum):
-    OVERLAP = 1
-    CONFIDENCE_SCORE = 2
+    OVERLAP_OUTPUT_TO_TARGET = 1
+    OVERLAP_TARGET_TO_OUTPUT = 2
+    CONFIDENCE_SCORE = 3
 
 
 def to_one_vs_all(num_classes: int, class_id: int, confidence_score=1.0) -> list:
@@ -132,10 +133,6 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
     y_true = []
     y_score = []
 
-    # get all class ids
-    #classes = np.unique(np.concatenate(np.array([cuboid['class_id'] for cuboid in targets]),
-    #                                   np.array([cuboid['class_id'] for cuboid in outputs])))
-
     num_classes = len(classes)
 
     for class_id in classes:
@@ -144,64 +141,70 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
 
         num_output = len(outputs_class)
         num_target = len(targets_class)
-        print(num_output)
-        print(num_target)
 
         # calculate all ious
         ious = np.zeros((num_target, num_output))
         for i_target, cuboid_target in enumerate(targets_class):
             for i_output, cuboid_output in enumerate(outputs_class):
                 ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
+        print("iou", ious)
 
         targets_found = set()  # indices of found targets
-        output_found = set()  # indices of found predictions
+        outputs_found = set()  # indices of found predictions
         if order == Order.CONFIDENCE_SCORE:
             confidence_scores = np.array([cuboid['confidence_score'] for cuboid in outputs_class])
-            confidence_scores_argsort = np.argsort(confidence_scores)
-        elif order == Order.OVERLAP:
-            iou_argsort_target = np.argsort(ious, axis=0)  # sort that each output counts to it's largest overlap target
+            confidence_scores_argsort = np.argsort(-confidence_scores)
+            print("confidence_scores_argsort", confidence_scores_argsort)
+        elif order == Order.OVERLAP_OUTPUT_TO_TARGET:
+            iou_argsort_target = np.argsort(-ious, axis=0)  # sort that each output counts to it's largest overlap target
+            print("iou_argsort_target", iou_argsort_target)
+        elif order == Order.OVERLAP_TARGET_TO_OUTPUT:
+            iou_argsort_output = np.argsort(-ious, axis=1)  # sort that each target counts to it's largest overlap output
+            print("iou_argsort_output", iou_argsort_output)
 
-        for output_i in reversed(range(num_output)):  # iterate reverse to start with largest iou/confidence (from argsort)
-            for target_i in range(num_target):
+        for output_i in range(num_output):
+            for target_i in range(num_target):  # iterate reverse to start with largest iou/confidence
                 if order == Order.CONFIDENCE_SCORE:
                     t = target_i
                     o = confidence_scores_argsort[output_i]  # output_max_i
-                elif order == Order.OVERLAP:
+                elif order == Order.OVERLAP_OUTPUT_TO_TARGET:
                     t = iou_argsort_target[target_i, output_i]  # target_max_i
                     o = output_i
+                elif order == Order.OVERLAP_TARGET_TO_OUTPUT:
+                    t = target_i
+                    o = iou_argsort_output[target_i, output_i]
 
-                print(ious[t, o])
                 # to count as correct detection area of overlap must exceed the threshold
+                print("t", t)
+                print("o", o)
                 if ious[t, o] > threshold and t not in targets_found:
                     targets_found.add(t)
-                    output_found.add(o)
+                    outputs_found.add(o)
                     if order == Order.CONFIDENCE_SCORE:
                         s = confidence_scores[confidence_scores_argsort[output_i]]
-                    elif order == Order.OVERLAP:
+                    elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT:
                         s = 1.0
-                    print(s)
+                    # TP
                     y_score += [to_one_vs_all(num_classes, class_id, s)]
                     y_true += [to_one_vs_all(num_classes, class_id, 1.0)]
-                    print("b")
-                    print(y_score)
-                    print(y_true)
-                    #y_pred_true += [[class_id, class_id]]  # tp
-                    break
+                    break  # found output for target
 
-        targets_i = set(range(num_output))
-        outputs_i = set(range(num_target))
+        targets_i = set(range(num_target))
+        outputs_i = set(range(num_output))
         targets_not_matching = targets_i - targets_found  # targets with no matching detection
+        # FN
         y_score += [[0 for _ in range(num_classes)] for _ in targets_not_matching]
         y_true += [to_one_vs_all(num_classes, class_id, 1.0) for _ in targets_not_matching]
-        #y_pred_true += [[0, class_id] for _ in range(len(targets_not_matching))]  # fn
+        print("targets_found", targets_found)
+        print("targets not matching", targets_not_matching)
 
-        outputs_not_matching = outputs_i - output_found  # predictions with not matching targets
+        # FP
+        outputs_not_matching = outputs_i - outputs_found  # predictions with not matching targets
         if order == Order.CONFIDENCE_SCORE:
             y_score += [to_one_vs_all(num_classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
-        elif order == Order.OVERLAP:
+        elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT:
             y_score += [to_one_vs_all(num_classes, class_id, 1.0) for _ in outputs_not_matching]
         y_true += [[0 for _ in range(num_classes)] for _ in outputs_not_matching]
-        #y_pred_true += [[class_id, 0] for _ in range(len(output_not_matching))]  # fp
 
     return y_score, y_true
 
@@ -241,15 +244,11 @@ class APSklearn(GeometricMetrics):
             y_score, y_true = find_correspondences(output, target, self.classes, self.threshold, self.order)
             y_score = np.array(y_score)
             y_true = np.array(y_true)
-            print(y_score)
-            print(y_true)
         else:
             y_score = output
             y_true = target
 
-        print(y_true[:, 1])
-        print(y_score[:, 1])
-        return sklearn.metrics.average_precision_score(y_true[:, 1], y_score[:, 1])
+        return sklearn.metrics.average_precision_score(y_true[:, 1:], y_score[:, 1:])
 
 
 class IoU(GeometricMetrics):
@@ -265,7 +264,6 @@ class IoU(GeometricMetrics):
 
     def __init__(self):
         self.func = self.intersection_over_union
-
 
     @staticmethod
     def intersection_over_union(output: dict, target: dict):
