@@ -164,7 +164,9 @@ class TestMetrics:
 
     def test_find_correspondences_overlap_binary_0(self):
         classes = [0, 1]
-        y_score, y_true = find_correspondences(outputs=[self.box1, self.box3, self.box5], targets=[self.box2, self.box4], classes=classes, threshold=0.5, order=Order.OVERLAP)
+        y_score, y_true = find_correspondences(outputs=[self.box1, self.box3, self.box5],
+                                               targets=[self.box2, self.box4], classes=classes,
+                                               threshold=0.5, order=Order.OVERLAP)
 
         y_score, y_true = np.array(y_score), np.array(y_true)
 
@@ -282,7 +284,7 @@ class TestMetrics:
         assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 0  # FP
         assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 0  # FN
 
-    def test_find_correspondences_overlap_binary_2(self):
+    def test_find_correspondences_overlap_ott_binary_0(self):
         classes = [0, 1]
         y_score, y_true = find_correspondences(outputs=[self.box13, self.box14],
                                                targets=[self.box11, self.box12], classes=classes, threshold=0.5,
@@ -302,7 +304,47 @@ class TestMetrics:
         assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 0  # FP
         assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 0  # FN
 
+    def test_find_correspondences_overlap_binary_2(self):
+        classes = [0, 1]
+        y_score, y_true = find_correspondences(outputs=[self.box14, self.box13],
+                                               targets=[self.box12, self.box11], classes=classes, threshold=0.5,
+                                               order=Order.OVERLAP)
+
+        y_score, y_true = np.array(y_score), np.array(y_true)
+
+        # from binary to multi class
+        lb = preprocessing.LabelBinarizer()
+        lb.fit(classes)
+        y_score = lb.inverse_transform(y_score)
+        y_true = lb.inverse_transform(y_true)
+
+        y_score_true = np.stack((np.array(y_score), np.array(y_true)), axis=-1)
+
+        assert len(np.where((y_score_true == (1, 1)).all(axis=1))[0]) == 1  # TP
+        assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 1  # FP
+        assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 1  # FN
+
     def test_find_correspondences_overlap_binary_3(self):
+        classes = [0, 1]
+        y_score, y_true = find_correspondences(outputs=[self.box13, self.box14],
+                                               targets=[self.box11, self.box12], classes=classes, threshold=0.5,
+                                               order=Order.OVERLAP)
+
+        y_score, y_true = np.array(y_score), np.array(y_true)
+
+        # from binary to multi class
+        lb = preprocessing.LabelBinarizer()
+        lb.fit(classes)
+        y_score = lb.inverse_transform(y_score)
+        y_true = lb.inverse_transform(y_true)
+
+        y_score_true = np.stack((np.array(y_score), np.array(y_true)), axis=-1)
+
+        assert len(np.where((y_score_true == (1, 1)).all(axis=1))[0]) == 1  # TP
+        assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 1  # FP
+        assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 1  # FN
+
+    def test_find_correspondences_overlap_ott_binary_1(self):
         classes = [0, 1]
         y_score, y_true = find_correspondences(outputs=[self.box14, self.box13],
                                                targets=[self.box12, self.box11], classes=classes, threshold=0.5,
@@ -322,7 +364,7 @@ class TestMetrics:
         assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 1  # FP
         assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 1  # FN
 
-    def test_find_correspondences_overlap_binary_4(self):
+    def test_find_correspondences_overlap_tto_binary_0(self):
         classes = [0, 1]
         y_score, y_true = find_correspondences(outputs=[self.box13, self.box14],
                                                targets=[self.box11, self.box12], classes=classes, threshold=0.5,
@@ -342,7 +384,7 @@ class TestMetrics:
         assert len(np.where((y_score_true == (1, 0)).all(axis=1))[0]) == 1  # FP
         assert len(np.where((y_score_true == (0, 1)).all(axis=1))[0]) == 1  # FN
 
-    def test_find_correspondences_overlap_binary_5(self):
+    def test_find_correspondences_overlap_tto_binary_1(self):
         classes = [0, 1]
         y_score, y_true = find_correspondences(outputs=[self.box14, self.box13],
                                                targets=[self.box12, self.box11], classes=classes, threshold=0.5,

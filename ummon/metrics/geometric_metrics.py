@@ -107,6 +107,7 @@ class Order(Enum):
     OVERLAP_OUTPUT_TO_TARGET = 1
     OVERLAP_TARGET_TO_OUTPUT = 2
     CONFIDENCE_SCORE = 3
+    OVERLAP = 4
 
 
 def to_one_vs_all(num_classes: int, class_id: int, confidence_score=1.0) -> list:
@@ -161,6 +162,8 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
         elif order == Order.OVERLAP_TARGET_TO_OUTPUT:
             iou_argsort_output = np.argsort(-ious, axis=1)  # sort that each target counts to it's largest overlap output
             print("iou_argsort_output", iou_argsort_output)
+        elif order == Order.OVERLAP:
+            iou_argsort = np.argsort(-ious.reshape(-1))
 
         for output_i in range(num_output):
             for target_i in range(num_target):  # iterate reverse to start with largest iou/confidence
@@ -173,16 +176,20 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
                 elif order == Order.OVERLAP_TARGET_TO_OUTPUT:
                     t = target_i
                     o = iou_argsort_output[target_i, output_i]
+                elif order == Order.OVERLAP:
+                    i = target_i * num_output + output_i
+                    t = int(iou_argsort[i] / num_output)
+                    o = iou_argsort[i] % num_output
 
                 # to count as correct detection area of overlap must exceed the threshold
                 print("t", t)
                 print("o", o)
-                if ious[t, o] > threshold and t not in targets_found:
+                if ious[t, o] > threshold and t not in targets_found and o not in outputs_found:
                     targets_found.add(t)
                     outputs_found.add(o)
                     if order == Order.CONFIDENCE_SCORE:
                         s = confidence_scores[confidence_scores_argsort[output_i]]
-                    elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT:
+                    elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT or order == Order.OVERLAP:
                         s = 1.0
                     # TP
                     y_score += [to_one_vs_all(num_classes, class_id, s)]
@@ -202,7 +209,7 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
         outputs_not_matching = outputs_i - outputs_found  # predictions with not matching targets
         if order == Order.CONFIDENCE_SCORE:
             y_score += [to_one_vs_all(num_classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
-        elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT:
+        elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT or order == Order.OVERLAP:
             y_score += [to_one_vs_all(num_classes, class_id, 1.0) for _ in outputs_not_matching]
         y_true += [[0 for _ in range(num_classes)] for _ in outputs_not_matching]
 
