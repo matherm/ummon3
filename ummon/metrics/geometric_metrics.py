@@ -104,22 +104,34 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
 
 
 class Order(Enum):
-    OVERLAP_OUTPUT_TO_TARGET = 1
-    OVERLAP_TARGET_TO_OUTPUT = 2
-    CONFIDENCE_SCORE = 3
-    OVERLAP = 4
+    OVERLAP_OUTPUT_TO_TARGET = 1  # each output matches with it's largest overlapping target, variant to input order
+    OVERLAP_TARGET_TO_OUTPUT = 2  # each target matches with it's largest overlapping output, variant to input order
+    CONFIDENCE_SCORE = 3  # matching with descending confidence, outputs with high confidence score are matched first,
+    # invariant to input order
+    OVERLAP = 4  # matching with descending overlap => matches with large overlap are matched first,
+    # invariant to input order
 
 
-def to_one_vs_all(num_classes: int, class_id: int, confidence_score=1.0) -> list:
-    l = [0 for _ in range(num_classes)]
-    l[class_id] = confidence_score
+def to_one_vs_all(classes: list, class_id: int, confidence_score=1.0) -> list:
+    """
+    Calculates one vs all vector (similar to sklearn.preprocessing.label_binarize, but only for one value, not array).
+
+    Args:
+        classes (list): list of class ids
+        class_id (int): class id to encode
+        confidence_score (float): confidence score to encode class id with
+    Returns:
+        list (num_classes,): one vs all list
+    """
+    l = [0 for _ in range(len(classes))]
+    l[classes.index(class_id)] = confidence_score
     return l
 
 
 def find_correspondences(outputs: list, targets: list, classes: list, threshold: float, order: Order) -> list:
     """
-    Computes the y_pred/y_true matrix by finding the correct target for each output. Each output counts to it's
-    largest overlapping target. Multiple detections of the same object are considered as a false detection.
+    Computes the y_pred and y_score matrix by matching target and output with a given order.
+    Multiple detections of the same object are considered as a false detection.
     To count as a correct prediction (True, True) the iou between an output and a target has to exceed
     the given threshold.
     If a target has not matching output, it count as a FN (False, True).
@@ -128,8 +140,13 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
     Args:
         outputs (list): list of predicted cuboids (dict)
         targets (list): list of target cuboids (dict)
+        classes (list): list of classes (int)
+        threshold (float): threshold for iou to count as correct detection
+        order (Order): order to match output and targets, if set to Order.CONFIDENCE_SCORE, output cuboids must
+            contain confidence_score.
     Returns:
-        np.ndarray (N, 2): array with y_pred(N, 0) and y_true(N, 1), either True or False.
+        tuple (2,): tuple of y_score and y_true, each with shape (N, num_classes) or of shape (N,) if binary (one label)
+            , True binary labels or binary label indicators. Same format as params for sklearn average_precision_score.
     """
     y_true = []
     y_score = []
@@ -137,6 +154,7 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
     num_classes = len(classes)
 
     for class_id in classes:
+        # match outputs and targets with same class id
         outputs_class = [c for c in outputs if c['class_id'] == class_id]
         targets_class = [c for c in targets if c['class_id'] == class_id]
 
@@ -148,25 +166,25 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
         for i_target, cuboid_target in enumerate(targets_class):
             for i_output, cuboid_output in enumerate(outputs_class):
                 ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
-        print("iou", ious)
 
-        targets_found = set()  # indices of found targets
-        outputs_found = set()  # indices of found predictions
+        # Assignment of output - target to given order
+        # each argsort sorts negative values to start with largest value
         if order == Order.CONFIDENCE_SCORE:
             confidence_scores = np.array([cuboid['confidence_score'] for cuboid in outputs_class])
             confidence_scores_argsort = np.argsort(-confidence_scores)
-            print("confidence_scores_argsort", confidence_scores_argsort)
         elif order == Order.OVERLAP_OUTPUT_TO_TARGET:
             iou_argsort_target = np.argsort(-ious, axis=0)  # sort that each output counts to it's largest overlap target
-            print("iou_argsort_target", iou_argsort_target)
         elif order == Order.OVERLAP_TARGET_TO_OUTPUT:
             iou_argsort_output = np.argsort(-ious, axis=1)  # sort that each target counts to it's largest overlap output
-            print("iou_argsort_output", iou_argsort_output)
         elif order == Order.OVERLAP:
             iou_argsort = np.argsort(-ious.reshape(-1))
 
+        targets_found = set()  # indices of found targets
+        outputs_found = set()  # indices of found outputs
+
         for output_i in range(num_output):
-            for target_i in range(num_target):  # iterate reverse to start with largest iou/confidence
+            for target_i in range(num_target):
+                # Get target t and output o indices
                 if order == Order.CONFIDENCE_SCORE:
                     t = target_i
                     o = confidence_scores_argsort[output_i]  # output_max_i
@@ -182,8 +200,6 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
                     o = iou_argsort[i] % num_output
 
                 # to count as correct detection area of overlap must exceed the threshold
-                print("t", t)
-                print("o", o)
                 if ious[t, o] > threshold and t not in targets_found and o not in outputs_found:
                     targets_found.add(t)
                     outputs_found.add(o)
@@ -192,26 +208,30 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
                     elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT or order == Order.OVERLAP:
                         s = 1.0
                     # TP
-                    y_score += [to_one_vs_all(num_classes, class_id, s)]
-                    y_true += [to_one_vs_all(num_classes, class_id, 1.0)]
+                    y_score += [to_one_vs_all(classes, class_id, s)]
+                    y_true += [to_one_vs_all(classes, class_id, 1.0)]
                     break  # found output for target
 
-        targets_i = set(range(num_target))
-        outputs_i = set(range(num_output))
-        targets_not_matching = targets_i - targets_found  # targets with no matching detection
+        # all indices
+        targets_all = set(range(num_target))
+        outputs_all = set(range(num_output))
+
+        targets_not_matching = targets_all - targets_found  # targets with no matching detection
         # FN
         y_score += [[0 for _ in range(num_classes)] for _ in targets_not_matching]
-        y_true += [to_one_vs_all(num_classes, class_id, 1.0) for _ in targets_not_matching]
-        print("targets_found", targets_found)
-        print("targets not matching", targets_not_matching)
+        y_true += [to_one_vs_all(classes, class_id, 1.0) for _ in targets_not_matching]
 
         # FP
-        outputs_not_matching = outputs_i - outputs_found  # predictions with not matching targets
+        outputs_not_matching = outputs_all - outputs_found  # predictions with not matching targets
         if order == Order.CONFIDENCE_SCORE:
-            y_score += [to_one_vs_all(num_classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
+            y_score += [to_one_vs_all(classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
         elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT or order == Order.OVERLAP:
-            y_score += [to_one_vs_all(num_classes, class_id, 1.0) for _ in outputs_not_matching]
+            y_score += [to_one_vs_all(classes, class_id, 1.0) for _ in outputs_not_matching]
         y_true += [[0 for _ in range(num_classes)] for _ in outputs_not_matching]
+
+    if len(classes) == 1:  # binary has different output shape
+        y_score = [i[0] for i in y_score]
+        y_true = [i[0] for i in y_true]
 
     return y_score, y_true
 
@@ -229,17 +249,25 @@ class GeometricMetrics(OnlineMetric):
 class APSklearn(GeometricMetrics):
     """
     Calculates the AP score with the function from Sklearn.
-    At the moment it works only for binary detection without confidence scores.
     Usage:  ap = APSklearn()
-            ap(output_batch: list, target_batch: list) # list of list with cuboids or true binary labels
+            ap(output_batch: list, target_batch: list) # list with cuboids OR true binary labels
     Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
                                     'd' -> dimension of cuboid array[length,width, ... n]
                                     'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class id of cuboid (class id 0 is always background, do not use it)
+                                    'confidence_score' -> confidence score of cuboid (must only be set if order=Order.CONFIDENCE_SCORE)
     Attributes:
         func (TYPE): function used in parent class
+
+    Args:
+        classes (list) : all class ids without 0 (0 ist always the background class)
+        find_corres (bool): if True, input are cuboids and correspondences are calculated,
+                            if False, input are true binary labels (one class) or binary label indicators. (multiple classes)
+        threshold (float): threshold for the IOU, only overlaps of IOU > threshold are counted as correct
+        order (Order): specifies which targets/outputs are matched first (see Order enum declaration for more infos)
     """
 
-    def __init__(self, classes, find_corres=True, threshold=0.5, order=Order.CONFIDENCE_SCORE):
+    def __init__(self, classes: list, find_corres=True, threshold=0.5, order=Order.CONFIDENCE_SCORE):
         self.func = self.average_precision_sklearn
         self.classes = classes
         self.find_corres = find_corres
@@ -255,7 +283,7 @@ class APSklearn(GeometricMetrics):
             y_score = output
             y_true = target
 
-        return sklearn.metrics.average_precision_score(y_true[:, 1:], y_score[:, 1:])
+        return sklearn.metrics.average_precision_score(y_true, y_score)
 
 
 class IoU(GeometricMetrics):
@@ -327,11 +355,11 @@ if __name__ == '__main__':
     print(result)
 
     # 1.0
-    metrics = [APSklearn([0, 1], order=Order.OVERLAP)]
+    metrics = [APSklearn([1], order=Order.OVERLAP)]
     result = {repr(m): m([[out[0]]], [[target[0]]]) for m in metrics}
     print(result)
 
     # 0.583
-    metrics = [APSklearn([0, 1], order=Order.OVERLAP)]
+    metrics = [APSklearn([1], order=Order.OVERLAP)]
     result = {repr(m): m([out], [target]) for m in metrics}
     print(result)
