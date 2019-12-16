@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Author: Daniel Dold
+# @Author: Daniel Dold and Markus Käppeler
 # @Date:   2019-11-20 15:42:51
 # @Last Modified by:   Daniel Dold
 # @Last Modified time: 2019-11-20 16:12:35

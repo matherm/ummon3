@@ -358,8 +358,24 @@ if __name__ == '__main__':
     metrics = [APSklearn([1], order=Order.OVERLAP)]
     result = {repr(m): m([[out[0]]], [[target[0]]]) for m in metrics}
     print(result)
+    y_true, y_score = find_correspondences([out[0]], [target[0]], [1], 0.5, Order.OVERLAP)
+    precision, recall, thresholds = sklearn.metrics.precision_recall_curve(y_true, y_score)
+    print(precision)
+    print(recall)
+    print(thresholds)
+
 
     # 0.583
     metrics = [APSklearn([1], order=Order.OVERLAP)]
     result = {repr(m): m([out], [target]) for m in metrics}
     print(result)
+    y_true, y_score = find_correspondences(out, target, [1], 0.5, Order.OVERLAP)
+    precision, recall, thresholds = sklearn.metrics.precision_recall_curve(y_true, y_score)
+    print(precision)
+    print(recall)
+    print(thresholds)
+
+    precision = sklearn.metrics.precision_score(y_true, y_score)
+    recall = sklearn.metrics.recall_score(y_true, y_score)
+    print(precision)
+    print(recall)
