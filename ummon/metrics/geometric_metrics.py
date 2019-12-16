@@ -123,7 +123,7 @@ def to_one_vs_all(classes: list, class_id: int, confidence_score=1.0) -> list:
     Returns:
         list (num_classes,): one vs all list
     """
-    l = [0 for _ in range(len(classes))]
+    l = [0.0 for _ in range(len(classes))]
     l[classes.index(class_id)] = confidence_score
     return l
 
@@ -218,7 +218,7 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
 
         targets_not_matching = targets_all - targets_found  # targets with no matching detection
         # FN
-        y_score += [[0 for _ in range(num_classes)] for _ in targets_not_matching]
+        y_score += [[0.0 for _ in range(num_classes)] for _ in targets_not_matching]
         y_true += [to_one_vs_all(classes, class_id, 1.0) for _ in targets_not_matching]
 
         # FP
@@ -227,7 +227,7 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
             y_score += [to_one_vs_all(classes, class_id, confidence_scores[i]) for i in outputs_not_matching]
         elif order == Order.OVERLAP_OUTPUT_TO_TARGET or order == Order.OVERLAP_TARGET_TO_OUTPUT or order == Order.OVERLAP:
             y_score += [to_one_vs_all(classes, class_id, 1.0) for _ in outputs_not_matching]
-        y_true += [[0 for _ in range(num_classes)] for _ in outputs_not_matching]
+        y_true += [[0.0 for _ in range(num_classes)] for _ in outputs_not_matching]
 
     if len(classes) == 1:  # binary has different output shape
         y_score = [i[0] for i in y_score]
