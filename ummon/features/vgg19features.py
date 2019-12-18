@@ -42,7 +42,7 @@ class VGG19Features():
         *feature (torch.Tensor)
     
     """
-    def __init__(self, features = "pool4", gram = False, triangular=False, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False, selected_feat = None):
+    def __init__(self, features = "pool4", gram = False, triangular=False, cuda = False, pretrained = True, gram_diagonal = False, gram_diagonal_squared = False, selected_feat = None, shuffled=False):
         """
         Parameters
         ----------
@@ -55,6 +55,7 @@ class VGG19Features():
             *pretrained (bool) : use pretrained vgg19 net
             *selected_feat (list of int):  contains feature correlations(entries of the Gram-Matrix) selected_feat: ['23', '25', '44']
             v23,v23 || v23,v25 || v23,v44 || v25,v25 || v25,v44 || v27,v44 || v44,v44
+            *shuffled (bool) : shuffle the filters randomly
         """
         self.features = features
         self.gram = gram
@@ -64,6 +65,9 @@ class VGG19Features():
         self.gram_diagonal = gram_diagonal
         self.gram_diagonal_squared = gram_diagonal_squared
         self.selected_feat = selected_feat
+        self.shuffled = shuffled
+        if self.shuffled:
+            np.random.seed(42)
 
         # Original PyTorch VGG19
         self.model = vgg19(pretrained=self.pretrained).features
@@ -98,7 +102,14 @@ class VGG19Features():
             if isinstance(model_dest._modules[k], nn.Conv2d):
                 model_dest._modules[k].weight = model_source[i].weight
                 model_dest._modules[k].bias = model_source[i].bias
-        
+                if self.shuffled:
+                    w = model_dest._modules[k].weight.data.detach().numpy().copy()
+                    b = model_dest._modules[k].bias.detach().numpy().copy()
+                    np.random.shuffle(w)
+                    np.random.shuffle(b)
+                    model_dest._modules[k].weight.data = torch.from_numpy(w)
+                    model_dest._modules[k].bias.data = torch.from_numpy(b)
+
 
     def __call__(self, x):
         if x.dim != 3 and x.size(0) != 3:
@@ -149,7 +160,6 @@ class VGG19Features():
 
                     res = torch.cat(res, dim=1)
                     y = res
-
 
                 if len(self.features) == 1:
                     # get first item, preserve shape

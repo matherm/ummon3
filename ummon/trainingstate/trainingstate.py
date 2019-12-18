@@ -27,7 +27,6 @@ class Trainingstate(TrainingStateDict):
     def add_combined_retraining_pattern(self):
         short_name = self.filename.split(self.extension)[0]
         self.filename = str(short_name + self.combined_retraining_pattern + self.extension)
-        self.model_keep_epochs = True
     
     def remove_combined_retraining_pattern(self):
         self.filename = self.filename.replace(self.combined_retraining_pattern, "")
