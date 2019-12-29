@@ -71,4 +71,7 @@ try:
     from .metrics import *
 
 except Exception as e:
+    def system_info():
+        print("SYSTEM INFORMATION not available")
+        print("---------------------------------")
     print("Some ummon dependencies are not installed, ERROR: ", e)
