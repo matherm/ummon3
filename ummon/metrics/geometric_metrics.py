@@ -13,7 +13,7 @@ import os
 import sklearn.metrics
 from .base import *
 from enum import Enum
-from sklearn.preprocessing import label_binarize
+import itertools
 
 __all__ = ['IoU', 'MeanDistanceError']
 
@@ -101,6 +101,68 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
     intersect = intersection(cuboid1, cuboid2)
     union = np.prod(cuboid1['d']) + np.prod(cuboid2['d']) - intersect
     return intersect / union
+
+
+class Sort(Enum):
+    IOU = 1  # Sort by IOU
+    CONFIDENCE_SCORE = 2  # Sort by output confidence score
+
+
+def find_correspondences(output: list, target: list, threshold: float, sort: Sort) -> tuple:
+    """
+    Finds correspondences between outputs and targets cuboids by matching cuboids which exceed the given IOU threshold.
+    Args:
+        output (list): list of predicted cuboids (dict)
+        target (list): list of target cuboids (dict)
+        threshold (float): threshold for IOU to count as correct detection
+        sort (Sort): sort to match output and targets, if set to Sort.CONFIDENCE_SCORE, output cuboids must
+            contain confidence_score.
+
+    Returns:
+        tuple (2,): tuple of output_to_target and target_to_ouput. Each is a np array and maps indices
+            from output to target and the other way round for each correspondence.
+            Array contains -1 if there is no match for the output or target.
+
+    """
+    num_output = len(output)
+    num_target = len(target)
+
+    # calculate all ious
+    ious = np.zeros((num_target, num_output))
+    for i_target, cuboid_target in enumerate(target):
+        for i_output, cuboid_output in enumerate(output):
+            ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
+
+    # calculate sorting, which to match first
+    if sort == Sort.CONFIDENCE_SCORE:
+        confidence_scores = np.array([cuboid['confidence_score'] for cuboid in output])
+        confidence_scores_argsort = np.argsort(-confidence_scores)
+    elif sort == Sort.OVERLAP:
+        iou_argsort = np.argsort(-ious.reshape(-1))
+
+    # maps indices from output to target and the other way round for each correspondence
+    output_to_target = np.full((num_output,), -1)
+    target_to_output = np.full((num_target,), -1)
+
+    for i, (output_i, target_i) in enumerate(itertools.product((range(num_output), range(num_target)))):
+        # Get target t and output o indices
+        if sort == Sort.CONFIDENCE_SCORE:
+            t = target_i
+            o = confidence_scores_argsort[output_i]
+        elif sort == Sort.OVERLAP:
+            t = int(iou_argsort[i] / num_output)
+            o = iou_argsort[i] % num_output
+
+        # to count as correct detection area the iou must exceed the threshold
+        if ious[t, o] > threshold and output_to_target[o] != -1 and target_to_output[t] != -1:
+            output_to_target[o] = t
+            target_to_output[t] = o
+
+    return output_to_target, target_to_output
+
+
+
+
 
 
 class Order(Enum):
@@ -237,13 +299,30 @@ def find_correspondences(outputs: list, targets: list, classes: list, threshold:
 
 
 class GeometricMetrics(OnlineMetric):
-    def __call__(self, output: list, target: list):
-        results = [self.func(c1, c2) for c1, c2 in zip(output, target)]
-        return results
+    def __call__(self, output: list, target: list, output_to_target: list, target_to_output: list):
+        result = self.func(output, target, output_to_target, target_to_output)
+        #results = [self.func(c1, c2, i, j) for c1, c2, i, j in zip(output, target, output_to_target, target_to_output)]
+        return result
 
     @classmethod
     def __repr__(cls):
         return cls.__name__
+
+
+class Accuracy(GeometricMetrics):
+
+
+    def __init__(self):
+
+
+    def accuracy(self, output: list, target: list, output_to_target: list, target_to_output: list):
+        TP = FP = FN = 0
+        for o, t, o_t, t_o in output, target, output_to_target, target_to_output:
+            assert (o != -1).sum() == (t != -1).sum()
+            TP += (o != -1).sum()
+            FP += (o == -1).sum()
+            FN += (t == -1).sum()
+
 
 
 class APSklearn(GeometricMetrics):
