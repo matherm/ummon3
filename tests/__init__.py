@@ -1,9 +1,13 @@
-import unittest
-import ummon
-import os
-import torch
-import time
-import numpy
+try:
+    import unittest
+    import ummon
+    import os
+    import torch
+    import time
+    import numpy
+except Exception as e:
+    print("Some ummon dependencies are not installed, ERROR: ", e)
+
 
 def validation():
     """

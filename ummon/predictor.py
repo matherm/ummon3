@@ -53,6 +53,7 @@ class Predictor:
         use_cuda = next(model.parameters()).is_cuda
         device = "cuda" if use_cuda else "cpu"
         
+        is_training = model.training
         model.eval()
         outbuf = []
         for i, data in enumerate(dataloader, 0):
@@ -72,8 +73,9 @@ class Predictor:
                         output = output_transform(output)
                 # Save output for later evaluation
                 outbuf.append(output)
-                
-        model.train()
+        
+        if is_training:
+            model.train()
         full_output = torch.cat(outbuf, dim=0).to('cpu')
         if type(dataset) == np.ndarray:
             return full_output.numpy()
@@ -114,6 +116,7 @@ class Predictor:
         use_cuda = next(model.parameters()).is_cuda
         device = "cuda" if use_cuda else "cpu"
         
+        is_training = model.training
         model.eval()
         outbuf = []
         for i, data in enumerate(dataloader, 0):
@@ -137,7 +140,9 @@ class Predictor:
 
                 # Save output for later evaluation
                 outbuf.append(output.data.view(-1, 1))
-                
+        
+        if is_training:
+            model.train()                
         model.train()
         full_output = torch.cat(outbuf, dim=0).to('cpu')
         if type(dataset) == np.ndarray:
