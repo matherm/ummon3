@@ -133,8 +133,6 @@ def find_correspondences(output: list, target: list, threshold: float, sort: Sor
         for i_output, cuboid_output in enumerate(output):
             ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
 
-    print(ious)
-
     # calculate sorting, which to match first
     if sort == Sort.CONFIDENCE_SCORE:
         confidence_scores = np.array([cuboid['confidence_score'] for cuboid in output])
@@ -182,12 +180,7 @@ def calc_binary_confusion_matrix(output: list, target: list):
     for o, t in zip(output, target):  # iter over scenes
         output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
 
-        print(output_to_target)
-        print(target_to_output)
-
         output_class_ids = np.array([cuboid['class_id'] for cuboid in o], dtype=bool)
-
-        print(output_class_ids)
 
         assert (output_to_target != -1).sum() == (target_to_output != -1).sum()
         TP += np.logical_and(output_to_target != -1, output_class_ids).sum()
