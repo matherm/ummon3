@@ -46,7 +46,10 @@ class ExperimentLogger():
                 for c in self.escaped_chars:
                     k = k.replace(c, self.escape_char)
                 line.append("{}={}, ".format(k, v).replace("\n",""))
-            f.write("".join(line)[:-2] + "\n")
+            if logfile[-3:] == ".py":
+                f.write("# " + "".join(line)[:-2] + "\n")
+            else:
+                f.write("".join(line)[:-2] + "\n")
 
 
 class GraphLogger(ExperimentLogger):
