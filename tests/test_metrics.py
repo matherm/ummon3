@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-# @Author: Daniel Dold
+# @Author: Daniel Dold and Markus Käppeler
 # @Date:   2019-11-20 15:42:51
 # @Last Modified by:   Daniel Dold
 # @Last Modified time: 2019-11-20 16:12:35
 import numpy as np
 from scipy.spatial.transform import Rotation
-from ummon.metrics.geometric_metrics import halfspace_representation, intersection, IoU
+from sklearn import preprocessing
+from ummon.metrics.geometric_metrics import halfspace_representation, intersection, IoU, iou, calc_binary_confusion_matrix, find_correspondences, Sort, BinaryIoU, BinaryAccuracy, BinaryPrecision, BinaryRecall
 import pytest
 import logging
 
@@ -128,6 +129,152 @@ class TestMetrics:
         expected_res = (12 + 2) * 4
         assert np.isclose(intersection(box1, box2), expected_res)
 
+    # targets
+    box11 = dict(c=np.array([1., 0., 0.]),
+                 d=np.array([2, 2, 2]),
+                 r=Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_dcm(),
+                 class_id=1)
+    box12 = dict(c=np.array([1.2, 0.5, 0.]),
+                 d=np.array([2, 2, 2]),
+                 r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                 class_id=1)
+
+    # outputs
+    box13 = dict(c=np.array([0.5, 0., 0.]),
+                 d=np.array([2, 2, 2]),
+                 r=Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_dcm(),
+                 class_id=1,
+                 confidence_score=0.8)
+    box14 = dict(c=np.array([1.2, 0., 0.]),
+                 d=np.array([2, 2, 2]),
+                 r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                 class_id=1,
+                 confidence_score=0.6)
+
+    def test_check_data(self):
+        assert iou(self.box11, self.box13) > 0.5
+        assert iou(self.box12, self.box13) < 0.5
+        assert iou(self.box11, self.box14) > 0.5
+        assert iou(self.box12, self.box14) > 0.5
+
+        assert iou(self.box11, self.box13) < iou(self.box11, self.box14)
+        assert self.box13['confidence_score'] > self.box14['confidence_score']
+
+    def test_find_correspondences_confidence_score_binary_0(self):
+        output_to_target, target_to_output = find_correspondences(output=[self.box13, self.box14],
+                                                                  target=[self.box11, self.box12], threshold=0.5,
+                                                                  sort=Sort.CONFIDENCE_SCORE)
+        output_to_target == np.array([0, 1])
+        target_to_output == np.array([0, 1])
+
+    def test_find_correspondences_iou_binary_0(self):
+        output_to_target, target_to_output = find_correspondences(output=[self.box14, self.box13],
+                                                                  target=[self.box11, self.box12], threshold=0.5,
+                                                                  sort=Sort.IOU)
+        output_to_target == np.array([0, -1])
+        target_to_output == np.array([0, -1])
+
+    def test_find_correspondences_iou_binary_1(self):
+        output_to_target, target_to_output = find_correspondences(output=[self.box13, self.box14],
+                                                                  target=[self.box11, self.box12], threshold=0.5,
+                                                                  sort=Sort.IOU)
+        output_to_target == np.array([-1, 0])
+        target_to_output == np.array([1, -1])
+
+    box1 = dict(c=np.array([10., 10., 10.]),
+                d=np.array([5, 5, 5]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                class_id=1)
+    box2 = dict(c=np.array([10., 10., 10.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm())
+
+    box3 = dict(c=np.array([20., 20., 20.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                class_id=1)
+    box4 = dict(c=np.array([21., 20., 20.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),)
+
+    box5 = dict(c=np.array([30., 30., 30.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                class_id=1)
+
+    box6 = dict(c=np.array([40., 40., 40.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm())
+
+    box7 = dict(c=np.array([50., 50., 50.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm())
+
+    box8 = dict(c=np.array([60., 60., 60.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                class_id=0)
+
+    box9 = dict(c=np.array([70., 70., 70.]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm(),
+                class_id=0)
+
+    box10 = dict(c=np.array([70.5, 70.5, 70.5]),
+                d=np.array([5., 5., 5.]),
+                r=Rotation.from_euler('xyz', [0, 0, 0]).as_dcm())
+
+    def test_calc_binary_confusion_matrix_0(self):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output=[[self.box1, self.box3, self.box5]],
+                                                              target=[[self.box2, self.box4]])
+        assert TP == 2
+        assert FP == 1
+        assert FN_0 == 0
+        assert FN_1 == 0
+        assert TN == 0
+
+    def test_calc_binary_confusion_matrix_1(self):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output=[[self.box1, self.box3, self.box5]],
+                                                              target=[[self.box2, self.box4, self.box6, self.box7]])
+        assert TP == 2
+        assert FP == 1
+        assert FN_0 == 0
+        assert FN_1 == 2
+        assert TN == 0
+
+    def test_calc_binary_confusion_matrix_2(self):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output=[[self.box1, self.box3, self.box5, self.box8, self.box9]],
+                                                              target=[[self.box2, self.box4, self.box6, self.box7, self.box10]])
+        assert TP == 2
+        assert FP == 1
+        assert FN_0 == 1
+        assert FN_1 == 2
+        assert TN == 1
+
+    def test_binary_iou(self):
+        binary_iou = BinaryIoU()
+        assert binary_iou([[self.box1]], [[self.box2]]) == 1
+        assert binary_iou([[self.box1, self.box3, self.box5, self.box8, self.box9]],
+                          [[self.box2, self.box4, self.box6, self.box7, self.box10]]) == 2 / (2 + 1 + 1 + 2)
+
+    def test_binary_accuracy(self):
+        binary_accuracy = BinaryAccuracy()
+        assert binary_accuracy([[self.box1]], [[self.box2]]) == 1
+        assert binary_accuracy([[self.box1, self.box3, self.box5, self.box8, self.box9]],
+                               [[self.box2, self.box4, self.box6, self.box7, self.box10]]) == (2 + 1) / (2 + 1 + 1 + 2 + 1)
+
+    def test_binary_precision(self):
+        binary_precision = BinaryPrecision()
+        assert binary_precision([[self.box1]], [[self.box2]]) == 1
+        assert binary_precision([[self.box1, self.box3, self.box5, self.box8, self.box9]],
+                                [[self.box2, self.box4, self.box6, self.box7, self.box10]]) == 2 / (2 + 1)
+
+    def test_binary_recall(self):
+        binary_recall = BinaryRecall()
+        assert binary_recall([[self.box1]], [[self.box2]]) == 1
+        assert binary_recall([[self.box1, self.box3, self.box5, self.box8, self.box9]],
+                             [[self.box2, self.box4, self.box6, self.box7, self.box10]]) == 2 / (2 + 1 + 2)
+
     def test_intersection_over_union(self):
         # prepare
         iou = IoU()
@@ -153,3 +300,4 @@ class TestMetrics:
         result = iou(box1, box2)
         expected_res = [4 / 6, 1, 0]
         assert np.isclose(result, expected_res).all()
+

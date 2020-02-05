@@ -12,6 +12,8 @@ import logging
 import os
 import sklearn.metrics
 from .base import *
+from enum import Enum
+import itertools
 
 __all__ = ['IoU', 'MeanDistanceError']
 
@@ -101,54 +103,208 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
     return intersect / union
 
 
-def find_correspondences(outputs: list, targets: list, threshold: float) -> np.ndarray:
-    """
-    Computes the y_pred/y_true matrix by finding the correct target for each output. Each output counts to it's
-    largest overlapping target. Multiple detections of the same object are considered as a false detection.
-    To count as a correct prediction (True, True) the iou between an output and a target has to exceed
-    the given threshold.
-    If a target has not matching output, it count as a FN (False, True).
-    If a output has not matching target, it counts as an FP (True, False).
+class Sort(Enum):
+    IOU = 1  # Sort by IOU
+    CONFIDENCE_SCORE = 2  # Sort by output confidence score
 
+
+def find_correspondences(output: list, target: list, threshold: float, sort: Sort) -> tuple:
+    """
+    Finds correspondences between outputs and targets cuboids by matching cuboids which exceed the given IOU threshold.
     Args:
-        outputs (list): list of predicted cuboids
-        targets (list): list of target cuboids
-    Returns:
-        np.ndarray (N, 2): array with y_pred(N, 0) and y_true(N, 1), either True or False.
-    """
-    y_pred_true = []
+        output (list): list of predicted cuboids (dict)
+        target (list): list of target cuboids (dict)
+        threshold (float): threshold for IOU to count as correct detection
+        sort (Sort enum): sort to match output and targets, if set to Sort.CONFIDENCE_SCORE, output cuboids must
+            contain confidence_score.
 
-    num_target = len(targets)
-    num_output = len(outputs)
+    Returns:
+        tuple (2,): tuple of output_to_target and target_to_ouput. Each is a np array and maps indices
+            from output to target and the other way round for each correspondence.
+            Array contains -1 if there is no match for the output or target.
+
+    """
+    num_output = len(output)
+    num_target = len(target)
 
     # calculate all ious
     ious = np.zeros((num_target, num_output))
-    for i_target, cuboid_target in enumerate(targets):
-        for i_output, cuboid_output in enumerate(outputs):
+    for i_target, cuboid_target in enumerate(target):
+        for i_output, cuboid_output in enumerate(output):
             ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
 
-    targets_found = set()  # indices of found targets
-    output_found = set()  # indices of found predictions
-    iou_argsort_target = np.argsort(ious, axis=0)  # sort that each output counts to it's largest overlap target
-    for target_i in reversed(range(num_output)):  # iterate reverse to start with largest iou (from argsort)
-        for pred_i in range(num_target):
-            target_max_i = iou_argsort_target[target_i, pred_i]
+    # calculate sorting, which to match first
+    if sort == Sort.CONFIDENCE_SCORE:
+        confidence_scores = np.array([cuboid['confidence_score'] for cuboid in output])
+        confidence_scores_argsort = np.argsort(-confidence_scores)
+    elif sort == Sort.IOU:
+        iou_argsort = np.argsort(-ious.reshape(-1))
 
-            # to count as correct detection area of overlap must exceed the threshold
-            if ious[target_max_i, pred_i] > threshold and pred_i not in output_found:
-                targets_found.add(target_max_i)
-                output_found.add(i_output)
-                y_pred_true += [[1, 1]]  # tp
-                break
+    # maps indices from output to target and the other way round for each correspondence
+    output_to_target = np.full((num_output,), -1)
+    target_to_output = np.full((num_target,), -1)
 
-    targets_i = set(range(num_output))
-    output_i = set(range(num_target))
-    targets_not_matching = targets_i - targets_found  # targets with no matching detection
-    y_pred_true += [[0, 1] for _ in range(len(targets_not_matching))]  # fn
-    output_not_matching = output_i - output_found  # predictions with not matching targets
-    y_pred_true += [[1, 0] for _ in range(len(output_not_matching))]  # fp
+    for i, (output_i, target_i) in enumerate(itertools.product(list(range(num_output)), list(range(num_target)))):
+        # Get target t and output o indices
+        if sort == Sort.CONFIDENCE_SCORE:
+            t = target_i
+            o = confidence_scores_argsort[output_i]
+        elif sort == Sort.IOU:
+            t = int(iou_argsort[i] / num_output)
+            o = iou_argsort[i] % num_output
 
-    return np.array(y_pred_true, dtype=bool)
+        # to count as correct detection area the iou must exceed the threshold
+        if ious[t, o] > threshold and output_to_target[o] == -1 and target_to_output[t] == -1:
+            output_to_target[o] = t
+            target_to_output[t] = o
+
+    return output_to_target, target_to_output
+
+
+def calc_binary_confusion_matrix(output: list, target: list):
+    """
+    Calculates TP, FP, FN_0, FN_1, TN for a output and target cuboid list of list (multiple scenes) by finding
+    correspondences between output and target cuboids with a IOU > 0.5. Correspondences with high IOU are matched first.
+    FN_0 are false negatives where a ground truth cuboid machted, but prediction has class id 0.
+    FN_1 are false negatives where no ground truth cuboid machted.
+    Args:
+        output (list): list of predicted cuboids (dict)
+        target (list): list of target cuboids (dict)
+
+    Returns:
+        tuple: number of TP, FP, FN_0, FN_1, TN
+
+    """
+
+    TP = FP = FN_0 = FN_1 = TN = 0
+    for o, t in zip(output, target):  # iter over scenes
+        output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
+
+        output_class_ids = np.array([cuboid['class_id'] for cuboid in o], dtype=bool)
+
+        assert (output_to_target != -1).sum() == (target_to_output != -1).sum()
+        TP += np.logical_and(output_to_target != -1, output_class_ids).sum()
+        FP += np.logical_and(output_to_target == -1, output_class_ids).sum()
+        FN_0 += np.logical_and(output_to_target != -1, np.logical_not(output_class_ids)).sum()
+        FN_1 += (target_to_output == -1).sum()
+        TN += np.logical_and(output_to_target == -1, np.logical_not(output_class_ids)).sum()
+    return TP, FP, FN_0, FN_1, TN
+
+
+class ObjectDetectionMetric(OfflineMetric):
+    def __call__(self, output: list, target: list):
+        return self.func(output, target)
+
+    @classmethod
+    def __repr__(cls):
+        return cls.__name__
+
+
+class BinaryIoU(ObjectDetectionMetric):
+    """Compute IoU with confusion matrix (TP / (TP + FP + FN)) for binary object detection task.
+    Usage:  binary_iou = BinaryIoU()
+            binary_iou(cuboids_output: list of list, cuboids_target: list of list) # cuboids wrapped in list of list (scenes)
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class_id, either 0 or 1
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self):
+        self.func = self.accuracy
+
+    @staticmethod
+    def accuracy(output: list, target: list):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output, target)
+        return TP / (TP + FP + FN_0 + FN_1)
+
+
+class BinaryAccuracy(ObjectDetectionMetric):
+    """Compute Accuracy with confusion matrix ((TP + TN) / (TP + TN + FP + FN + FN)) for binary object detection task.
+    Usage:  binary_accuracy = BinaryAccuracy()
+            binary_accuracy(cuboids_output: list of list, cuboids_target: list of list) # cuboids wrapped in list of list (scenes)
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class_id, either 0 or 1
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self):
+        self.func = self.accuracy
+
+    @staticmethod
+    def accuracy(output: list, target: list):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output, target)
+        return (TP + TN) / (TP + TN + FP + FN_0 + FN_1)
+
+
+class BinaryPrecision(ObjectDetectionMetric):
+    """Compute Precision with confusion matrix (TP / (TP + FP)) for binary object detection task.
+    Usage:  binary_precision = BinaryPrecision()
+            binary_precision(cuboids_output: list of list, cuboids_target: list of list) # cuboids wrapped in list of list (scenes)
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class_id, either 0 or 1
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self):
+        self.func = self.precision
+
+    @staticmethod
+    def precision(output: list, target: list):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output, target)
+        return TP / (TP + FP)
+
+
+class BinaryRecall(ObjectDetectionMetric):
+    """Compute Recall with confusion matrix (TP / (TP + FN)) for binary object detection task.
+    Usage:  binary_recall = BinaryRecall()
+            binary_recall(cuboids_output: list of list, cuboids_target: list of list) # cuboids wrapped in list of list (scenes)
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class_id, either 0 or 1
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self):
+        self.func = self.precision
+
+    @staticmethod
+    def precision(output: list, target: list):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output, target)
+        return TP / (TP + FN_0 + FN_1)
+
+
+class BinaryF1(ObjectDetectionMetric):
+    """Compute F1 with confusion matrix (2 * (precision * recall) / (precision + recall)) for binary object detection task.
+    Usage:  binary_f1 = BinaryF1()
+            binary_f1(cuboids_output: list of list, cuboids_target: list of list) # cuboids wrapped in list of list (scenes)
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+                                    'class_id' -> class_id, either 0 or 1
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self):
+        self.func = self.precision
+
+    @staticmethod
+    def precision(output: list, target: list):
+        TP, FP, FN_0, FN_1, TN = calc_binary_confusion_matrix(output, target)
+        precision = TP / (TP + FP)
+        recall = TP / (TP + FN_0 + FN_1)
+        return 2 * (precision * recall) / (precision + recall)
 
 
 class GeometricMetrics(OnlineMetric):
@@ -159,29 +315,6 @@ class GeometricMetrics(OnlineMetric):
     @classmethod
     def __repr__(cls):
         return cls.__name__
-
-
-class BinaryAPSklearn(GeometricMetrics):
-    """
-    Calculates the AP score with the function from Sklearn.
-    At the moment it works only for binary detection without confidence scores.
-    Usage:  ap = BinaryAPSklearn()
-            ap(output_batch: list, target_batch: list) # list of list with cuboids
-    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
-                                    'd' -> dimension of cuboid array[length,width, ... n]
-                                    'r' -> rotation of cuboid as 3x3 rot matrix
-    Attributes:
-        func (TYPE): function used in parent class
-    """
-
-    def __init__(self):
-        self.func = self.average_precision_sklearn
-
-    @staticmethod
-    def average_precision_sklearn(output: list, target: list):
-        y_pred_true = find_correspondences(output, target, 0.5)
-        y_pred, y_true = y_pred_true[:, 0], y_pred_true[:, 1]
-        return sklearn.metrics.average_precision_score(y_true, y_pred)
 
 
 class IoU(GeometricMetrics):
@@ -197,7 +330,6 @@ class IoU(GeometricMetrics):
 
     def __init__(self):
         self.func = self.intersection_over_union
-
 
     @staticmethod
     def intersection_over_union(output: dict, target: dict):
@@ -230,17 +362,21 @@ if __name__ == '__main__':
     # prepare demo data
     out = [dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm()),
+                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                class_id=1),
            dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm())
+                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                class_id=1)
            ]
     target = [dict(c=np.array([0., 1., 2.]),
                    d=np.array([4., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm()),
+                   r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                   class_id=1),
               dict(c=np.array([0., 1.5, 2.]),
                    d=np.array([8., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 20, 30], degrees=True).as_dcm())
+                   r=Rotation.from_euler('xyz', [45, 20, 30], degrees=True).as_dcm(),
+                   class_id=1)
               ]
     # usage example
     m = MeanDistanceError()
@@ -249,10 +385,6 @@ if __name__ == '__main__':
     result = {repr(m): m(out, target) for m in metrics}
     print(result)
 
-    metrics = [BinaryAPSklearn()]
-    result = {repr(m): m([[out[0]]], [[target[0]]]) for m in metrics}
-    print(result)
-
-    metrics = [BinaryAPSklearn()]
+    metrics = [BinaryIoU(), BinaryAccuracy()]
     result = {repr(m): m([out], [target]) for m in metrics}
     print(result)
