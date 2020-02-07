@@ -47,9 +47,9 @@ class ExperimentLogger():
                     k = k.replace(c, self.escape_char)
                 line.append("{}={}, ".format(k, v).replace("\n",""))
             if logfile[-3:] == ".py":
-                f.write("# " + "".join(line)[:-2] + "\n")
+                f.write("\n# " + "\n# ".join(line)[:-2] + "\n")
             else:
-                f.write("".join(line)[:-2] + "\n")
+                f.write("\n".join(line)[:-2] + "\n")
 
 
 class GraphLogger(ExperimentLogger):
