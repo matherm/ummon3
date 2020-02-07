@@ -1,6 +1,8 @@
 import numpy as np
 import torch
+from sklearn.metrics import jaccard_score
 
+from ummon.metrics.accuracy import classify
 from .base import *
 
 __all__ =['IoU']
@@ -112,14 +114,140 @@ class IoU(SegmentationMetrics):
         return mean_iou, per_class_iou
 
 
+class JaccardScore(SegmentationMetrics):
+    """
+    Computes the similarity between two samples sets (tensors), whereas geometric_metrics#IoU is defined for bounding
+    box similarities.
+
+    The predicted output can be either
+
+    - list of 1-d tensors, where each entry contains probability to be a `hit` (detection), or
+
+    - list of 2-d tensors with 2nd dimension of size 2 (N, 2), where output[n,0] < output[n,1] means hit and vice versa (binary class segmentation), or
+
+    - list of 2-d tensors with 2nd dimension of size greater than 2 (N, X: X > 2), where the index of maximum entry defines the class (multiclass segmentation)
+
+    Returns:
+
+    - case of detection and binary class segmentation: the Jaccard cooefficient (Intersection over Union) for a hit
+
+    - case of multiclass segmentation: weighted mean cooefficient over all classes and tuple of per class cooefficient
+    """
+    def __init__(self):
+        self.func = self.calc_score
+
+    @staticmethod
+    def calc_score(output_list, targets_list):
+        preds_list = []
+        if len(targets_list) == 0:
+            return 0.0
+
+        if not isinstance(targets_list[0], torch.Tensor):
+            targets_list = [t.y for t in targets_list]
+
+        multiclass = False
+        for output in output_list:
+            if output.dim() == 2 and output.size()[1] > 1:
+                detections = classify(output)
+                if output.size()[1] > 2:
+                    multiclass = True
+            else:
+                detections = torch.zeros_like(output)
+                detections[output >= 0.5] = 1
+            preds_list.append(detections)
+
+        targets = torch.cat(targets_list).cpu()
+        preds = torch.cat(preds_list).cpu()
+
+        if multiclass:
+            return jaccard_score(targets, preds, average='weighted'), jaccard_score(targets, preds, average=None).tolist()
+        else:
+            return jaccard_score(targets, preds, average='binary')
+
+
 if __name__ == "__main__":
-    iou = IoU()
+    jaccard = JaccardScore()
+    print('+++ Detection +++')
+    target = [torch.tensor([0, 0, 0, 1, 0, 1]),
+              torch.tensor([1, 1, 0, 1, 0, 1])]
+    output = [torch.tensor([0.4, 0.1, 0.1, 0.9, 0.1, 0.9]),     # Contains probability that an object is detected
+              torch.tensor([0.9, 0.9, 0.1, 0.9, 0.1, 0.9])]
+    result_1 = jaccard(output, target)
 
-    #output = [np.array([1, 1, 2, 2, 3, 3]), np.array([1, 1, 2, 2, 3, 3])]
-    #target = [np.array([1, 1, 2, 2, 3, 3]), np.array([1, 1, 2, 2, 3, 3])]
+    print(f'\t[RESULT 1] {"JaccardScore (should be 1.0)":55s} = {result_1}')
+    output = [torch.tensor([0.3, 0.1, 0.2, 0.9, 0.8, 0.1]),
+              torch.tensor([0.51, 0.2, 0.3, 0.98, 0.3, 0.4])]
+    result_2 = jaccard(output, target)
+    print(f'\t[RESULT 2] {"JaccardScore (should be less than 1.0)":55s} = {result_2}')
 
-    target = [np.array([1, 3, 2, 1, 0, 0, 1, 3])]
-    output = [np.array([0, 3, 2, 2, 1, 0, 1, 2])]
-    mean_iou, per_class_iou = iou(output, target)
+    print()
+    print('+++ Binary-Label Segmentation +++')
+    output = [torch.tensor([[1, 0],
+                            [1, 0],
+                            [1, 0],
+                            [0, 1],
+                            [1, 0],
+                            [0, 1]]),
+              torch.tensor([[0, 1],
+                            [0, 1],
+                            [1, 0],
+                            [0, 1],
+                            [1, 0],
+                            [0, 1]])]
+    result_3 = jaccard(output, target)
+    print(f'\t[RESULT 3] {"JaccardScore (should be same result as RESULT 1)":55s} = {result_3}')
 
-    print("Mean IoU:" + str(mean_iou) + "\t per class IoU:" + str(per_class_iou))
+    output = [torch.tensor([[1, 0],
+                            [1, 0],
+                            [1, 0],
+                            [0, 1],
+                            [0, 1],
+                            [1, 0]]),
+              torch.tensor([[0, 1],
+                            [1, 0],
+                            [1, 0],
+                            [0, 1],
+                            [1, 0],
+                            [1, 0]])]
+    result_4 = jaccard(output, target)
+    print(f'\t[RESULT 4] {"JaccardScore (should be same result as RESULT 2)":55s} = {result_4}')
+
+    print()
+    print('+++ Multi-Label Segmentation +++')
+    target = [torch.tensor([1, 3, 2, 0]),
+              torch.tensor([0, 2, 2, 1])]
+    output = [torch.tensor([[0, 1, 0, 0],
+                            [0, 0, 0, 1],
+                            [0, 0, 1, 0],
+                            [1, 0, 0, 0]]),
+              torch.tensor([[1, 0, 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 0, 1, 0],
+                            [0, 1, 0, 0]])]
+    result_5 = jaccard(output, target)
+    print(f'\t[RESULT 5] {"JaccardScore (should be 1.0 for each class)":55s} = {result_5}')
+    output = [torch.tensor([[0, 1, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 1, 0],
+                            [1, 0, 0, 0]]),
+              torch.tensor([[0, 1, 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 0, 1, 0],
+                            [0, 1, 0, 0]])]
+    result_6 = jaccard(output, target)
+    print(f'\t[RESULT 6] {"JaccardScore (some classes should be less than 1.0)":55s} = {result_6}')
+
+
+
+    # Not runnable with current code
+    if False:
+        iou = IoU()
+
+        #output = [np.array([1, 1, 2, 2, 3, 3]), np.array([1, 1, 2, 2, 3, 3])]
+        #target = [np.array([1, 1, 2, 2, 3, 3]), np.array([1, 1, 2, 2, 3, 3])]
+
+        target = [np.array([1, 3, 2, 1, 0, 0, 1, 3])]
+        output = [np.array([0, 3, 2, 2, 1, 0, 1, 2])]
+        mean_iou, per_class_iou = iou(output, target)
+
+        print("Mean IoU:" + str(mean_iou) + "\t per class IoU:" + str(per_class_iou))
