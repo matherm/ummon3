@@ -78,7 +78,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
         dataloader = [dataset]
     else:
         bs = len(torch_dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=False, sampler=None, batch_sampler=None)        
+        dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=True, sampler=None, batch_sampler=None)        
 
     return dataloader
 

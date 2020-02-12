@@ -102,8 +102,13 @@ class Analyzer():
                 outbuf.append(output), labelbuf.append(labels) 
 
         # NaN check        
+        if np.isinf(loss_average):
+                raise ValueError("Loss is Inf")
+
+        # NaN check        
         if np.isnan(loss_average):
                 raise ValueError("Loss is NaN")
+
 
         # save results in dict
         evaluation_dict = {}
