@@ -265,5 +265,11 @@ def get_data_information(dataset):
     return (get_size_information(dataset), get_shape_information(dataset), get_type_information(dataset), get_numerical_information(dataset))
 
 
-def add_dataset_to_loader_(dataloader, merge_dataset):
-    dataloader.dataset = ConcatDataset([dataloader.dataset, merge_dataset])
+def get_combined_dataloader_(dataloader, merge_dataset):
+    training_dataset = dataloader.dataset
+    batch_size = dataloader.batch_size
+    
+    combined_dataset = ConcatDataset([training_dataset, merge_dataset])
+    
+    return DataLoader(combined_dataset, batch_size=batch_size, shuffle=True, sampler=None, batch_sampler=None)
+    

@@ -530,7 +530,7 @@ class Trainer:
                 self.logger.warn("Combined retraining needs validation data.")
             else:                
                 # combine the two datasets
-                uu.add_dataset_to_loader_(dataloader_training, validation_set)   
+                dataloader_training_validation = uu.get_combined_dataloader_(dataloader_training, validation_set)   
                 
                 # give some information about what we are going to do
                 self.logger.info('Combined retraining...')  
@@ -547,7 +547,7 @@ class Trainer:
                 self.trainingstate.add_combined_retraining_pattern()
                 
                 # do actual retraining
-                self.fit(dataloader_training, 
+                self.fit(dataloader_training_validation, 
                          epochs=combined_training_epochs, 
                          validation_set=validation_set, 
                          eval_batch_size=eval_batch_size)
