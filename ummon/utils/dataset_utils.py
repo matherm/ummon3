@@ -268,7 +268,12 @@ def get_data_information(dataset):
 def get_combined_dataloader_(dataloader, merge_dataset):
     training_dataset = dataloader.dataset
     batch_size = dataloader.batch_size
-    
+
+    dataloader_validation = gen_dataloader(merge_dataset)
+    assert isinstance(dataloader_validation, torch.utils.data.DataLoader)
+    merge_dataset = dataloader_validation.dataset
+    assert isinstance(merge_dataset, torch.utils.data.Dataset)
+
     combined_dataset = ConcatDataset([training_dataset, merge_dataset])
     
     return DataLoader(combined_dataset, batch_size=batch_size, shuffle=True, sampler=None, batch_sampler=None)
