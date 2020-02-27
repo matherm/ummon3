@@ -153,7 +153,7 @@ class JaccardScore(SegmentationMetrics):
                     multiclass = True
             else:
                 detections = torch.zeros_like(output)
-                detections[output >= 0.5] = 1
+                detections[output >= 0.0] = 1
             preds_list.append(detections)
 
         targets = torch.cat(targets_list).cpu()
@@ -170,13 +170,13 @@ if __name__ == "__main__":
     print('+++ Detection +++')
     target = [torch.tensor([0, 0, 0, 1, 0, 1]),
               torch.tensor([1, 1, 0, 1, 0, 1])]
-    output = [torch.tensor([0.4, 0.1, 0.1, 0.9, 0.1, 0.9]),     # Contains probability that an object is detected
-              torch.tensor([0.9, 0.9, 0.1, 0.9, 0.1, 0.9])]
+    output = [torch.tensor([-0.4, -0.1, -0.1, 0.9, -0.1, 0.9]),     # Contains probability that an object is detected
+              torch.tensor([0.9, 0.9, -0.1, 0.9, -0.1, 0.9])]
     result_1 = jaccard(output, target)
 
     print(f'\t[RESULT 1] {"JaccardScore (should be 1.0)":55s} = {result_1}')
-    output = [torch.tensor([0.3, 0.1, 0.2, 0.9, 0.8, 0.1]),
-              torch.tensor([0.51, 0.2, 0.3, 0.98, 0.3, 0.4])]
+    output = [torch.tensor([-0.3, -0.1, -0.2, 0.9, 0.8, -0.1]),
+              torch.tensor([0.51, -0.2, -0.3, 0.98, -0.3, -0.4])]
     result_2 = jaccard(output, target)
     print(f'\t[RESULT 2] {"JaccardScore (should be less than 1.0)":55s} = {result_2}')
 
