@@ -160,9 +160,10 @@ class JaccardScore(SegmentationMetrics):
         preds = torch.cat(preds_list).cpu()
 
         if multiclass:
-            return jaccard_score(targets, preds, average='weighted'), jaccard_score(targets, preds, average=None).tolist()
+            return (jaccard_score(targets, preds, average='weighted') * 100,
+                    (jaccard_score(targets, preds, average=None) * 100).tolist())
         else:
-            return jaccard_score(targets, preds, average='binary')
+            return jaccard_score(targets, preds, average='binary') * 100
 
 
 if __name__ == "__main__":
@@ -174,11 +175,11 @@ if __name__ == "__main__":
               torch.tensor([0.9, 0.9, -0.1, 0.9, -0.1, 0.9])]
     result_1 = jaccard(output, target)
 
-    print(f'\t[RESULT 1] {"JaccardScore (should be 1.0)":55s} = {result_1}')
+    print(f'\t[RESULT 1] {"JaccardScore (should be 100%)":55s} = {result_1}')
     output = [torch.tensor([-0.3, -0.1, -0.2, 0.9, 0.8, -0.1]),
               torch.tensor([0.51, -0.2, -0.3, 0.98, -0.3, -0.4])]
     result_2 = jaccard(output, target)
-    print(f'\t[RESULT 2] {"JaccardScore (should be less than 1.0)":55s} = {result_2}')
+    print(f'\t[RESULT 2] {"JaccardScore (should be less than 100%)":55s} = {result_2}')
 
     print()
     print('+++ Binary-Label Segmentation +++')
@@ -225,7 +226,7 @@ if __name__ == "__main__":
                             [0, 0, 1, 0],
                             [0, 1, 0, 0]])]
     result_5 = jaccard(output, target)
-    print(f'\t[RESULT 5] {"JaccardScore (should be 1.0 for each class)":55s} = {result_5}')
+    print(f'\t[RESULT 5] {"JaccardScore (should be 100% for each class)":55s} = {result_5}')
     output = [torch.tensor([[0, 1, 0, 0],
                             [0, 1, 0, 0],
                             [0, 0, 1, 0],
@@ -235,7 +236,7 @@ if __name__ == "__main__":
                             [0, 0, 1, 0],
                             [0, 1, 0, 0]])]
     result_6 = jaccard(output, target)
-    print(f'\t[RESULT 6] {"JaccardScore (some classes should be less than 1.0)":55s} = {result_6}')
+    print(f'\t[RESULT 6] {"JaccardScore (some classes should be less than 100%)":55s} = {result_6}')
 
 
 
