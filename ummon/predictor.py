@@ -48,8 +48,14 @@ class Predictor:
         # simple interface: training and test data given as numpy arrays
         dataloader = uu.gen_dataloader(dataset, has_labels=False, batch_size=batch_size, logger=logger)
         assert isinstance(model, nn.Module)
-        assert uu.check_precision(dataloader, model)
-        
+        # Avoid getting problems when using torch_geometric.data.DataLoader
+        try:
+            import torch_geometric
+            if not isinstance(dataset, torch_geometric.data.DataLoader):
+                assert uu.check_precision(DataLoader, model)
+        except NameError:
+            assert uu.check_precision(dataloader, model)
+
         use_cuda = next(model.parameters()).is_cuda
         device = "cuda" if use_cuda else "cpu"
         
