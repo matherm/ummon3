@@ -22,7 +22,7 @@ class Predictor:
     """
 
     @staticmethod
-    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger()):
+    def predict(model, dataset, batch_size = -1, output_transform=None, logger=Logger(), shuffle=True):
         """
         Computes the output of a model for a given dataset
         
@@ -46,12 +46,12 @@ class Predictor:
         The output
         """
         # simple interface: training and test data given as numpy arrays
-        dataloader = uu.gen_dataloader(dataset, has_labels=False, batch_size=batch_size, logger=logger)
+        dataloader = uu.gen_dataloader(dataset, has_labels=False, batch_size=batch_size, logger=logger, shuffle=shuffle)
         assert isinstance(model, nn.Module)
         # Avoid getting problems when using torch_geometric.data.DataLoader
         try:
             import torch_geometric
-            if not isinstance(dataset, torch_geometric.data.DataLoader):
+            if not isinstance(dataloader, torch_geometric.data.DataLoader):
                 assert uu.check_precision(DataLoader, model)
         except NameError:
             assert uu.check_precision(dataloader, model)

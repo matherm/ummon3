@@ -8,7 +8,7 @@ from ummon.logger import Logger
 
 from .data_utils import istensor, check_data
 
-def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
+def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shuffle=True):
     """
     Does input data validation for training and validation data.
     
@@ -88,7 +88,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
         dataloader = [dataset]
     else:
         bs = len(torch_dataset) if batch_size == -1 else batch_size
-        dataloader = local_data_loader(torch_dataset, batch_size=bs, shuffle=True, sampler=None, batch_sampler=None)
+        dataloader = local_data_loader(torch_dataset, batch_size=bs, shuffle=shuffle, sampler=None, batch_sampler=None)
 
     return dataloader
 
