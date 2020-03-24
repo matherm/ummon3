@@ -8,7 +8,7 @@ from ummon.logger import Logger
 
 from .data_utils import istensor, check_data
 
-def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
+def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shuffle=True):
     """
     Does input data validation for training and validation data.
     
@@ -26,6 +26,8 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     ------
     *dataloader (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
     """
+    # can be either torch.utils.data.DataLoader or torch_geometric.data.DataLoader
+    local_data_loader = DataLoader
     # simple interface: training and test data given as numpy arrays
     if type(dataset) == tuple:
         data = dataset
@@ -67,6 +69,14 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     
     if isinstance(dataset, torch.utils.data.dataset.Dataset):
         torch_dataset = dataset
+        # Check for torch_geometric Dataset
+        # Since torch_geometric is not required, importing this package must not throw an error!
+        try:
+            import torch_geometric
+            if isinstance(dataset, torch_geometric.data.Dataset):
+                local_data_loader = torch_geometric.data.DataLoader
+        except NameError:
+            pass
 
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
         return dataset
@@ -78,7 +88,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
         dataloader = [dataset]
     else:
         bs = len(torch_dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=True, sampler=None, batch_sampler=None)        
+        dataloader = local_data_loader(torch_dataset, batch_size=bs, shuffle=shuffle, sampler=None, batch_sampler=None)
 
     return dataloader
 

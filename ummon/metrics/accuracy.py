@@ -4,7 +4,7 @@ import numpy as np
 import torch.functional as F
 
 # Get index of class with max probability
-def classify(output, loss_function = None, logger = None):
+def classify(output, loss_function=None, logger=None, detection=False):
     """
     Return
     ------
@@ -23,9 +23,14 @@ def classify(output, loss_function = None, logger = None):
 
     # Case single output neurons (e.g. one-class-svm sign(output))
     if (output.dim() > 1 and output.size(1) == 1) or output.dim() == 1:
-        # makes zeroes negative
-        classes = (output - 1e-12).sign().long()  
-            
+        if detection:
+            # detection are encoded as 1, else 0
+            classes = torch.zeros_like(output)
+            classes[output >= 0] = 1.0
+        else:
+            # makes zeroes negative
+            classes = (output - 1e-12).sign().long()
+
     # One-Hot-Encoding
     if (output.dim() > 1 and output.size(1) > 1):
         classes = output.max(1, keepdim=True)[1]
@@ -59,8 +64,12 @@ def compute_accuracy(classes, targets):
 
 class Accuracy(OnlineMetric):
 
+    def __init__(self, detection=False):
+        super().__init__()
+        self.detection = detection
+
     def __call__(self, output, labels):
-        classes = classify(output.to('cpu'))
+        classes = classify(output.to('cpu'), detection=self.detection)
         acc = compute_accuracy(classes, labels.to('cpu'))
         return acc * 100
 
