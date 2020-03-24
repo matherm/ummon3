@@ -177,17 +177,30 @@ def get_numerical_information(dataset):
             X = datapoint
             y = 0
         samples = samples + [x.numpy() for x in list(X) if istensor(x)]
-        labels  = labels  + list(np.asarray(y).reshape(1,-1))
+
+        if (type(y) == tuple) or (type(y) == list):
+            for j, label in enumerate(y):
+                if i == 0:
+                    labels.append(list(np.asarray(label).reshape(1, -1)))
+                else:
+                    labels[j] = labels[j]  + list(np.asarray(label).reshape(1,-1))
+        else:
+            labels = labels  + list(np.asarray(y).reshape(1,-1))
+
     if len(samples) > 0:
         data    =  "min:"  + str(np.round(np.min(samples),1)) \
                 + " max:"  + str(np.round(np.max(samples),1)) \
                 + " mean:" + str(np.round(np.mean(samples),1)) \
                 + " std:"  + str(np.round(np.std(samples),1))
-
-        labels  =  "min:"  + str(np.round(np.min(labels),1)) \
-                + " max:"  + str(np.round(np.max(labels),1)) \
-                + " mean:" + str(np.round(np.mean(labels),1)) \
-                + " std:"  + str(np.round(np.std(labels),1)) 
+        
+        if (type(y) != tuple) and (type(y) != list):
+            labels = [labels]
+        for j, label in enumerate(labels):
+            labels[j]   =  "min:"  + str(np.round(np.min(labels[j]),1)) \
+                        + " max:"  + str(np.round(np.max(labels[j]),1)) \
+                        + " mean:" + str(np.round(np.mean(labels[j]),1)) \
+                        + " std:"  + str(np.round(np.std(labels[j]),1))
+        
         return "\n\tStats Data:{} / Labels:{}".format(data,labels)
     else:
         return "\n\tStats Dataset:{}".format(repr(dataset))
