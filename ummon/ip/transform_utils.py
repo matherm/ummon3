@@ -2,9 +2,11 @@
 # @Author: daniel
 # @Date:   2020-04-28 17:38:39
 # @Last Modified by:   daniel
-# @Last Modified time: 2020-04-28 22:39:54
+# @Last Modified time: 2020-04-29 10:02:37
 from scipy.spatial.transform import Rotation
 import numpy as np
+
+__all__ = ['Transform', 'transform_bbox', 'transformation_from_plane']
 
 
 class Transform():
@@ -52,7 +54,7 @@ class Transform():
         else:
             return res / res[:, -1:]
 
-    def inv(self) -> Transform:
+    def inv(self):
         """returns the inverse transformation 'T_b_a'
 
         Returns
@@ -61,7 +63,7 @@ class Transform():
             the inverse transforamtion instance
         """
         r_b_a = self.get_rotation().inv()
-        t_b_a = -r_a_b.inv().apply(self.get_translation())
+        t_b_a = -r_b_a.apply(self.get_translation())
         return Transform(r_b_a.as_quat(), t_b_a)
 
     def get_rotation(self) -> Rotation:
@@ -88,7 +90,7 @@ class Transform():
         return "Rotation(quat): {}, Translation: {}".format(self.get_rotation().as_quat(), self.get_translation())
 
 
-def transform_label(bbox: dict, trans: Transform=Transform([0, 0, 0, 1.], [0, 0, 0.])) -> dict:
+def transform_bbox(bbox: dict, trans: Transform=Transform([0, 0, 0, 1.], [0, 0, 0.])) -> dict:
     """transform a boundingbox according the coordinate transformation 
 
     Parameters
@@ -128,7 +130,7 @@ def transformation_from_plane(plane_coo: list, axis=2) -> Transform:
     Returns
     -------
     Transform
-        return the transformation, defined from the plane to the coordinate system in which the plane is defined
+        return the transformation T_p_coo, defined from the plane to the coordinate system in which the plane parameters were defined
     """
     normal = plane_coo[0]
     # check if normal is facing upwards.
