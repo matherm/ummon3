@@ -5,7 +5,7 @@ from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import ConcatDataset
 from ummon.datasets import *
 from ummon.logger import Logger
-from ummon.utils.FastDataloader import FastTensorDataLoader
+from ummon.utils.FastDataLoader import FastTensorDataLoader
 
 from .data_utils import istensor, check_data
 
