@@ -2540,9 +2540,8 @@ class TestUmmon(unittest.TestCase):
         assert len(trs["training_loss[]"]) == 6
         
         # TEST PERSISTED MODEL
-        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_4"))
-        
-        assert retrained_state["training_loss[]"][-1][1] < retrained_state["training_loss[]"][-4][1]    
+        retrained_state = Trainingstate(str("testcase" + trs.combined_retraining_pattern + "_epoch_4")) 
+        assert trs["training_loss[]"][-1][1] < trs["training_loss[]"][-4][1]    
 
         files = os.listdir(".")
         dir = "."

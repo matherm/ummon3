@@ -9,7 +9,7 @@ from ummon.utils.FastDataloader import FastTensorDataLoader
 
 from .data_utils import istensor, check_data
 
-def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
+def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shuffle=True):
     """
     Does input data validation for training and validation data.
     
@@ -27,6 +27,9 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     ------
     *dataloader (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
     """
+    # can be either torch.utils.data.DataLoader or torch_geometric.data.DataLoader
+    local_data_loader = FastTensorDataLoader     
+
     # simple interface: training and test data given as numpy arrays
     if type(dataset) == tuple:
         data = dataset
@@ -68,6 +71,14 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
     
     if isinstance(dataset, torch.utils.data.dataset.Dataset):
         torch_dataset = dataset
+        # Check for torch_geometric Dataset
+        # Since torch_geometric is not required, importing this package must not throw an error!
+        try:
+            import torch_geometric
+            if isinstance(dataset, torch_geometric.data.Dataset):
+                local_data_loader = torch_geometric.data.DataLoader
+        except NameError:
+            pass
 
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
         return dataset
@@ -79,7 +90,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
         dataloader = [dataset]
     else:
         bs = len(torch_dataset) if batch_size == -1 else batch_size
-        dataloader = FastTensorDataLoader(torch_dataset, batch_size=bs, shuffle=True)        
+        dataloader = local_data_loader(torch_dataset, batch_size=bs, shuffle=shuffle)
 
     return dataloader
 
@@ -178,17 +189,30 @@ def get_numerical_information(dataset):
             X = datapoint
             y = 0
         samples = samples + [x.numpy() for x in list(X) if istensor(x)]
-        labels  = labels  + list(np.asarray(y).reshape(1,-1))
+
+        if (type(y) == tuple) or (type(y) == list):
+            for j, label in enumerate(y):
+                if i == 0:
+                    labels.append(list(np.asarray(label).reshape(1, -1)))
+                else:
+                    labels[j] = labels[j]  + list(np.asarray(label).reshape(1,-1))
+        else:
+            labels = labels  + list(np.asarray(y).reshape(1,-1))
+
     if len(samples) > 0:
         data    =  "min:"  + str(np.round(np.min(samples),1)) \
                 + " max:"  + str(np.round(np.max(samples),1)) \
                 + " mean:" + str(np.round(np.mean(samples),1)) \
                 + " std:"  + str(np.round(np.std(samples),1))
-
-        labels  =  "min:"  + str(np.round(np.min(labels),1)) \
-                + " max:"  + str(np.round(np.max(labels),1)) \
-                + " mean:" + str(np.round(np.mean(labels),1)) \
-                + " std:"  + str(np.round(np.std(labels),1)) 
+        
+        if (type(y) != tuple) and (type(y) != list):
+            labels = [labels]
+        for j, label in enumerate(labels):
+            labels[j]   =  "min:"  + str(np.round(np.min(labels[j]),1)) \
+                        + " max:"  + str(np.round(np.max(labels[j]),1)) \
+                        + " mean:" + str(np.round(np.mean(labels[j]),1)) \
+                        + " std:"  + str(np.round(np.std(labels[j]),1))
+        
         return "\n\tStats Data:{} / Labels:{}".format(data,labels)
     else:
         return "\n\tStats Dataset:{}".format(repr(dataset))
@@ -266,5 +290,16 @@ def get_data_information(dataset):
     return (get_size_information(dataset), get_shape_information(dataset), get_type_information(dataset), get_numerical_information(dataset))
 
 
-def add_dataset_to_loader_(dataloader, merge_dataset):
-    dataloader.dataset = ConcatDataset([dataloader.dataset, merge_dataset])
+def get_combined_dataloader_(dataloader, merge_dataset):
+    training_dataset = dataloader.dataset
+    batch_size = dataloader.batch_size
+
+    dataloader_validation = gen_dataloader(merge_dataset)
+    assert isinstance(dataloader_validation, torch.utils.data.DataLoader)
+    merge_dataset = dataloader_validation.dataset
+    assert isinstance(merge_dataset, torch.utils.data.Dataset)
+
+    combined_dataset = ConcatDataset([training_dataset, merge_dataset])
+    
+    return DataLoader(combined_dataset, batch_size=batch_size, shuffle=True, sampler=None, batch_sampler=None)
+    
