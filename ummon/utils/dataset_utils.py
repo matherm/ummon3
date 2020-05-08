@@ -5,6 +5,7 @@ from torch.utils.data.dataset import TensorDataset
 from torch.utils.data import ConcatDataset
 from ummon.datasets import *
 from ummon.logger import Logger
+from ummon.utils.FastDataloader import FastTensorDataLoader
 
 from .data_utils import istensor, check_data
 
@@ -78,7 +79,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger()):
         dataloader = [dataset]
     else:
         bs = len(torch_dataset) if batch_size == -1 else batch_size
-        dataloader = DataLoader(torch_dataset, batch_size=bs, shuffle=True, sampler=None, batch_sampler=None)        
+        dataloader = FastTensorDataLoader(torch_dataset, batch_size=bs, shuffle=True)        
 
     return dataloader
 

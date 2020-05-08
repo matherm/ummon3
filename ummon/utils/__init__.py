@@ -6,3 +6,4 @@ from .model_utils import *
 from .stats_utils import *
 from .time_utils import *
 from .batch_utils import *
+from .FastDataLoader import *
