@@ -28,7 +28,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shu
     *dataloader (torch.utils.data.Dataloader) : Same as input or corrected versions from input.
     """
     # can be either torch.utils.data.DataLoader or torch_geometric.data.DataLoader
-    local_data_loader = FastTensorDataLoader     
+    local_data_loader = torch.utils.data.dataloader.DataLoader     
 
     # simple interface: training and test data given as numpy arrays
     if type(dataset) == tuple:
@@ -38,30 +38,30 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shu
         elif has_labels == True and len(dataset) == 3:
             #case (X, y, bs)
             batch_size = data[2]
-            new_tuple = (data[0],data[1])
-            torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+            new_tuple = (torch.from_numpy(data[0]), torch.from_numpy(data[1]))
+            torch_dataset = FastTensorDataLoader(new_tuple , batch_size=batch_size, shuffle=shuffle)
         elif has_labels == True and len(dataset) == 2:
             if type(data[1]) == int:
                 #case (X, bs)
                 batch_size = data[1]
-                new_tuple = (data[0],)
-                torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+                new_tuple = (torch.from_numpy(data[0]),torch.zeros(len(data[0])))
+                torch_dataset = FastTensorDataLoader(new_tuple , batch_size=batch_size, shuffle=shuffle)
             else:    
                 #case (X, y)
-                new_tuple = (data[0], data[1])
-                torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+                new_tuple = (torch.from_numpy(data[0]), torch.from_numpy(data[1]))
+                torch_dataset = FastTensorDataLoader(new_tuple , batch_size=batch_size, shuffle=shuffle)
         elif has_labels == False and len(dataset) == 2:
             #case (X, bs)
             batch_size = data[1]
-            new_tuple = (data[0],)
-            torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+            new_tuple = (torch.from_numpy(data[0]),torch.zeros(len(data[0])))
+            torch_dataset = FastTensorDataLoader(new_tuple, batch_size=batch_size, shuffle=shuffle)
         elif has_labels == False and len(dataset) == 1:
             #case (X)
-            new_tuple = (data[0],)
-            torch_dataset = construct_dataset_from_tuple(new_tuple, logger=logger)
+            new_tuple = (torch.from_numpy(data[0]),torch.zeros(len(data[0])))
+            torch_dataset = FastTensorDataLoader(new_tuple , batch_size=batch_size, shuffle=shuffle)
         else:
             logger.error('Training data must be provided as a tuple (X, y, (bs)) or as PyTorch DataLoader.',TypeError)
-            
+          
 
     if isinstance(dataset, np.ndarray) or istensor(dataset):
         torch_dataset = construct_dataset_from_tuple(dataset, logger=logger)
@@ -79,12 +79,19 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shu
                 local_data_loader = torch_geometric.data.DataLoader
         except NameError:
             pass
-
+    
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
         return dataset
 
+    if isinstance(dataset, torch.utils.data.DataLoader):
+        return dataset
+
+
     if dataset is None:
         return dataset
+
+    if isinstance(torch_dataset, torch.utils.data.DataLoader):
+        return torch_dataset
 
     if type(dataset) == list:
         dataloader = [dataset]

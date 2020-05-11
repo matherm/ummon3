@@ -20,6 +20,10 @@ class FastTensorDataLoader(torch.utils.data.dataloader.DataLoader):
 
         :returns: A FastTensorDataLoader.
         """
+        if type(tensors) == tuple:
+            tensors = list(tensors)
+        if isinstance(tensors, torch.utils.data.Dataset):
+            tensors = tensors.tensors
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
         self.dataset = torch.utils.data.TensorDataset(*tensors)
