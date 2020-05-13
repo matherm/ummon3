@@ -10,12 +10,13 @@ from scipy.spatial import HalfspaceIntersection, ConvexHull
 from scipy.spatial.qhull import QhullError
 import logging
 import os
-import sklearn.metrics
+from sklearn.metrics import average_precision_score, precision_recall_curve
 from .base import *
 from enum import Enum
 import itertools
 
-__all__ = ['IoU', 'MeanDistanceError']
+__all__ = ['IoU', 'MeanDistanceError', 'BinaryAccuracy', 'BinaryIoU', 'BinaryF1', 'BinaryRecall', 'BinaryPrecision',
+           'AveragePrecision']
 
 __log = logging.getLogger('geometric_metrics_log')
 os.makedirs("./logfile/", exist_ok=True)
@@ -355,6 +356,43 @@ class MeanDistanceError(GeometricMetrics):
         error_vec = output['c'] - target['c']
         error = np.sqrt(np.dot(error_vec, error_vec))
         return error
+
+
+class AveragePrecision(ObjectDetectionMetric):
+    """Compute the Average Precision of two lists arbitrary 2d-/ 3d cuboids
+       Usage:  ap = AveragePrecision()
+               ap(cuboids_1: list, cuboids_2: list)  # cuboids wrapped in list
+       Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                       'd' -> dimension of cuboid array[length,width, ... n]
+                                       'r' -> rotation of cuboid as 3x3 rot matrix
+                                       'confidence_score' -> confidence_score of bbox
+       Attributes:
+           func (TYPE): function used in parent class
+       """
+    def __init__(self, return_prec_rec_curve=False):
+        self.func = self.calc_score
+        self.return_prec_rec_curve = return_prec_rec_curve
+
+    def calc_score(self, output_list, targets_list):
+        bbox_labels_list = []
+        scores_list = []
+        for o, t in zip(output_list, targets_list):  # iter over scenes
+            output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
+            n_pred = len(output_to_target)
+            n_fn = (target_to_output !=0).sum()
+            bbox_labels = np.ones(n_pred + n_fn)
+            bbox_labels[output_to_target == -1] = 0
+            scores = np.zeros_like(bbox_labels)
+            scores[:n_pred] = [cuboid['confidence_score'] for cuboid in o]
+
+            bbox_labels_list.append(bbox_labels)
+            scores_list.append(scores)
+
+        bbox_labels_list = np.concatenate(bbox_labels_list)
+        scores_list = np.concatenate(scores_list)
+        if self.return_prec_rec_curve:
+            return average_precision_score(bbox_labels_list, scores_list), precision_recall_curve(bbox_labels_list, scores_list)
+        return average_precision_score(bbox_labels_list, scores_list)
 
 
 if __name__ == '__main__':
