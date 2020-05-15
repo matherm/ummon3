@@ -379,9 +379,9 @@ class AveragePrecision(ObjectDetectionMetric):
         for o, t in zip(output_list, targets_list):  # iter over scenes
             output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
             n_pred = len(output_to_target)
-            n_fn = (target_to_output !=0).sum()
+            n_fn = (target_to_output != 0).sum()
             bbox_labels = np.ones(n_pred + n_fn)
-            bbox_labels[output_to_target == -1] = 0
+            bbox_labels[np.where(output_to_target == -1)] = 0
             scores = np.zeros_like(bbox_labels)
             scores[:n_pred] = [cuboid['confidence_score'] for cuboid in o]
 
