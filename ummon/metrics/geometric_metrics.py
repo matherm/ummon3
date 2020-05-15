@@ -390,9 +390,14 @@ class AveragePrecision(ObjectDetectionMetric):
 
         bbox_labels_list = np.concatenate(bbox_labels_list)
         scores_list = np.concatenate(scores_list)
+        precision, recall, threshold = precision_recall_curve(bbox_labels_list, scores_list)
+        if threshold[0] == 0:
+            average_precision = -np.sum(np.diff(recall[1:]) * np.array(precision)[1:-1])
+        else:
+            average_precision = -np.sum(np.diff(recall) * np.array(precision)[:-1])
         if self.return_prec_rec_curve:
-            return average_precision_score(bbox_labels_list, scores_list), precision_recall_curve(bbox_labels_list, scores_list)
-        return average_precision_score(bbox_labels_list, scores_list)
+            return average_precision, (precision, recall, threshold)
+        return average_precision
 
 
 if __name__ == '__main__':
