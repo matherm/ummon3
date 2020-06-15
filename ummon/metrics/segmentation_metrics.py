@@ -175,7 +175,7 @@ class JaccardScore(SegmentationMetrics):
         preds = torch.cat(preds_list).cpu()
 
         if multiclass:
-            return (jaccard_score(targets, preds, average='n weighted') * 100,
+            return (jaccard_score(targets, preds, average='weighted') * 100,
                     (jaccard_score(targets, preds, average=None) * 100).tolist())
         else:
             return jaccard_score(targets, preds, average='binary') * 100
