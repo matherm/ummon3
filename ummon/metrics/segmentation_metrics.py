@@ -201,7 +201,7 @@ def find_correspondences(o, t, iou_threshold):
         uni, count = torch.unique(pred_obj_ids[target_mask], return_counts=True)
         maybe_hits_indices = np.argwhere(count >= iou_threshold * count.sum())
 
-        for maybe_idx in maybe_hits_indices:
+        for maybe_idx in maybe_hits_indices.flatten():
             candidate_id = uni[maybe_idx]
 
             # Overlap must be at least threshold
@@ -224,7 +224,7 @@ def find_correspondences(o, t, iou_threshold):
         uni, count = torch.unique(pred_obj_ids[pred_mask], return_counts=True)
         maybe_hits_indices = np.argwhere(count >= iou_threshold * count.sum())
 
-        for maybe_idx in maybe_hits_indices:
+        for maybe_idx in maybe_hits_indices.flatten():
             candidate_id = uni[maybe_idx]
             o_i = np.argwhere(unique_pred_ids == candidate_id)[0]
 
