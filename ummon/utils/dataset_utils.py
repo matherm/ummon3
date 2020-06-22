@@ -180,13 +180,22 @@ def get_numerical_information(dataset):
         # e.g. *dataset = [((array, array),(label, label)),((array,array),(label, label)),..]
         # e.g. dataset = [(array, label),(array,label),..]
         # e.g. dataset = [array, array, ...]
-        datapoint = dataset[i]
+        datapoint = dataset[i]        
+        
         if type(datapoint) == tuple:
             X, y = datapoint   # X e (tensor, tensor) , y e (label, label)
         else:
             X = datapoint
             y = 0
-        samples = samples + [x.numpy() for x in list(X) if istensor(x)]
+        
+        if istensor(X):
+            X = [X]
+        for j, x in enumerate(X):
+            if istensor(x):
+                if i == 0:
+                    samples.append([x.numpy()])
+                else:
+                    samples[j] = samples[j] + [x.numpy()]
 
         if (type(y) == tuple) or (type(y) == list):
             for j, label in enumerate(y):
@@ -198,10 +207,11 @@ def get_numerical_information(dataset):
             labels = labels  + list(np.asarray(y).reshape(1,-1))
 
     if len(samples) > 0:
-        data    =  "min:"  + str(np.round(np.min(samples),1)) \
-                + " max:"  + str(np.round(np.max(samples),1)) \
-                + " mean:" + str(np.round(np.mean(samples),1)) \
-                + " std:"  + str(np.round(np.std(samples),1))
+        for j in range(len(samples)):
+            samples[j] =  " min:"  + str(np.round(np.min(samples[j]),1)) \
+                        + " max:"  + str(np.round(np.max(samples[j]),1)) \
+                        + " mean:" + str(np.round(np.mean(samples[j]),1)) \
+                        + " std:"  + str(np.round(np.std(samples[j]),1))
         
         if (type(y) != tuple) and (type(y) != list):
             labels = [labels]
@@ -211,7 +221,7 @@ def get_numerical_information(dataset):
                         + " mean:" + str(np.round(np.mean(labels[j]),1)) \
                         + " std:"  + str(np.round(np.std(labels[j]),1))
         
-        return "\n\tStats Data:{} / Labels:{}".format(data,labels)
+        return "\n\tStats Data:{} / Labels:{}".format(samples,labels)
     else:
         return "\n\tStats Dataset:{}".format(repr(dataset))
 
