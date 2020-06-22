@@ -32,6 +32,9 @@ class StepLR_earlystop(object):
         gamma (float): Multiplicative factor of learning rate decay. Default: 0.1.
         patience (int): Number of epochs with no improvement after
             which learning rate will be reduced. Default: 10.
+        relative_improvement (float): Factor of relative improvement of the evaluated 
+            metrics for early stopping, i.e. new metrics has to be < best - best * factor
+            (if mode `min`).
     
     The step function of this scheduler reads a peformance metric from the state dict
     of the trainer. If no improvement is seen for a 'patience' number
@@ -61,7 +64,7 @@ class StepLR_earlystop(object):
         >>>          break
     '''
     def __init__(self, optimizer, trs, model, step_size, nsteps, logger, mode='min', 
-        gamma=0.1, patience=10):
+        gamma=0.1, patience=10, relative_improvement=0):
         
         # check arguments
         if not isinstance(optimizer, Optimizer):
@@ -94,7 +97,10 @@ class StepLR_earlystop(object):
             raise ValueError('Gamma must be > 0.')        
         self.patience = int(patience)
         if self.patience < 1:
-            raise ValueError('Early stopping patience must be > 0.')   
+            raise ValueError('Early stopping patience must be > 0.')
+        self.relative_improvement = float(relative_improvement)
+        if self.relative_improvement < .0:
+            raise ValueError('Relative improvement must be >= 0.')
         
         # init scheduler state
         self.last_epoch = 0
@@ -169,10 +175,10 @@ class StepLR_earlystop(object):
             metrics = self.trs.current_validation_loss() # get current validation loss
             if metrics is None:
                 metrics = self.trs.current_training_loss() # get current training loss
-            if self.mode == 'min' and metrics < self.best:
+            if self.mode == 'min' and metrics < (self.best - self.best * self.relative_improvement):
                 self.best = metrics
                 self.num_bad_epochs = 0
-            elif self.mode == 'max' and metrics > self.best:
+            elif self.mode == 'max' and metrics > (self.best + self.best * self.relative_improvement):
                 self.best = metrics
                 self.num_bad_epochs = 0
             else:

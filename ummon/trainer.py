@@ -45,7 +45,9 @@ class Trainer:
                         OPTIONAL Specifies when the training has converged (default np.float32.min).
     combined_training_epochs : int
                         OPTIONAL Specifies how many epochs combined retraining (training and validation data) shall take place 
-                            after the usal training cycle (default 0).                        
+                            after the usal training cycle (default 0).   
+    optim_closure     : callable
+                        OPTIONAL Callable closure that gets passed to step(closure) of optimizer if torch.optim.LBFGS                      
     
     Methods
     -------
@@ -112,6 +114,8 @@ class Trainer:
                 self.trainingstate.filename = str(kwargs[key]).split(self.trainingstate.extension)[0]            
             elif key == 'use_cuda':
                 self.use_cuda = kwargs[key]
+            elif key == 'optim_closure':
+                self.optim_closure = kwargs[key]
             else:
                 raise ValueError('Unknown keyword {} in constructor.'.format(key))
         
@@ -341,7 +345,10 @@ class Trainer:
         time_dict["backprop"] = time_dict["backprop"] + (time.time() - time_dict["t"])
         
         # Take gradient descent
-        self.optimizer.step()
+        if hasattr(self, "optim_closure"):
+            self.optimizer.step(self.optim_closure)
+        else:
+            self.optimizer.step()
         
         return time_dict
 
@@ -601,7 +608,7 @@ class KamikazeTrainer(Trainer):
     """
 
     def _get_batch(self, data):
-
+        
         if type(data) == list:
             inputs, targets = data
             if self.use_cuda:
