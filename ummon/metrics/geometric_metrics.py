@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
-# @Last Modified by:   Markus Käppeler
-# @Last Modified time: 2019-12-06 14:12:55
+# @Last Modified by:   Daniel
+# @Last Modified time: 2020-07-29 23:41:11
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -14,6 +14,12 @@ from sklearn.metrics import average_precision_score, precision_recall_curve
 from .base import *
 from enum import Enum
 import itertools
+import scipy
+from packaging import version
+
+if version.parse(scipy.__version__) < version.parse("1.4.0"):
+    Rotation.as_matrix = Rotation.as_dcm
+    Rotation.from_matrix = Rotation.from_dcm
 
 __all__ = ['IoU', 'MeanDistanceError', 'BinaryAccuracy', 'BinaryIoU', 'BinaryF1', 'BinaryRecall', 'BinaryPrecision',
            'AveragePrecision']
@@ -42,17 +48,20 @@ def halfspace_representation(cuboid: dict) -> np.array:
         cuboid (dict): contains the cuboid parameters.
                     Format: 'c' -> center of cuboid array[x,y, ... n]
                             'd' -> dimension of cuboid array[length,width, ... n]
-                            'r' -> rotation of cuboid as 3x3 rot matrix
+                            'r' -> rotation of cuboid as 3x3 rot matrix or quaternion
 
     Returns:
         np.array: cuboid in half space representation (shape [4xn+1])
     """
     # create normal vectors from a sparse matrix
+    if len(cuboid['r'].shape) == 1:
+        cuboid['r'] = Rotation.from_quat(cuboid['r']).as_matrix()
     p_dim = cuboid['d'].shape[0]
     row = np.arange(2 * p_dim)
     col = np.array(list(np.arange(p_dim)) * 2)
     data = np.array([-1, 1]).repeat(p_dim)
-    norm_vec = csr_matrix((data, (row, col)), shape=(p_dim * 2, p_dim)).toarray()  # 4x2 or 6x3
+    norm_vec = csr_matrix((data, (row, col)), shape=(
+        p_dim * 2, p_dim)).toarray()  # 4x2 or 6x3
     # Rotation of axis aligned normal vectors
     norm_vec_rot = np.matmul(norm_vec, cuboid['r'].T)  # 4x2 or 6x3
 
@@ -136,7 +145,8 @@ def find_correspondences(output: list, target: list, threshold: float, sort: Sor
 
     # calculate sorting, which to match first
     if sort == Sort.CONFIDENCE_SCORE:
-        confidence_scores = np.array([cuboid['confidence_score'] for cuboid in output])
+        confidence_scores = np.array(
+            [cuboid['confidence_score'] for cuboid in output])
         confidence_scores_argsort = np.argsort(-confidence_scores)
     elif sort == Sort.IOU:
         iou_argsort = np.argsort(-ious.reshape(-1))
@@ -179,16 +189,20 @@ def calc_binary_confusion_matrix(output: list, target: list):
 
     TP = FP = FN_0 = FN_1 = TN = 0
     for o, t in zip(output, target):  # iter over scenes
-        output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
+        output_to_target, target_to_output = find_correspondences(
+            o, t, 0.5, Sort.IOU)
 
-        output_class_ids = np.array([cuboid['class_id'] for cuboid in o], dtype=bool)
+        output_class_ids = np.array([cuboid['class_id']
+                                     for cuboid in o], dtype=bool)
 
         assert (output_to_target != -1).sum() == (target_to_output != -1).sum()
         TP += np.logical_and(output_to_target != -1, output_class_ids).sum()
         FP += np.logical_and(output_to_target == -1, output_class_ids).sum()
-        FN_0 += np.logical_and(output_to_target != -1, np.logical_not(output_class_ids)).sum()
+        FN_0 += np.logical_and(output_to_target != -1,
+                               np.logical_not(output_class_ids)).sum()
         FN_1 += (target_to_output == -1).sum()
-        TN += np.logical_and(output_to_target == -1, np.logical_not(output_class_ids)).sum()
+        TN += np.logical_and(output_to_target == -1,
+                             np.logical_not(output_class_ids)).sum()
     return TP, FP, FN_0, FN_1, TN
 
 
@@ -309,9 +323,15 @@ class BinaryF1(ObjectDetectionMetric):
 
 
 class GeometricMetrics(OnlineMetric):
+    """ A on-line metric must return a single value. 
+        The ummon online average function requires this behavior.  
+        ->  This function calculates the mean per object and minibatch. 
+            The averaging over the minibatches is done via ummon.utils.average_utils function
+    """
+
     def __call__(self, output: list, target: list):
         results = [self.func(c1, c2) for c1, c2 in zip(output, target)]
-        return results
+        return np.mean(results)
 
     @classmethod
     def __repr__(cls):
@@ -369,6 +389,7 @@ class AveragePrecision(ObjectDetectionMetric):
        Attributes:
            func (TYPE): function used in parent class
        """
+
     def __init__(self, return_prec_rec_curve=False):
         self.func = self.calc_score
         self.return_prec_rec_curve = return_prec_rec_curve
@@ -377,7 +398,8 @@ class AveragePrecision(ObjectDetectionMetric):
         bbox_labels_list = []
         scores_list = []
         for o, t in zip(output_list, targets_list):  # iter over scenes
-            output_to_target, target_to_output = find_correspondences(o, t, 0.5, Sort.IOU)
+            output_to_target, target_to_output = find_correspondences(
+                o, t, 0.5, Sort.IOU)
             n_pred = len(output_to_target)
             n_fn = (target_to_output == -1).sum()
             bbox_labels = np.ones(n_pred + n_fn)
@@ -390,11 +412,14 @@ class AveragePrecision(ObjectDetectionMetric):
 
         bbox_labels_list = np.concatenate(bbox_labels_list)
         scores_list = np.concatenate(scores_list)
-        precision, recall, threshold = precision_recall_curve(bbox_labels_list, scores_list)
+        precision, recall, threshold = precision_recall_curve(
+            bbox_labels_list, scores_list)
         if threshold[0] == 0:
-            average_precision = -np.sum(np.diff(recall[1:]) * np.array(precision)[1:-1])
+            average_precision = - \
+                np.sum(np.diff(recall[1:]) * np.array(precision)[1:-1])
         else:
-            average_precision = -np.sum(np.diff(recall) * np.array(precision)[:-1])
+            average_precision = - \
+                np.sum(np.diff(recall) * np.array(precision)[:-1])
         if self.return_prec_rec_curve:
             return average_precision, (precision, recall, threshold)
         return average_precision
@@ -405,20 +430,24 @@ if __name__ == '__main__':
     # prepare demo data
     out = [dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                r=Rotation.from_euler(
+                    'xyz', [45, 10, 30], degrees=True).as_matrix(),
                 class_id=1),
            dict(c=np.array([0., 1., 2.]),
                 d=np.array([4., 8., 10.]),
-                r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                r=Rotation.from_euler(
+                    'xyz', [45, 10, 30], degrees=True).as_matrix(),
                 class_id=1)
            ]
     target = [dict(c=np.array([0., 1., 2.]),
                    d=np.array([4., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 10, 30], degrees=True).as_dcm(),
+                   r=Rotation.from_euler(
+                       'xyz', [45, 10, 30], degrees=True).as_matrix(),
                    class_id=1),
               dict(c=np.array([0., 1.5, 2.]),
                    d=np.array([8., 8., 10.]),
-                   r=Rotation.from_euler('xyz', [45, 20, 30], degrees=True).as_dcm(),
+                   r=Rotation.from_euler(
+                       'xyz', [45, 20, 30], degrees=True).as_matrix(),
                    class_id=1)
               ]
     # usage example
