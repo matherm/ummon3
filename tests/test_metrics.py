@@ -2,7 +2,7 @@
 # @Author: Daniel Dold and Markus Käppeler
 # @Date:   2019-11-20 15:42:51
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-07-29 23:31:16
+# @Last Modified time: 2020-07-30 09:26:46
 import numpy as np
 from scipy.spatial.transform import Rotation
 from sklearn import preprocessing
@@ -326,5 +326,5 @@ class TestMetrics:
                      r=Rotation.from_euler('xyz', [45, 45, 30], degrees=True).as_matrix())]
         # test
         result = iou(box1, box2)
-        expected_res = np.mean([4 / 6, 1, 0])
+        expected_res = [4 / 6, 1, 0]
         assert np.isclose(result, expected_res).all()

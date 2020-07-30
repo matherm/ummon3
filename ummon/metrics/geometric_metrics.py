@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-07-29 23:41:11
+# @Last Modified time: 2020-07-30 09:07:03
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -323,15 +323,9 @@ class BinaryF1(ObjectDetectionMetric):
 
 
 class GeometricMetrics(OnlineMetric):
-    """ A on-line metric must return a single value. 
-        The ummon online average function requires this behavior.  
-        ->  This function calculates the mean per object and minibatch. 
-            The averaging over the minibatches is done via ummon.utils.average_utils function
-    """
-
     def __call__(self, output: list, target: list):
         results = [self.func(c1, c2) for c1, c2 in zip(output, target)]
-        return np.mean(results)
+        return results
 
     @classmethod
     def __repr__(cls):
