@@ -27,8 +27,9 @@ class OnlineAverage():
     def __init__(self):
         super().__init__()
         self.n_ = 0.0
+        self.avg_ = 0.0
 
-    def __call__(self, value, avg):
+    def __call__(self, value):
         if type(value) is torch.Tensor:
             mvalue = torch.mean(value).item()
             try:
@@ -38,16 +39,20 @@ class OnlineAverage():
             except Exception as e:
                 raise e
         elif type(value) is list or type(value) is np.ndarray:
-            mvalue = np.mean(value)
             items = len(value)
+            if items == 0:
+                return self.avg_
+            else:
+                mvalue = np.mean(value)
         else:
             mvalue = value
             items = 1
         self.n_ += items
-        return avg + (mvalue - avg) * items / self.n_
+        return self.avg_ + (mvalue - self.avg_) * items / self.n_
 
     def reset(self):
         self.n_ = 0
+        self.avg_ = 0.0
 
 
 def moving_average(t, ma, value, buffer):

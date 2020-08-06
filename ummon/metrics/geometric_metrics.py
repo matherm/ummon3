@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-07-30 09:07:03
+# @Last Modified time: 2020-08-06 16:31:03
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -16,6 +16,8 @@ from enum import Enum
 import itertools
 import scipy
 from packaging import version
+from ummon.utils.average_utils import OnlineAverage
+import itertools
 
 if version.parse(scipy.__version__) < version.parse("1.4.0"):
     Rotation.as_matrix = Rotation.as_dcm
@@ -116,6 +118,7 @@ def iou(cuboid1: dict, cuboid2: dict) -> float:
 class Sort(Enum):
     IOU = 1  # Sort by IOU
     CONFIDENCE_SCORE = 2  # Sort by output confidence score
+    DISTANCE = 3
 
 
 def find_correspondences(output: list, target: list, threshold: float, sort: Sort) -> tuple:
@@ -137,35 +140,45 @@ def find_correspondences(output: list, target: list, threshold: float, sort: Sor
     num_output = len(output)
     num_target = len(target)
 
+    if sort == Sort.DISTANCE:
+        similarity_measure = MeanDistanceError().mean_distance_error
+    else:
+        similarity_measure = iou
+
     # calculate all ious
-    ious = np.zeros((num_target, num_output))
+    sim_m = np.zeros((num_target, num_output))
     for i_target, cuboid_target in enumerate(target):
         for i_output, cuboid_output in enumerate(output):
-            ious[i_target, i_output] = iou(cuboid_target, cuboid_output)
+            sim_m[i_target, i_output] = similarity_measure(
+                cuboid_output, cuboid_target)
 
     # calculate sorting, which to match first
     if sort == Sort.CONFIDENCE_SCORE:
         confidence_scores = np.array(
             [cuboid['confidence_score'] for cuboid in output])
         confidence_scores_argsort = np.argsort(-confidence_scores)
-    elif sort == Sort.IOU:
-        iou_argsort = np.argsort(-ious.reshape(-1))
+    elif sort == Sort.IOU: 
+        iou_argsort = np.argsort(-sim_m.reshape(-1))
+    elif sort == Sort.DISTANCE:
+        iou_argsort = np.argsort(sim_m.reshape(-1))
+    else:
+        raise NotImplemented
 
     # maps indices from output to target and the other way round for each correspondence
-    output_to_target = np.full((num_output,), -1)
-    target_to_output = np.full((num_target,), -1)
+    output_to_target = np.full((num_output,), float('inf'))
+    target_to_output = np.full((num_target,), float('inf'))
 
     for i, (output_i, target_i) in enumerate(itertools.product(list(range(num_output)), list(range(num_target)))):
         # Get target t and output o indices
         if sort == Sort.CONFIDENCE_SCORE:
             t = target_i
             o = confidence_scores_argsort[output_i]
-        elif sort == Sort.IOU:
+        elif sort == Sort.IOU or sort == Sort.DISTANCE:
             t = int(iou_argsort[i] / num_output)
             o = iou_argsort[i] % num_output
 
         # to count as correct detection area the iou must exceed the threshold
-        if ious[t, o] > threshold and output_to_target[o] == -1 and target_to_output[t] == -1:
+        if sim_m[t, o] > threshold and output_to_target[o] == float('inf') and target_to_output[t] == float('inf'):
             output_to_target[o] = t
             target_to_output[t] = o
 
@@ -323,9 +336,31 @@ class BinaryF1(ObjectDetectionMetric):
 
 
 class GeometricMetrics(OnlineMetric):
+    def __init__(self,
+                 find_correspondences__th=-1.0,
+                 find_correspondences__sort: Sort=Sort.DISTANCE):
+        self.threshold_ = find_correspondences__th
+        self.sort_ = find_correspondences__sort
+
     def __call__(self, output: list, target: list):
-        results = [self.func(c1, c2) for c1, c2 in zip(output, target)]
+        results = [self.metric_per_item(c1, c2)
+                   for c1, c2 in zip(output, target)]
         return results
+
+    def metric_per_item(self, output_i, target_i):  # item out of minibatch
+        o_to_t, t_to_o = find_correspondences(output_i,
+                                              target_i,
+                                              threshold=self.threshold_,
+                                              sort=self.sort_)
+        # ignore targets without a corresponding prediction
+        mask = ~np.isinf(t_to_o)
+        sort = t_to_o[mask].astype(np.int)
+        # if len(sort) == 0:
+        #     return [0.0]
+        output_i = np.array(output_i)[sort]
+        target_i = np.array(target_i)[mask]
+        # compute metric per item
+        return [self.func(o, t) for o, t in zip(output_i, target_i)]
 
     @classmethod
     def __repr__(cls):
@@ -343,15 +378,16 @@ class IoU(GeometricMetrics):
         func (TYPE): function used in parent class
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.func = self.intersection_over_union
+        super().__init__(**kwargs)
 
     @staticmethod
     def intersection_over_union(output: dict, target: dict):
         return iou(output, target)
 
 
-class MeanDistanceError(GeometricMetrics):
+class DistanceError(GeometricMetrics):
     """Compute the geometric distance of two cuboids
     Usage:  dist = MeanDistanceError()
             dist(cuboids_1: list, cuboids_2: list) # cuboids wrapped in list
@@ -362,14 +398,31 @@ class MeanDistanceError(GeometricMetrics):
         func (TYPE): function used in parent class
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.func = self.mean_distance_error
+        super().__init__(**kwargs)
 
     @staticmethod
     def mean_distance_error(output: dict, target: dict):
         error_vec = output['c'] - target['c']
         error = np.sqrt(np.dot(error_vec, error_vec))
         return error
+
+
+class MeanDistanceError(DistanceError):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.avg_f = OnlineAverage()
+        self.avg_f.reset()
+        raise
+        # ToDo
+
+    def __call__(self, output: list, target: list)
+        res_list = super().__call__(output, target)
+        return self.avg_f(list(itertools.chain(*res_list)))
+
+    def reset(self):
+        self.avg_f.reset()
 
 
 class AveragePrecision(ObjectDetectionMetric):
