@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-08-11 11:48:33
+# @Last Modified time: 2020-08-11 14:17:33
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -432,13 +432,18 @@ class MeanDimensionError(GeometricMetrics):
         func (TYPE): function used in parent class
     """
 
-    def __init__(self, dimension, **kwargs):
+    def __init__(self,
+                 dimension,
+                 target_dimension_order=np.array([0, 1, 2]),
+                 **kwargs):
         self.func = self.dimension_error
         self.dimension_ = dimension
+        self.td_order_ = target_dimension_order
         super().__init__(**kwargs)
 
     def dimension_error(self, output: dict, target: dict):
-        error = output['d'][self.dimension_] - target['d'][self.dimension_]
+        error = output['d'][self.dimension_] - \
+            target['d'][self.td_order_][self.dimension_]
         return np.abs(error)
 
     def __repr__(self):
