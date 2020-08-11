@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-08-11 14:17:33
+# @Last Modified time: 2020-08-11 15:31:56
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -57,7 +57,9 @@ def halfspace_representation(cuboid: dict) -> np.array:
     """
     # create normal vectors from a sparse matrix
     if len(cuboid['r'].shape) == 1:
-        cuboid['r'] = Rotation.from_quat(cuboid['r']).as_matrix()
+        cub_rot_m = Rotation.from_quat(cuboid['r']).as_matrix()
+    else:
+        cub_rot_m = cuboid['r']
     p_dim = cuboid['d'].shape[0]
     row = np.arange(2 * p_dim)
     col = np.array(list(np.arange(p_dim)) * 2)
@@ -65,12 +67,12 @@ def halfspace_representation(cuboid: dict) -> np.array:
     norm_vec = csr_matrix((data, (row, col)), shape=(
         p_dim * 2, p_dim)).toarray()  # 4x2 or 6x3
     # Rotation of axis aligned normal vectors
-    norm_vec_rot = np.matmul(norm_vec, cuboid['r'].T)  # 4x2 or 6x3
+    norm_vec_rot = np.matmul(norm_vec, cub_rot_m.T)  # 4x2 or 6x3
 
     # compute d parameter of plane representation
     # p1 and p2 span the bounding cuboid volume (diagonal to each other)
-    p1 = cuboid['c'] + np.matmul(-(cuboid['d'] / 2), cuboid['r'].T)
-    p2 = cuboid['c'] + np.matmul((cuboid['d'] / 2), cuboid['r'].T)
+    p1 = cuboid['c'] + np.matmul(-(cuboid['d'] / 2), cub_rot_m.T)
+    p2 = cuboid['c'] + np.matmul((cuboid['d'] / 2), cub_rot_m.T)
     # following possible because of special normal matrix order
     d1 = -np.matmul(norm_vec_rot[0:p_dim, :], p1.reshape(-1, 1))
     d2 = -np.matmul(norm_vec_rot[p_dim:p_dim * 2, :], p2.reshape(-1, 1))
