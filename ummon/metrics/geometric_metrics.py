@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-08-06 16:31:03
+# @Last Modified time: 2020-08-11 11:48:33
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -23,7 +23,7 @@ if version.parse(scipy.__version__) < version.parse("1.4.0"):
     Rotation.as_matrix = Rotation.as_dcm
     Rotation.from_matrix = Rotation.from_dcm
 
-__all__ = ['IoU', 'MeanDistanceError', 'BinaryAccuracy', 'BinaryIoU', 'BinaryF1', 'BinaryRecall', 'BinaryPrecision',
+__all__ = ['MeanIoU', 'MeanDistanceError', 'BinaryAccuracy', 'BinaryIoU', 'BinaryF1', 'BinaryRecall', 'BinaryPrecision',
            'AveragePrecision']
 
 __log = logging.getLogger('geometric_metrics_log')
@@ -157,7 +157,7 @@ def find_correspondences(output: list, target: list, threshold: float, sort: Sor
         confidence_scores = np.array(
             [cuboid['confidence_score'] for cuboid in output])
         confidence_scores_argsort = np.argsort(-confidence_scores)
-    elif sort == Sort.IOU: 
+    elif sort == Sort.IOU:
         iou_argsort = np.argsort(-sim_m.reshape(-1))
     elif sort == Sort.DISTANCE:
         iou_argsort = np.argsort(sim_m.reshape(-1))
@@ -208,13 +208,16 @@ def calc_binary_confusion_matrix(output: list, target: list):
         output_class_ids = np.array([cuboid['class_id']
                                      for cuboid in o], dtype=bool)
 
-        assert (output_to_target != -1).sum() == (target_to_output != -1).sum()
-        TP += np.logical_and(output_to_target != -1, output_class_ids).sum()
-        FP += np.logical_and(output_to_target == -1, output_class_ids).sum()
-        FN_0 += np.logical_and(output_to_target != -1,
+        assert (~np.isinf(output_to_target)).sum() == (
+            ~np.isinf(target_to_output)).sum()
+        TP += np.logical_and(~(np.isinf(output_to_target)),
+                             output_class_ids).sum()
+        FP += np.logical_and(np.isinf(output_to_target),
+                             output_class_ids).sum()
+        FN_0 += np.logical_and(~(np.isinf(output_to_target)),
                                np.logical_not(output_class_ids)).sum()
-        FN_1 += (target_to_output == -1).sum()
-        TN += np.logical_and(output_to_target == -1,
+        FN_1 += (np.isinf(target_to_output)).sum()
+        TN += np.logical_and(np.isinf(output_to_target),
                              np.logical_not(output_class_ids)).sum()
     return TP, FP, FN_0, FN_1, TN
 
@@ -341,13 +344,24 @@ class GeometricMetrics(OnlineMetric):
                  find_correspondences__sort: Sort=Sort.DISTANCE):
         self.threshold_ = find_correspondences__th
         self.sort_ = find_correspondences__sort
+        self.avg_f = OnlineAverage()
+        self.avg_f2 = OnlineAverage()
+        self.avg_f.reset()
+        self.avg_f2.reset()
 
     def __call__(self, output: list, target: list):
-        results = [self.metric_per_item(c1, c2)
+        results = [self.__metric_per_item(c1, c2)
                    for c1, c2 in zip(output, target)]
-        return results
+        mean = self.avg_f(list(itertools.chain(*results)))
+        mean2 = self.avg_f2(np.power(list(itertools.chain(*results)), 2))
+        var = mean2 - mean**2
+        return mean, var
 
-    def metric_per_item(self, output_i, target_i):  # item out of minibatch
+    def reset(self):
+        self.avg_f.reset()
+        self.avg_f2.reset()
+
+    def __metric_per_item(self, output_i, target_i):  # item out of minibatch
         o_to_t, t_to_o = find_correspondences(output_i,
                                               target_i,
                                               threshold=self.threshold_,
@@ -355,8 +369,6 @@ class GeometricMetrics(OnlineMetric):
         # ignore targets without a corresponding prediction
         mask = ~np.isinf(t_to_o)
         sort = t_to_o[mask].astype(np.int)
-        # if len(sort) == 0:
-        #     return [0.0]
         output_i = np.array(output_i)[sort]
         target_i = np.array(target_i)[mask]
         # compute metric per item
@@ -367,7 +379,7 @@ class GeometricMetrics(OnlineMetric):
         return cls.__name__
 
 
-class IoU(GeometricMetrics):
+class MeanIoU(GeometricMetrics):
     """Compute the Intersection over Union (IoU) of two arbitrary 2d-/ 3d cuboids
     Usage:  iou = IoU()
             iou(cuboids_1: list, cuboids_2: list)  # cuboids wrapped in list
@@ -387,7 +399,7 @@ class IoU(GeometricMetrics):
         return iou(output, target)
 
 
-class DistanceError(GeometricMetrics):
+class MeanDistanceError(GeometricMetrics):
     """Compute the geometric distance of two cuboids
     Usage:  dist = MeanDistanceError()
             dist(cuboids_1: list, cuboids_2: list) # cuboids wrapped in list
@@ -409,20 +421,28 @@ class DistanceError(GeometricMetrics):
         return error
 
 
-class MeanDistanceError(DistanceError):
-    def __init__(self, **kwargs):
+class MeanDimensionError(GeometricMetrics):
+    """Compute the geometric distance of two cuboids
+    Usage:  dist = MeanDistanceError()
+            dist(cuboids_1: list, cuboids_2: list) # cuboids wrapped in list
+    Cuboid parameters (dict):Format:'c' -> center of cuboid array[x,y, ... n]
+                                    'd' -> dimension of cuboid array[length,width, ... n]
+                                    'r' -> rotation of cuboid as 3x3 rot matrix
+    Attributes:
+        func (TYPE): function used in parent class
+    """
+
+    def __init__(self, dimension, **kwargs):
+        self.func = self.dimension_error
+        self.dimension_ = dimension
         super().__init__(**kwargs)
-        self.avg_f = OnlineAverage()
-        self.avg_f.reset()
-        raise
-        # ToDo
 
-    def __call__(self, output: list, target: list)
-        res_list = super().__call__(output, target)
-        return self.avg_f(list(itertools.chain(*res_list)))
+    def dimension_error(self, output: dict, target: dict):
+        error = output['d'][self.dimension_] - target['d'][self.dimension_]
+        return np.abs(error)
 
-    def reset(self):
-        self.avg_f.reset()
+    def __repr__(self):
+        return self.__class__.__name__ + "_dim_{}".format(self.dimension_)
 
 
 class AveragePrecision(ObjectDetectionMetric):

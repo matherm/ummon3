@@ -48,7 +48,8 @@ class OnlineAverage():
             mvalue = value
             items = 1
         self.n_ += items
-        return self.avg_ + (mvalue - self.avg_) * items / self.n_
+        self.avg_ = self.avg_ + (mvalue - self.avg_) * items / self.n_
+        return self.avg_
 
     def reset(self):
         self.n_ = 0

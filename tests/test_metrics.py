@@ -2,11 +2,11 @@
 # @Author: Daniel Dold and Markus Käppeler
 # @Date:   2019-11-20 15:42:51
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-07-30 09:26:46
+# @Last Modified time: 2020-08-11 11:55:02
 import numpy as np
 from scipy.spatial.transform import Rotation
 from sklearn import preprocessing
-from ummon.metrics.geometric_metrics import halfspace_representation, intersection, IoU, iou, calc_binary_confusion_matrix, find_correspondences, Sort, BinaryIoU, BinaryAccuracy, BinaryPrecision, BinaryRecall
+from ummon.metrics.geometric_metrics import halfspace_representation, intersection, MeanIoU, iou, calc_binary_confusion_matrix, find_correspondences, Sort, BinaryIoU, BinaryAccuracy, BinaryPrecision, BinaryRecall
 import pytest
 import logging
 import scipy
@@ -305,7 +305,7 @@ class TestMetrics:
 
     def test_intersection_over_union(self):
         # prepare
-        iou = IoU()
+        iou = MeanIoU()
         box1 = [dict(c=np.array([0., 1., 4.]),
                      d=np.array([4., 8., 10.]),
                      r=Rotation.from_euler('xyz', [0, 0, 30], degrees=True).as_matrix()),
@@ -325,6 +325,6 @@ class TestMetrics:
                      d=np.array([4., 8., 10.]),
                      r=Rotation.from_euler('xyz', [45, 45, 30], degrees=True).as_matrix())]
         # test
-        result = iou(box1, box2)
-        expected_res = [4 / 6, 1, 0]
+        result = iou([box1], [box2])
+        expected_res = np.mean([4 / 6, 1, 0]), np.var([4 / 6, 1, 0])
         assert np.isclose(result, expected_res).all()
