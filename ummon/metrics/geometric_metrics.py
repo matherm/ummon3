@@ -2,7 +2,7 @@
 # @Author: Daniel Dold, Markus Käppeler
 # @Date:   2019-11-20 10:08:49
 # @Last Modified by:   Daniel
-# @Last Modified time: 2020-08-11 15:31:56
+# @Last Modified time: 2020-08-12 13:18:57
 import numpy as np
 from scipy.spatial.transform import Rotation
 from scipy.sparse import csr_matrix
@@ -136,7 +136,7 @@ def find_correspondences(output: list, target: list, threshold: float, sort: Sor
     Returns:
         tuple (2,): tuple of output_to_target and target_to_ouput. Each is a np array and maps indices
             from output to target and the other way round for each correspondence.
-            Array contains -1 if there is no match for the output or target.
+            Array contains 'inf' if there is no match for the output or target.
 
     """
     num_output = len(output)
@@ -464,30 +464,30 @@ class AveragePrecision(ObjectDetectionMetric):
            func (TYPE): function used in parent class
        """
 
-    def __init__(self, return_prec_rec_curve=False):
+    def __init__(self, return_prec_rec_curve=False, iou_th=0.5):
         self.func = self.calc_score
         self.return_prec_rec_curve = return_prec_rec_curve
+        self.iou_th_ = iou_th
 
     def calc_score(self, output_list, targets_list):
-        bbox_labels_list = []
+        y_true_list = []
         scores_list = []
-        for o, t in zip(output_list, targets_list):  # iter over scenes
+        for o, t in zip(output_list, targets_list):  # iter over single item
             output_to_target, target_to_output = find_correspondences(
-                o, t, 0.5, Sort.IOU)
+                o, t, self.iou_th_, Sort.IOU)
             n_pred = len(output_to_target)
-            n_fn = (target_to_output == -1).sum()
-            bbox_labels = np.ones(n_pred + n_fn)
-            bbox_labels[np.where(output_to_target == -1)] = 0
-            scores = np.zeros_like(bbox_labels)
+            n_fn = np.isinf(target_to_output).sum()
+            y_true = np.ones(n_pred + n_fn)
+            y_true[:n_pred][np.isinf(output_to_target)] = 0
+
+            scores = np.zeros_like(y_true)
             scores[:n_pred] = [cuboid['confidence_score'] for cuboid in o]
 
-            bbox_labels_list.append(bbox_labels)
-            scores_list.append(scores)
+            y_true_list.extend(y_true)
+            scores_list.extend(scores)
 
-        bbox_labels_list = np.concatenate(bbox_labels_list)
-        scores_list = np.concatenate(scores_list)
         precision, recall, threshold = precision_recall_curve(
-            bbox_labels_list, scores_list)
+            y_true_list, scores_list)
         if threshold[0] == 0:
             average_precision = - \
                 np.sum(np.diff(recall[1:]) * np.array(precision)[1:-1])
@@ -497,6 +497,26 @@ class AveragePrecision(ObjectDetectionMetric):
         if self.return_prec_rec_curve:
             return average_precision, (precision, recall, threshold)
         return average_precision
+
+    def __repr__(self):
+        return self.__class__.__name__ + "_{}".format(self.iou_th_)
+
+
+class DataCollector(OnlineMetric):
+    """docstring for DataCollector"""
+    output_list = []
+    target_list = []
+
+    @classmethod
+    def __call__(cls, output, target):
+        cls.output_list.extend(output)
+        cls.target_list.extend(target)
+        return cls
+
+    @classmethod
+    def reset(cls):
+        cls.output_list = []
+        cls.target_list = []
 
 
 if __name__ == '__main__':
