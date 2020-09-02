@@ -77,7 +77,7 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shu
             import torch_geometric
             if isinstance(dataset, torch_geometric.data.Dataset):
                 local_data_loader = torch_geometric.data.DataLoader
-        except NameError:
+        except Error:
             pass
     
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
