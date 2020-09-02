@@ -9,13 +9,13 @@ class TestSystem(unittest.TestCase):
 
     def test_framework_system_environment(self):
 
-        developer_tested_pytorch_versions = ["0.4.0", "0.4.1", "1.0.0", "1.2.0", "1.4.0"]
+        developer_tested_pytorch_versions = ["0.4.0", "0.4.1", "1.0.0", "1.2.0", "1.4.0", "1.5.0"]
         assert torch.__version__ in developer_tested_pytorch_versions
 
         developer_tested_numpy_versions =  ["1.13.3", "1.14.0", "1.14.3", "1.15.1", "1.16.3"]
         assert np.version.version in developer_tested_numpy_versions
 
-        developer_tested_torchvision_versions =  ['0.2.1', "0.4.0", "0.5.0"]
+        developer_tested_torchvision_versions =  ['0.2.1', "0.4.0", "0.5.0", "0.6.0"]
 
         split_point = torchvision.__version__.split('.')
         split_regex = re.split(r'[a-z]', split_point[2])

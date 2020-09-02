@@ -52,7 +52,7 @@ class Predictor:
         try:
             import torch_geometric
             if not isinstance(dataloader, torch_geometric.data.DataLoader):
-                assert uu.check_precision(DataLoader, model)
+                assert uu.check_precision(dataloader, model)
         except NameError:
             assert uu.check_precision(dataloader, model)
 

@@ -69,7 +69,7 @@ def example(argv = DefaultValues()):
     else:
         # PREPARE TEST DATA
         Xtr = np.arange(1000).reshape(1000,1).astype(np.float32)
-        ytr = np.sin(Xtr) + np.random.normal(0,1, size=Xtr.shape)
+        ytr = np.sin(Xtr) + np.random.normal(0,1, size=Xtr.shape).astype(np.float32)
 
         Xts = np.arange(100).reshape(100,1).astype(np.float32)
         yts = np.sin(Xts)
