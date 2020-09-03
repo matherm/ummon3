@@ -79,6 +79,8 @@ def gen_dataloader(dataset, batch_size=-1, has_labels=True, logger=Logger(), shu
                 local_data_loader = torch_geometric.data.DataLoader
         except ImportError:
             pass
+        except ModuleNotFoundError:
+            pass
     
     if isinstance(dataset, torch.utils.data.dataloader.DataLoader):
         return dataset

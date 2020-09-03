@@ -53,7 +53,9 @@ class Predictor:
             import torch_geometric
             if not isinstance(dataloader, torch_geometric.data.DataLoader):
                 assert uu.check_precision(dataloader, model)
-        except NameError:
+        except ImportError:
+            assert uu.check_precision(dataloader, model)
+        except ModuleNotFoundError:
             assert uu.check_precision(dataloader, model)
 
         use_cuda = next(model.parameters()).is_cuda
